@@ -8,6 +8,7 @@ version: 1.0
 --------------------------------------------
 dependencies:
 
+https://github.com/Itseez/opencv/archive/2.4.11.zip (OpenCV 2.4.11)
 https://github.com/schdomin/g2o
 https://github.com/grisetti/thin_drivers
 fps_mapper (txt_io library)
