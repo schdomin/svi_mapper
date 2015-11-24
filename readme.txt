@@ -5,7 +5,7 @@
 
 
 --------------------------------------------
-build sequence:
+build sequence (from project root):
 
 
 mkdir build
