@@ -6,7 +6,7 @@ svi_mapper version: 1.0
 --------------------------------------------
 dependencies:
 
-     OpenCV 2.4.11: https://github.com/Itseez/opencv/archive/2.4.11.zip
+     OpenCV 2.4.11: https://github.com/Itseez/opencv/archive/2.4.11.zip (or 2.4.8)
                g2o: https://github.com/schdomin/g2o (fork)
 thin_visensor_node: https://github.com/grisetti/thin_drivers
         fps_mapper: https://www.google.ch (txt_io library)
