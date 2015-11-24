@@ -10,7 +10,8 @@ dependencies:
 
 https://github.com/schdomin/g2o
 https://github.com/grisetti/thin_drivers
-fps_mapper
+fps_mapper (txt_io library)
+http://www.ros.org/ (dataset acquisition)
 
 
 
