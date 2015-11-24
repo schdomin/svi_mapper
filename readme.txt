@@ -5,8 +5,16 @@
 
 
 --------------------------------------------
-build sequence (from project root):
+dependencies:
 
+https://github.com/schdomin/g2o
+https://github.com/grisetti/thin_drivers
+fps_mapper
+
+
+
+--------------------------------------------
+build sequence (from project root):
 
 mkdir build
 cd build
