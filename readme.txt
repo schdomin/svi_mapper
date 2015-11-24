@@ -8,11 +8,11 @@ version: 1.0
 --------------------------------------------
 dependencies:
 
-OpenCV 2.4.11: https://github.com/Itseez/opencv/archive/2.4.11.zip
-g2o: https://github.com/schdomin/g2o
+     OpenCV 2.4.11: https://github.com/Itseez/opencv/archive/2.4.11.zip
+               g2o: https://github.com/schdomin/g2o
 thin_visensor_node: https://github.com/grisetti/thin_drivers
-fps_mapper: https://www.google.ch (txt_io library)
-ROS: http://www.ros.org (dataset acquisition)
+        fps_mapper: https://www.google.ch (txt_io library)
+               ROS: http://www.ros.org (dataset acquisition)
 
 
 
