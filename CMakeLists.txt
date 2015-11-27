@@ -54,8 +54,8 @@ message(" ")
 
 
 #ds add c++11 support, no optimization, all warnings
-#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -fopenmp)
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -fopenmp -DNDEBUG)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -fopenmp)
+#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -fopenmp -DNDEBUG)
 
 
 
@@ -75,7 +75,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 #ds source files
 set(SOURCEFILES
-src/configuration/CConfigurationCamera.cpp
 src/types/CLandmark.cpp
 src/types/CKeyFrame.cpp
 src/utility/CLogger.cpp

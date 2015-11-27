@@ -6,12 +6,15 @@
 #include "core/CTrackerStereo.h"
 #include "exceptions/CExceptionLogfileTree.h"
 #include "utility/CIMUInterpolator.h"
+#include "utility/CParameterBase.h"
 
 //ds command line parsing (setting params IN/OUT)
 void setParametersNaive( const int& p_iArgc,
                          char** const p_pArgv,
                          std::string& p_strMode,
                          std::string& p_strInfileCameraIMUMessages );
+
+void printHelp( );
 
 //ds speed tests
 void testSpeedEigen( );
@@ -20,13 +23,11 @@ int32_t main( int32_t argc, char **argv )
 {
     //assert( false );
 
-    //ds pwd info
-    CLogger::openBox( );
-    std::printf( "(main) launched: %s\n", argv[0] );
-
     //ds defaults
     std::string strMode              = "benchmark";
     std::string strInfileMessageDump = "";
+    std::string strConfigurationCameraLEFT  = "../hardware_parameters/vi_sensor_camera_left.txt";
+    std::string strConfigurationCameraRIGHT = "../hardware_parameters/vi_sensor_camera_right.txt";
 
     //ds get params
     setParametersNaive( argc, argv, strMode, strInfileMessageDump );
@@ -35,7 +36,7 @@ int32_t main( int32_t argc, char **argv )
     if( strInfileMessageDump.empty( ) )
     {
         std::printf( "(main) no message file specified\n" );
-        std::printf( "(main) terminated: %s\n", argv[0] );
+        printHelp( );
         std::fflush( stdout );
         return 1;
     }
@@ -72,7 +73,7 @@ int32_t main( int32_t argc, char **argv )
         {
             //ds exit
             std::printf( "(main) interactive mode not supported, aborting\n" );
-            std::printf( "(main) terminated: %s\n", argv[0] );
+            printHelp( );
             std::fflush( stdout);
             return 0;
         }
@@ -85,8 +86,8 @@ int32_t main( int32_t argc, char **argv )
     //ds escape here on failure
     if( !cMessageReader.good( ) )
     {
-        std::printf( "(main) unable to open message file: %s\n", strInfileMessageDump.c_str( ) );
-        std::printf( "(main) terminated: %s\n", argv[0] );
+        std::printf( "(main) unable to open message file: '%s'\n", strInfileMessageDump.c_str( ) );
+        printHelp( );
         std::fflush( stdout );
         return 1;
     }
@@ -101,11 +102,40 @@ int32_t main( int32_t argc, char **argv )
     CLogger::CLogIMUInput::open( );*/
 
     //ds log configuration
-    std::printf( "(main) strMode              := '%s'\n", strMode.c_str( ) );
-    std::printf( "(main) strInfileMessageDump := '%s'\n", strInfileMessageDump.c_str( ) );
+    CLogger::openBox( );
+    std::printf( "(main) strConfigurationCameraLEFT  := '%s'\n", strConfigurationCameraLEFT.c_str( ) );
+    std::printf( "(main) strConfigurationCameraRIGHT := '%s'\n", strConfigurationCameraRIGHT.c_str( ) );
+    std::printf( "(main) strInfileMessageDump        := '%s'\n", strInfileMessageDump.c_str( ) );
     //std::printf( "(main) openCV build information: \n%s", cv::getBuildInformation( ).c_str( ) );
     std::fflush( stdout );
     CLogger::closeBox( );
+
+    try
+    {
+        //ds load camera parameters
+        CParameterBase::loadCameraLEFT( strConfigurationCameraLEFT );
+        std::printf( "(main) successfully imported camera LEFT\n" );
+        CParameterBase::loadCameraRIGHT( strConfigurationCameraRIGHT );
+        std::printf( "(main) successfully imported camera RIGHT\n" );
+    }
+    catch( const CExceptionParameter& p_cException )
+    {
+        std::printf( "(main) unable to import camera parameters - CExceptionParameter: '%s'\n", p_cException.what( ) );
+        std::fflush( stdout );
+        return 1;
+    }
+    catch( const std::invalid_argument& p_cException )
+    {
+        std::printf( "(main) unable to import camera parameters - std::invalid_argument: '%s'\n", p_cException.what( ) );
+        std::fflush( stdout );
+        return 1;
+    }
+    catch( const std::out_of_range& p_cException )
+    {
+        std::printf( "(main) unable to import camera parameters - std::out_of_range: '%s'\n", p_cException.what( ) );
+        std::fflush( stdout );
+        return 1;
+    }
 
     //ds evaluate IMU situation first
     std::shared_ptr< CIMUInterpolator > pIMUInterpolator( std::make_shared< CIMUInterpolator >( ) );
@@ -141,9 +171,15 @@ int32_t main( int32_t argc, char **argv )
 
     //ds must be calibrated
     assert( pIMUInterpolator->isCalibrated( ) );
+    assert( 0 != CParameterBase::pCameraLEFT );
+    assert( 0 != CParameterBase::pCameraRIGHT );
 
     //ds allocate the tracker
-    CTrackerStereo cTracker( eMode, pIMUInterpolator, uWaitKeyTimeout );
+    CTrackerStereo cTracker( CParameterBase::pCameraLEFT,
+                             CParameterBase::pCameraRIGHT,
+                             pIMUInterpolator,
+                             eMode,
+                             uWaitKeyTimeout );
     try
     {
         //ds prepare file structure
@@ -152,7 +188,7 @@ int32_t main( int32_t argc, char **argv )
     catch( const CExceptionLogfileTree& p_cException )
     {
         std::printf( "(main) unable to sanitize file tree - exception: '%s'\n", p_cException.what( ) );
-        std::printf( "(main) terminated: %s\n", argv[0] );
+        printHelp( );
         std::fflush( stdout );
         return 1;
     }
@@ -273,7 +309,6 @@ int32_t main( int32_t argc, char **argv )
     //testSpeedEigen( );
 
     //ds exit
-    std::printf( "(main) terminated: %s\n", argv[0] );
     std::fflush( stdout);
     return 0;
 }
@@ -286,6 +321,10 @@ void setParametersNaive( const int& p_iArgc,
     //ds attribute names (C style for printf)
     const char* arrParameter1 = "-mode";
     const char* arrParameter2 = "-messages";
+    const char* arrParameter3 = "-h";
+    const char* arrParameter4 = "--h";
+    const char* arrParameter5 = "-help";
+    const char* arrParameter6 = "--help";
 
     try
     {
@@ -303,9 +342,25 @@ void setParametersNaive( const int& p_iArgc,
             vecCommandLineArguments.push_back( strParameter.substr( uStart+1, strParameter.length( )-uStart ) );
         }
 
-        //ds check possible parameters
+        //ds check possible parameters in the vectorized command line arguments
         const std::vector< std::string >::const_iterator itParameter1( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter1 ) );
         const std::vector< std::string >::const_iterator itParameter2( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter2 ) );
+        const std::vector< std::string >::const_iterator itParameter3( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter3 ) );
+        const std::vector< std::string >::const_iterator itParameter4( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter4 ) );
+        const std::vector< std::string >::const_iterator itParameter5( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter5 ) );
+        const std::vector< std::string >::const_iterator itParameter6( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter6 ) );
+
+        //ds check for help parameters first
+        if( vecCommandLineArguments.end( ) != itParameter3 ||
+            vecCommandLineArguments.end( ) != itParameter4 ||
+            vecCommandLineArguments.end( ) != itParameter5 ||
+            vecCommandLineArguments.end( ) != itParameter6 )
+        {
+            //ds print help and exit here
+            printHelp( );
+            std::fflush( stdout );
+            std::exit( 0 );
+        }
 
         //ds set parameters if found
         if( vecCommandLineArguments.end( ) != itParameter1 ){ p_strMode                    = *( itParameter1+1 ); }
@@ -313,18 +368,23 @@ void setParametersNaive( const int& p_iArgc,
     }
     catch( const std::invalid_argument& p_cException )
     {
-        std::printf( "(setParametersNaive) malformed command line syntax, usage: stereo_slam %s %s\n", arrParameter1, arrParameter2 );
-        std::printf( "(setParametersNaive) terminated: %s\n", p_pArgv[0] );
+        std::printf( "(setParametersNaive) malformed command line syntax\n" );
+        printHelp( );
         std::fflush( stdout );
-        exit( -1 );
+        std::exit( -1 );
     }
     catch( const std::out_of_range& p_cException )
     {
-        std::printf( "(setParametersNaive) malformed command line syntax, usage: stereo_slam %s %s\n", arrParameter1, arrParameter2 );
-        std::printf( "(setParametersNaive) terminated: %s\n", p_pArgv[0] );
+        std::printf( "(setParametersNaive) malformed command line syntax\n" );
+        printHelp( );
         std::fflush( stdout );
-        exit( -1 );
+        std::exit( -1 );
     }
+}
+
+void printHelp( )
+{
+    std::printf( "(printHelp) usage: stereo_fps -messages='textfile_path' [-mode='interactive'|'stepwise'|'benchmark']\n" );
 }
 
 void testSpeedEigen( )

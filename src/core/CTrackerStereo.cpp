@@ -3,16 +3,17 @@
 #include <opencv/highgui.h>
 #include <opencv2/features2d/features2d.hpp>
 
-#include "configuration/CConfigurationCamera.h"
-#include "configuration/CConfigurationOpenCV.h"
+#include "gui/CConfigurationOpenCV.h"
 #include "exceptions/CExceptionPoseOptimization.h"
 #include "exceptions/CExceptionNoMatchFound.h"
 
-CTrackerStereo::CTrackerStereo( const EPlaybackMode& p_eMode,
-                                                      const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
-                                                      const uint32_t& p_uWaitKeyTimeoutMS ): m_uWaitKeyTimeoutMS( p_uWaitKeyTimeoutMS ),
-                                                                           m_pCameraLEFT( std::make_shared< CPinholeCamera >( CConfigurationCamera::LEFT::cPinholeCamera ) ),
-                                                                           m_pCameraRIGHT( std::make_shared< CPinholeCamera >( CConfigurationCamera::RIGHT::cPinholeCamera ) ),
+CTrackerStereo::CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCameraLEFT,
+                                const std::shared_ptr< CPinholeCamera > p_pCameraRIGHT,
+                                const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
+                                const EPlaybackMode& p_eMode,
+                                const uint32_t& p_uWaitKeyTimeoutMS ): m_uWaitKeyTimeoutMS( p_uWaitKeyTimeoutMS ),
+                                                                           m_pCameraLEFT( p_pCameraLEFT ),
+                                                                           m_pCameraRIGHT( p_pCameraRIGHT ),
                                                                            m_pCameraSTEREO( std::make_shared< CStereoCamera >( m_pCameraLEFT, m_pCameraRIGHT ) ),
 
                                                                            m_matTransformationWORLDtoLEFTLAST( p_pIMUInterpolator->getTransformationWORLDtoCAMERA( m_pCameraLEFT->m_matRotationIMUtoCAMERA ) ),
@@ -88,6 +89,10 @@ CTrackerStereo::CTrackerStereo( const EPlaybackMode& p_eMode,
 
 CTrackerStereo::~CTrackerStereo( )
 {
+    //ds deallocation counts
+    std::vector< CLandmark* >::size_type uNumberOfLandmarksDeallocated = 0;
+    std::vector< CKeyFrame* >::size_type uNumberOfKeyFramesDeallocated = 0;
+
     //ds free all landmarks
     for( const CLandmark* pLandmark: *m_vecLandmarks )
     {
@@ -100,13 +105,17 @@ CTrackerStereo::~CTrackerStereo( )
             //CLogger::CLogLandmarkFinalOptimized::addEntry( pLandmark );
         }
 
+        assert( 0 != pLandmark );
         delete pLandmark;
+        ++uNumberOfLandmarksDeallocated;
     }
 
     //ds free keyframes
     for( const CKeyFrame* pKeyFrame: *m_vecKeyFrames )
     {
+        assert( 0 != pKeyFrame );
         delete pKeyFrame;
+        ++uNumberOfKeyFramesDeallocated;
     }
 
     /*ds close loggers
@@ -116,6 +125,8 @@ CTrackerStereo::~CTrackerStereo( )
     CLogger::CLogTrajectory::close( );
     CLogger::CLogIMUInput::close( );*/
 
+    std::printf( "[%06lu]<CTrackerStereo>(~CTrackerStereo) deallocated landmarks: %lu/%lu\n", m_uFrameCount, uNumberOfLandmarksDeallocated, m_vecLandmarks->size( ) );
+    std::printf( "[%06lu]<CTrackerStereo>(~CTrackerStereo) dealloacted key frames: %lu/%lu\n", m_uFrameCount, uNumberOfKeyFramesDeallocated, m_vecKeyFrames->size( ) );
     std::printf( "[%06lu]<CTrackerStereo>(~CTrackerStereo) instance deallocated\n", m_uFrameCount );
 }
 

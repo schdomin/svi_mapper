@@ -8,6 +8,8 @@
 #include "gui/CViewerCloud.h"
 //#include "vision/CStereoCamera.h"
 
+void printHelp( );
+
 int main( int argc, char** argv )
 {
     std::printf( "(main) launched: %s\n", argv[0] );
@@ -16,7 +18,7 @@ int main( int argc, char** argv )
     if( 3 > argc )
     {
         std::printf( "(main) insufficient amount of clouds (provide at least 2)\n" );
-        std::printf( "(main) calling syntax: test_cloud_matching <cloud> <cloud>\n" );
+        printHelp( );
         std::printf( "(main) terminated: %s\n", argv[0] );
         std::fflush( stdout);
         return 0;
@@ -813,4 +815,9 @@ int main( int argc, char** argv )
     std::printf( "(main) terminated: %s\n", argv[0] );
     std::fflush( stdout);
     return 0;
+}
+
+void printHelp( )
+{
+    std::printf( "(printHelp) usage: test_cloud_matching 'cloud_textfile_0' ['cloud_textfile_1'] ['cloud_textfile_2'] .. ['cloud_textfile_query']\n" );
 }

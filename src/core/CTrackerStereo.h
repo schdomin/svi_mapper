@@ -19,9 +19,11 @@ class CTrackerStereo
 public:
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CTrackerStereo( const EPlaybackMode& p_eMode,
-                               const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
-                               const uint32_t& p_uWaitKeyTimeoutMS = 1 );
+    CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCameraLEFT,
+                    const std::shared_ptr< CPinholeCamera > p_pCameraRIGHT,
+                    const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
+                    const EPlaybackMode& p_eMode,
+                    const uint32_t& p_uWaitKeyTimeoutMS = 1 );
     ~CTrackerStereo( );
 
 //ds members
