@@ -126,6 +126,8 @@ target_link_libraries(validate_dataset ${FPS_MAPPER_TXT_IO_LIBRARY})
 #ds utilities
 add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
 add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
+add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)
+target_link_libraries(triangulation_sampling ${OpenCV_LIBRARIES})
 
 #ds list binaries UGLY GULY
 message("stereo_fps")
@@ -133,6 +135,7 @@ message("test_cloud_matching")
 message("validate_dataset")
 message("interpolate_trajectory")
 message("compute_rotation_icp")
+message("triangulation_sampling")
 message(" ")
 message("-------------------------------------------------------------------------------")
 

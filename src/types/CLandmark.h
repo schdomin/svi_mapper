@@ -108,6 +108,7 @@ public:
     const cv::Point2d getLastDetectionRIGHT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->ptUVRIGHT; }
     const CDescriptor getLastDescriptorLEFT( ) const { return vecDescriptorsLEFT.back( ); }
     const CDescriptor getLastDescriptorRIGHT( ) const { return vecDescriptorsRIGHT.back( ); }
+    const float getLastDisparity( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->fDisparity; }
     const CMeasurementLandmark* getLastMeasurement( ) const { return m_vecMeasurements.back( ); }
     const double getLastDepth( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->vecPointXYZLEFT.z( ); }
     const CPoint3DCAMERA getLastPointXYZLEFT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->vecPointXYZLEFT; }

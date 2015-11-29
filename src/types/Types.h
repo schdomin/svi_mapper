@@ -8,6 +8,7 @@ struct CMeasurementLandmark
     const UIDLandmark uID;
     const cv::Point2d ptUVLEFT;
     const cv::Point2d ptUVRIGHT;
+    const float fDisparity;
     const CPoint3DCAMERA vecPointXYZLEFT;
     const CPoint3DWORLD  vecPointXYZWORLD;
     const CPoint3DWORLD  vecPointXYZWORLDOptimized;
@@ -28,6 +29,7 @@ struct CMeasurementLandmark
                           const uint32_t& p_uOptimizations ): uID( p_uID ),
                                                                                  ptUVLEFT( p_ptUVLEFT ),
                                                                                  ptUVRIGHT( p_ptUVRIGHT ),
+                                                                                 fDisparity( p_ptUVLEFT.x-p_ptUVRIGHT.x ),
                                                                                  vecPointXYZLEFT( p_vecPointXYZ ),
                                                                                  vecPointXYZWORLD( p_vecPointXYZWORLD ),
                                                                                  vecPointXYZWORLDOptimized( p_vecPointXYZWORLDOptimized ),
@@ -39,6 +41,7 @@ struct CMeasurementLandmark
         //ds input validation
         assert( ptUVLEFT.y == ptUVRIGHT.y );
         assert( 0.0 < vecPointXYZLEFT.z( ) );
+        assert( 0.0f <= fDisparity );
     }
 
 };

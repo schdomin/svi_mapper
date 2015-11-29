@@ -150,6 +150,9 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
     m_uNumberOfTracksStage1 = 0;
     m_uNumberOfTracksStage2 = 0;
 
+    //ds triangulation search length scaling
+    const float fTriangulationScale = 1.0+p_dMotionScaling;
+
     //ds 2 STAGE tracking algorithm
     for( const CDetectionPoint& cDetectionPoint: m_vecDetectionPointsActive )
     {
@@ -166,6 +169,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
             const float fKeyPointSizePixelsHalf   = 4*fKeyPointSizePixels;
             const float fKeyPointSizePixelsLength = 8*fKeyPointSizePixels+1;
             const cv::Point2f ptOffsetKeyPointHalf( fKeyPointSizePixelsHalf, fKeyPointSizePixelsHalf );
+            const float fSearchRange = fTriangulationScale*pLandmark->getLastDisparity( );
 
             //ds check if we are in tracking range
             if( m_pCameraLEFT->m_cFieldOfView.contains( ptUVEstimateLEFT ) && m_pCameraRIGHT->m_cFieldOfView.contains( ptUVEstimateRIGHT ) )
@@ -187,7 +191,8 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                     {
                         //ds triangulate the point directly
                         const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
-                                                                                                             std::max( 0.0f, ptUVEstimateLEFTROI.x-CTriangulator::fMinimumSearchRangePixels ),
+                                                                                                             fSearchRange,
+                                                                                                             std::max( 0.0f, ptUVEstimateLEFTROI.x-fSearchRange ),
                                                                                                              ptUVEstimateLEFTROI.y,
                                                                                                              fKeyPointSizePixels,
                                                                                                              ptUVEstimateLEFTROI+vecKeyPointBufferSingle[0].pt,
@@ -236,6 +241,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                         {
                             //ds triangulate the point directly
                             const CMatchTriangulation cMatchLEFT( m_pTriangulator->getPointTriangulatedInLEFT( p_matImageLEFT,
+                                                                                                               fSearchRange,
                                                                                                                ptUVEstimateRIGHTROI.x,
                                                                                                                ptUVEstimateRIGHTROI.y,
                                                                                                                fKeyPointSizePixels,
@@ -333,7 +339,8 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                                         if( 0.0 <= fVReference )
                                         {
                                             const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
-                                                                                                                                 std::max( 0.0f, ptBestMatchLEFTInCamera.x-CTriangulator::fMinimumSearchRangePixels ),
+                                                                                                                                 fSearchRange,
+                                                                                                                                 std::max( 0.0f, ptBestMatchLEFTInCamera.x-fSearchRange-fKeyPointSizePixelsHalf ),
                                                                                                                                  fVReference,
                                                                                                                                  fKeyPointSizePixels,
                                                                                                                                  ptBestMatchLEFTInCamera,
@@ -447,7 +454,8 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                                             if( 0.0 <= fVReference )
                                             {
                                                 const CMatchTriangulation cMatchLEFT( m_pTriangulator->getPointTriangulatedInLEFT( p_matImageLEFT,
-                                                                                                                                   ptBestMatchRIGHTInCamera.x,
+                                                                                                                                   fSearchRange,
+                                                                                                                                   std::max( 0.0f, ptBestMatchRIGHTInCamera.x-fKeyPointSizePixelsHalf ),
                                                                                                                                    fVReference,
                                                                                                                                    fKeyPointSizePixels,
                                                                                                                                    ptBestMatchRIGHTInCamera,
@@ -540,7 +548,8 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseOptimizedSTEREOUVfromLAST( c
                                                                   const Eigen::Vector3d& p_vecTranslationIMU,
                                                                   const double& p_dMotionScaling )
 {
-    assert( 1.0 <= p_dMotionScaling );
+    assert( false );
+    /*assert( 1.0 <= p_dMotionScaling );
 
     //ds found landmarks in this frame
     std::vector< CSolverStereoPosit::CMatch > vecMatchesForPoseOptimization;
@@ -874,7 +883,9 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseOptimizedSTEREOUVfromLAST( c
     }
 
     //ds return with pose
-    return matTransformationWORLDtoLEFT;
+    return matTransformationWORLDtoLEFT;*/
+
+    return Eigen::Isometry3d( );
 }
 
 const Eigen::Isometry3d CFundamentalMatcher::getPoseRefinedOnVisibleLandmarks( const Eigen::Isometry3d& p_matTransformationWORLDtoLEFTEstimate )
@@ -1291,7 +1302,8 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
                                                            p_matTransformationLEFTtoWORLD,
                                                            p_matTransformationWORLDtoLEFT,
                                                            matProjectionWORLDtoLEFT,
-                                                           matProjectionWORLDtoRIGHT );
+                                                           matProjectionWORLDtoRIGHT,
+                                                           p_dMotionScaling );
                             vecMeasurementsPerDetectionPoint.push_back( pLandmark->getLastMeasurement( ) );
 
                             //ds update info
@@ -1936,7 +1948,8 @@ void CFundamentalMatcher::_addMeasurementToLandmarkLEFT( const UIDFrame p_uFrame
                                                   const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
                                                   const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
                                                   const MatrixProjection& p_matProjectionWORLDtoLEFT,
-                                                  const MatrixProjection& p_matProjectionWORLDtoRIGHT )
+                                                  const MatrixProjection& p_matProjectionWORLDtoRIGHT,
+                                                  const double& p_dMotionScaling )
 {
     //ds buffer point
     cv::Point2f ptUVLEFT( p_cKeyPoint.pt );
@@ -1944,8 +1957,10 @@ void CFundamentalMatcher::_addMeasurementToLandmarkLEFT( const UIDFrame p_uFrame
     //assert( m_pCameraLEFT->m_cFieldOfView.contains( p_cKeyPoint.pt ) );
 
     //ds triangulate point
+    const float fSearchRangePixels = ( 1.0+p_dMotionScaling )*p_pLandmark->getLastDisparity( );
     const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
-                                                                                         std::max( 0.0f, ptUVLEFT.x-CTriangulator::fMinimumSearchRangePixels ),
+                                                                                         fSearchRangePixels,
+                                                                                         std::max( 0.0f, ptUVLEFT.x-fSearchRangePixels ),
                                                                                          ptUVLEFT.y-4*p_cKeyPoint.size,
                                                                                          p_cKeyPoint.size,
                                                                                          ptUVLEFT,

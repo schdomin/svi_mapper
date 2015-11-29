@@ -29,312 +29,6 @@ CTriangulator::~CTriangulator( )
     std::printf( "<CTriangulator>(~CTriangulator) instance deallocated\n" );
 }
 
-const CPoint3DCAMERA CTriangulator::getPointTriangulatedFull( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const
-{
-    //ds buffer keypoint size
-    const float& fKeyPointSize( p_cKeyPointLEFT.size );
-
-    //ds get keypoint to eigen space
-    const CPoint2DInCameraFrame vecReference( CWrapperOpenCV::fromCVVector( p_cKeyPointLEFT.pt ) );
-
-    //ds search limit
-    const uint32_t uLimit( m_pCameraSTEREO->m_uPixelWidth );
-
-    //ds right keypoint vector (check the full range)
-    std::vector< cv::KeyPoint > vecPoolKeyPoints( uLimit );
-
-    //ds set the keypoints
-    for( uint32_t uU = 0; uU < uLimit; ++uU )
-    {
-        vecPoolKeyPoints[uU] = cv::KeyPoint( uU, vecReference(1), fKeyPointSize );
-    }
-
-    //ds compute descriptors
-    cv::Mat matPoolDescriptors;
-    m_pExtractor->compute( p_matImageRIGHT, vecPoolKeyPoints, matPoolDescriptors );
-
-    //ds check if we failed to compute descriptors
-    if( vecPoolKeyPoints.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "could not compute descriptors" );
-    }
-
-    //ds match the descriptors
-    std::vector< cv::DMatch > vecMatches;
-    m_pMatcher->match( p_matReferenceDescriptorLEFT, matPoolDescriptors, vecMatches );
-
-    if( vecMatches.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "no match found" );
-    }
-
-    //ds make sure the matcher returned a valid ID
-    assert( static_cast< std::vector< cv::KeyPoint >::size_type >( vecMatches[0].trainIdx ) < vecPoolKeyPoints.size( ) );
-
-    //ds check match quality
-    if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
-    {
-        //ds get the matching keypoint
-        const CPoint2DInCameraFrame vecMatch( CWrapperOpenCV::fromCVVector( vecPoolKeyPoints[vecMatches[0].trainIdx].pt ) );
-
-        //ds triangulate 3d point
-        return CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( vecReference, vecMatch, m_pCameraSTEREO->m_pCameraLEFT->m_matProjection, m_pCameraSTEREO->m_pCameraRIGHT->m_matProjection );
-    }
-    else
-    {
-        throw CExceptionNoMatchFound( "matching distance: " + std::to_string( vecMatches[0].distance ) );
-    }
-}
-
-const CPoint3DCAMERA CTriangulator::getPointTriangulatedLimited( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const
-{
-    //ds left references
-    const int32_t iUReference( p_cKeyPointLEFT.pt.x );
-    const int32_t iVReference( p_cKeyPointLEFT.pt.y );
-    const double dKeyPointSize( p_cKeyPointLEFT.size );
-
-    assert( 0 < iUReference );
-
-    //ds compute loop range (dont care about overflows to keep performance here, the matcher can handle negative coordinates)
-    const uint32_t uBegin( iUReference-m_uLimitedSearchRangeToLEFT );
-
-    //ds right keypoint vector
-    std::vector< cv::KeyPoint > vecPoolKeyPoints( m_uLimitedSearchRange );
-
-    //ds set the keypoints
-    for( uint32_t u = 0; u < m_uLimitedSearchRange; ++u )
-    {
-        vecPoolKeyPoints[u] = cv::KeyPoint( uBegin+u, iVReference, dKeyPointSize );
-    }
-    //ds compute descriptors
-    cv::Mat matPoolDescriptors;
-    m_pExtractor->compute( p_matImageRIGHT, vecPoolKeyPoints, matPoolDescriptors );
-
-    //ds check if we failed to compute descriptors
-    if( vecPoolKeyPoints.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedLimited) could not compute descriptors" );
-    }
-
-    //ds match the descriptors
-    std::vector< cv::DMatch > vecMatches;
-    m_pMatcher->match( p_matReferenceDescriptorLEFT, matPoolDescriptors, vecMatches );
-
-    if( vecMatches.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedLimited) no match found" );
-    }
-
-    //ds make sure the matcher returned a valid ID
-    assert( static_cast< std::vector< cv::KeyPoint >::size_type >( vecMatches[0].trainIdx ) < vecPoolKeyPoints.size( ) );
-
-    //ds check match quality
-    if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
-    {
-        //ds triangulate 3d point
-        return CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( p_cKeyPointLEFT.pt,
-                                                                           vecPoolKeyPoints[vecMatches[0].trainIdx].pt,
-                                                                           m_pCameraSTEREO->m_pCameraLEFT->m_matProjection,
-                                                                           m_pCameraSTEREO->m_pCameraRIGHT->m_matProjection );
-    }
-    else
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedLimited) matching distance: " + std::to_string( vecMatches[0].distance ) );
-    }
-}
-
-const CPoint3DCAMERA CTriangulator::getPointTriangulatedAdaptive( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const
-{
-    //ds buffer keypoint size
-    const float& fKeyPointSize( p_cKeyPointLEFT.size );
-
-    //ds get keypoint to eigen space
-    const CPoint2DInCameraFrame vecReference( CWrapperOpenCV::fromCVVector( p_cKeyPointLEFT.pt ) );
-    const int32_t iUReference( vecReference(0) );
-
-    //ds keypoint buffer
-    std::vector< cv::KeyPoint > vecPoolKeyPoints( m_uAdaptiveSteps );
-
-    //ds start point
-    int32_t iU( iUReference+m_uAdaptiveSteps );
-
-    assert( 0 < iUReference );
-
-    //ds scan to the left
-    while( 0 < iU )
-    {
-        for( uint32_t u = 0; u < m_uAdaptiveSteps; ++u )
-        {
-            vecPoolKeyPoints[u] = cv::KeyPoint( iU, vecReference(1), fKeyPointSize );
-            --iU;
-        }
-
-        //ds compute descriptors
-        cv::Mat matPoolDescriptors;
-        m_pExtractor->compute( p_matImageRIGHT, vecPoolKeyPoints, matPoolDescriptors );
-
-        //ds if we managed to compute descriptors
-        if( !vecPoolKeyPoints.empty( ) )
-        {
-            //ds match the descriptors
-            std::vector< cv::DMatch > vecMatches;
-            m_pMatcher->match( p_matReferenceDescriptorLEFT, matPoolDescriptors, vecMatches );
-
-            //ds if we found matches
-            if( !vecMatches.empty( ) )
-            {
-                //ds make sure the matcher returned a valid ID
-                assert( static_cast< std::vector< cv::KeyPoint >::size_type >( vecMatches[0].trainIdx ) < m_uAdaptiveSteps );
-
-                //ds check match quality
-                if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
-                {
-                    //ds get the matching keypoint
-                    const CPoint2DInCameraFrame vecMatch( CWrapperOpenCV::fromCVVector( vecPoolKeyPoints[vecMatches[0].trainIdx].pt ) );
-
-                    //ds triangulated 3d point
-                    return CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( vecReference, vecMatch, m_pCameraSTEREO->m_pCameraLEFT->m_matProjection, m_pCameraSTEREO->m_pCameraRIGHT->m_matProjection );
-                }
-            }
-        }
-    }
-
-    //ds no match found if still here
-    throw CExceptionNoMatchFound( "no match found" );
-}
-
-const CMatchTriangulation CTriangulator::getPointTriangulatedCompactInLEFT( const cv::Mat& p_matImageLEFT, const cv::KeyPoint& p_cKeyPointRIGHT, const CDescriptor& p_matReferenceDescriptorRIGHT ) const
-{
-    assert( false );
-
-    //ds left references
-    const float fUReference    = p_cKeyPointRIGHT.pt.x;
-    const float fVReference    = p_cKeyPointRIGHT.pt.y;
-    const double dKeyPointSize = p_cKeyPointRIGHT.size;
-
-    assert( 0.0 < fUReference );
-
-    //ds compute loop range (dont care about overflows to keep performance here, the matcher can handle negative coordinates)
-    const uint32_t uBegin( fUReference-m_uLimitedSearchRangeToRIGHT );
-
-    //ds right keypoint vector
-    std::vector< cv::KeyPoint > vecPoolKeyPoints( m_uLimitedSearchRange );
-
-    //ds set the keypoints
-    for( uint32_t u = 0; u < m_uLimitedSearchRange; ++u )
-    {
-        vecPoolKeyPoints[u] = cv::KeyPoint( uBegin+u, fVReference, dKeyPointSize );
-    }
-
-    //ds compute descriptors
-    CDescriptors matPoolDescriptors;
-    m_pExtractor->compute( p_matImageLEFT, vecPoolKeyPoints, matPoolDescriptors );
-
-    //ds check if we failed to compute descriptors
-    if( vecPoolKeyPoints.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedCompactInLEFT) could not compute descriptors" );
-    }
-
-    //ds match the descriptors
-    std::vector< cv::DMatch > vecMatches;
-    m_pMatcher->match( p_matReferenceDescriptorRIGHT, matPoolDescriptors, vecMatches );
-
-    if( vecMatches.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedCompactInLEFT) no match found" );
-    }
-
-    //ds current id
-    const int32_t iIDMatch = vecMatches[0].trainIdx;
-
-    //ds make sure the matcher returned a valid ID
-    assert( static_cast< std::vector< cv::KeyPoint >::size_type >( iIDMatch ) < vecPoolKeyPoints.size( ) );
-
-    //ds check match quality
-    if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
-    {
-        //ds buffer point
-        const cv::Point2f ptUVLEFT( vecPoolKeyPoints[iIDMatch].pt );
-
-        //ds return triangulated point
-        return CMatchTriangulation( CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( ptUVLEFT,
-                                                                                                p_cKeyPointRIGHT.pt,
-                                                                                                m_pCameraSTEREO->m_pCameraLEFT->m_matProjection,
-                                                                                                m_pCameraSTEREO->m_pCameraRIGHT->m_matProjection ), ptUVLEFT, matPoolDescriptors.row(iIDMatch) );
-    }
-    else
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedCompactInLEFT) matching distance: " + std::to_string( vecMatches[0].distance ) );
-    }
-}
-
-const CMatchTriangulation CTriangulator::getPointTriangulatedCompactInRIGHT( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const
-{
-    assert( false );
-
-    //ds left references
-    const float fUReference    = p_cKeyPointLEFT.pt.x;
-    const float fVReference    = p_cKeyPointLEFT.pt.y;
-    const double dKeyPointSize = p_cKeyPointLEFT.size;
-
-    assert( 0.0 < fUReference );
-
-    //ds compute loop range (dont care about overflows to keep performance here, the matcher can handle negative coordinates)
-    const uint32_t uBegin( fUReference-m_uLimitedSearchRangeToLEFT );
-
-    //ds right keypoint vector
-    std::vector< cv::KeyPoint > vecPoolKeyPoints( m_uLimitedSearchRange );
-
-    //ds set the keypoints
-    for( uint32_t u = 0; u < m_uLimitedSearchRange; ++u )
-    {
-        vecPoolKeyPoints[u] = cv::KeyPoint( uBegin+u, fVReference, dKeyPointSize );
-    }
-
-    //ds compute descriptors
-    CDescriptors matPoolDescriptors;
-    m_pExtractor->compute( p_matImageRIGHT, vecPoolKeyPoints, matPoolDescriptors );
-
-    //ds check if we failed to compute descriptors
-    if( vecPoolKeyPoints.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedCompactInRIGHT) could not compute descriptors" );
-    }
-
-    //ds match the descriptors
-    std::vector< cv::DMatch > vecMatches;
-    m_pMatcher->match( p_matReferenceDescriptorLEFT, matPoolDescriptors, vecMatches );
-
-    if( vecMatches.empty( ) )
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedCompactInRIGHT) no match found" );
-    }
-
-    //ds current id
-    const int32_t iIDMatch = vecMatches[0].trainIdx;
-
-    //ds make sure the matcher returned a valid ID
-    assert( static_cast< std::vector< cv::KeyPoint >::size_type >( iIDMatch ) < vecPoolKeyPoints.size( ) );
-
-    //ds check match quality
-    if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
-    {
-        //ds buffer point
-        const cv::Point2f ptUVRIGHT( vecPoolKeyPoints[iIDMatch].pt );
-
-        //ds return triangulated point
-        return CMatchTriangulation( CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( p_cKeyPointLEFT.pt,
-                                                                                                ptUVRIGHT,
-                                                                                                m_pCameraSTEREO->m_pCameraLEFT->m_matProjection,
-                                                                                                m_pCameraSTEREO->m_pCameraRIGHT->m_matProjection ), ptUVRIGHT, matPoolDescriptors.row(iIDMatch) );
-    }
-    else
-    {
-        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedCompactInRIGHT) matching distance: " + std::to_string( vecMatches[0].distance ) );
-    }
-}
-
 const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
                                                        const float& p_fUTopLeft,
                                                        const float& p_fVTopLeft,
@@ -419,6 +113,141 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInLEFT( const cv::M
     {
         vecPoolKeyPoints[uToLEFT] = cv::KeyPoint( fBorderCenter+uToLEFT, fBorderCenter, p_fKeyPointSizePixels );
     }
+
+    //ds compute descriptors
+    CDescriptors matPoolDescriptors;
+    m_pExtractor->compute( p_matImageLEFT( cv::Rect( p_fUTopLeft, p_fVTopLeft, uSearchRangeComplete, fFullHeight ) ), vecPoolKeyPoints, matPoolDescriptors );
+
+    //ds check if we failed to compute descriptors
+    if( 0 == vecPoolKeyPoints.size( ) )
+    {
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedInLEFT) could not compute descriptors" );
+    }
+
+    //ds match the descriptors
+    std::vector< cv::DMatch > vecMatches;
+    m_pMatcher->match( p_matReferenceDescriptorRIGHT, matPoolDescriptors, vecMatches );
+
+    if( 0 == vecMatches.size( ) )
+    {
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedInLEFT) no match found" );
+    }
+
+    //ds current id
+    const int32_t iIDMatch = vecMatches[0].trainIdx;
+
+    //ds make sure the matcher returned a valid ID
+    assert( static_cast< std::vector< cv::KeyPoint >::size_type >( iIDMatch ) < vecPoolKeyPoints.size( ) );
+
+    //ds check match quality
+    if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
+    {
+        //ds buffer point
+        const cv::Point2f ptUVLEFT( vecPoolKeyPoints[iIDMatch].pt+cv::Point2f( p_fUTopLeft, p_fVTopLeft ) );
+
+        //ds return triangulated point
+        return CMatchTriangulation( CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( ptUVLEFT,
+                                                                                                p_ptUVRIGHT,
+                                                                                                m_pCameraSTEREO->m_pCameraLEFT->m_matProjection,
+                                                                                                m_pCameraSTEREO->m_pCameraRIGHT->m_matProjection ), ptUVLEFT, matPoolDescriptors.row(iIDMatch) );
+    }
+    else
+    {
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedInLEFT) matching distance" );
+    }
+}
+
+
+const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
+                                                       const float& p_fSearchRange,
+                                                       const float& p_fUTopLeft,
+                                                       const float& p_fVTopLeft,
+                                                       const float& p_fKeyPointSizePixels,
+                                                       const cv::Point2f& p_ptUVLEFT,
+                                                       const CDescriptor& p_matReferenceDescriptorLEFT ) const
+{
+    //ds compute search range - overflow checking required in right
+    const float fBorderCenter = 4*p_fKeyPointSizePixels;
+    const float fFullHeight   = 8*p_fKeyPointSizePixels+1;
+    const std::vector< cv::KeyPoint >::size_type uSearchRangeComplete = std::round( std::min( p_fSearchRange+fFullHeight, m_pCameraRIGHT->m_fWidthPixels-p_fUTopLeft ) );
+
+    //ds right keypoint vector
+    std::vector< cv::KeyPoint > vecPoolKeyPoints( uSearchRangeComplete );
+
+    //ds set the keypoints
+    for( std::vector< cv::KeyPoint >::size_type uToRIGHT = 0; uToRIGHT < uSearchRangeComplete; ++uToRIGHT )
+    {
+        vecPoolKeyPoints[uToRIGHT] = cv::KeyPoint( fBorderCenter+uToRIGHT, fBorderCenter, p_fKeyPointSizePixels );
+    }
+
+    //cv::rectangle( p_matDisplayRIGHT, cv::Rect( p_fUTopLeft, p_fVTopLeft, uSearchRangeComplete, fFullHeight ), CColorCodeBGR( 255, 0, 0 ), 1 );
+
+    //ds compute descriptors
+    CDescriptors matPoolDescriptors;
+    m_pExtractor->compute( p_matImageRIGHT( cv::Rect( p_fUTopLeft, p_fVTopLeft, uSearchRangeComplete, fFullHeight ) ), vecPoolKeyPoints, matPoolDescriptors );
+
+    //ds check if we failed to compute descriptors
+    if( 0 == vecPoolKeyPoints.size( ) )
+    {
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedInRIGHT) could not compute descriptors" );
+    }
+
+    //ds match the descriptors
+    std::vector< cv::DMatch > vecMatches;
+    m_pMatcher->match( p_matReferenceDescriptorLEFT, matPoolDescriptors, vecMatches );
+
+    if( 0 == vecMatches.size( ) )
+    {
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedInRIGHT) no match found" );
+    }
+
+    //ds current id
+    const int32_t iIDMatch = vecMatches[0].trainIdx;
+
+    //ds make sure the matcher returned a valid ID
+    assert( static_cast< std::vector< cv::KeyPoint >::size_type >( iIDMatch ) < vecPoolKeyPoints.size( ) );
+
+    //ds check match quality
+    if( m_fMatchingDistanceCutoff > vecMatches[0].distance )
+    {
+        //ds buffer point
+        const cv::Point2f ptUVRIGHT( vecPoolKeyPoints[iIDMatch].pt+cv::Point2f( p_fUTopLeft, p_fVTopLeft ) );
+
+        //ds return triangulated point
+        return CMatchTriangulation( CMiniVisionToolbox::getPointStereoLinearTriangulationSVDLS( p_ptUVLEFT,
+                                                                                                ptUVRIGHT,
+                                                                                                m_pCameraLEFT->m_matProjection,
+                                                                                                m_pCameraRIGHT->m_matProjection ), ptUVRIGHT, matPoolDescriptors.row(iIDMatch) );
+    }
+    else
+    {
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointTriangulatedInRIGHT) matching distance" );
+    }
+}
+
+const CMatchTriangulation CTriangulator::getPointTriangulatedInLEFT( const cv::Mat& p_matImageLEFT,
+                                                       const float& p_fSearchRange,
+                                                       const float& p_fUTopLeft,
+                                                       const float& p_fVTopLeft,
+                                                       const float& p_fKeyPointSizePixels,
+                                                       const cv::Point2f& p_ptUVRIGHT,
+                                                       const CDescriptor& p_matReferenceDescriptorRIGHT ) const
+{
+    //ds compute search range - overflow checking required
+    const float fBorderCenter = 4*p_fKeyPointSizePixels;
+    const float fFullHeight   = 8*p_fKeyPointSizePixels+1;
+    const std::vector< cv::KeyPoint >::size_type uSearchRangeComplete = std::round( std::min( p_fSearchRange+fFullHeight, m_pCameraLEFT->m_fWidthPixels-p_fUTopLeft ) );
+
+    //ds right keypoint vector
+    std::vector< cv::KeyPoint > vecPoolKeyPoints( uSearchRangeComplete );
+
+    //ds set the keypoints
+    for( std::vector< cv::KeyPoint >::size_type uToLEFT = 0; uToLEFT < uSearchRangeComplete; ++uToLEFT )
+    {
+        vecPoolKeyPoints[uToLEFT] = cv::KeyPoint( fBorderCenter+uToLEFT, fBorderCenter, p_fKeyPointSizePixels );
+    }
+
+    //cv::rectangle( p_matDisplayLEFT, cv::Rect( p_fUTopLeft, p_fVTopLeft, uSearchRangeComplete, fFullHeight ), CColorCodeBGR( 255, 0, 0 ), 1 );
 
     //ds compute descriptors
     CDescriptors matPoolDescriptors;

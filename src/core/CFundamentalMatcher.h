@@ -216,7 +216,8 @@ private:
                                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
                                    const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
                                    const MatrixProjection& p_matProjectionWORLDtoLEFT,
-                                   const MatrixProjection& p_matProjectionWORLDtoRIGHT );
+                                   const MatrixProjection& p_matProjectionWORLDtoRIGHT,
+                                   const double& p_dMotionScaling );
 
     void _addMeasurementToLandmarkSTEREO( const UIDFrame p_uFrame,
             CSolverStereoPosit::CMatch& p_cMatchSTEREO,

@@ -44,12 +44,6 @@ private:
 public:
 
     //ds triangulation methods
-    const CPoint3DCAMERA getPointTriangulatedFull( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
-    const CPoint3DCAMERA getPointTriangulatedLimited( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
-    const CPoint3DCAMERA getPointTriangulatedAdaptive( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
-
-    const CMatchTriangulation getPointTriangulatedCompactInLEFT( const cv::Mat& p_matImageLEFT, const cv::KeyPoint& p_cKeyPointRIGHT, const CDescriptor& p_matReferenceDescriptorRIGHT ) const;
-    const CMatchTriangulation getPointTriangulatedCompactInRIGHT( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
     const CMatchTriangulation getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
             const float& p_fUTopLeft,
             const float& p_fVTopLeft,
@@ -57,6 +51,21 @@ public:
             const cv::Point2f& p_ptUVLEFT,
             const CDescriptor& p_matReferenceDescriptorLEFT ) const;
     const CMatchTriangulation getPointTriangulatedInLEFT( const cv::Mat& p_matImageLEFT,
+            const float& p_fUTopLeft,
+            const float& p_fVTopLeft,
+            const float& p_fKeyPointSizePixels,
+            const cv::Point2f& p_ptUVRIGHT,
+            const CDescriptor& p_matReferenceDescriptorRIGHT ) const;
+
+    const CMatchTriangulation getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
+            const float& p_fSearchRange,
+            const float& p_fUTopLeft,
+            const float& p_fVTopLeft,
+            const float& p_fKeyPointSizePixels,
+            const cv::Point2f& p_ptUVLEFT,
+            const CDescriptor& p_matReferenceDescriptorLEFT ) const;
+    const CMatchTriangulation getPointTriangulatedInLEFT( const cv::Mat& p_matImageLEFT,
+            const float& p_fSearchRange,
             const float& p_fUTopLeft,
             const float& p_fVTopLeft,
             const float& p_fKeyPointSizePixels,
