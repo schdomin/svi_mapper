@@ -177,6 +177,9 @@ public:
             }
         }
         assert( dDifferenceCoefficients < 1e-5 );
+
+        //ds log complete configuration
+        //_logConfiguration( dDifferenceCoefficients );
     }
 
     //ds no manual dynamic allocation

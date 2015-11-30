@@ -40,8 +40,9 @@ struct CMeasurementLandmark
     {
         //ds input validation
         assert( ptUVLEFT.y == ptUVRIGHT.y );
+        assert( ptUVLEFT.x > ptUVRIGHT.x );
         assert( 0.0 < vecPointXYZLEFT.z( ) );
-        assert( 0.0f <= fDisparity );
+        assert( 0.0f < fDisparity );
     }
 
 };

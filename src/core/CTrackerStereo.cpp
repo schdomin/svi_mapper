@@ -566,8 +566,8 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
         try
         {
             //ds triangulate the point
-            const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
-                                                                                                 std::max( 0.0f, ptLandmarkLEFT.x-CTriangulator::fMinimumSearchRangePixels ),
+            const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matDisplaySTEREO, p_matImageRIGHT,
+                                                                                                 std::max( 0.0f, ptLandmarkLEFT.x-CTriangulator::fMinimumSearchRangePixels-4*cKeyPointLEFT.size ),
                                                                                                  ptLandmarkLEFT.y-4*cKeyPointLEFT.size,
                                                                                                  cKeyPointLEFT.size,
                                                                                                  ptLandmarkLEFT,
@@ -619,13 +619,13 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
             else
             {
                 cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 3, CColorCodeBGR( 0, 255, 255 ), -1 );
-                //std::printf( "[%06lu]<CTrackerStereo>(_addNewLandmarks) could not find match for keypoint (invalid depth: %f m)\n", m_uFrameCount, dDepthMeters );
+                std::printf( "[%06lu]<CTrackerStereo>(_addNewLandmarks) could not find match for keypoint (invalid depth: %f m)\n", m_uFrameCount, dDepthMeters );
             }
         }
         catch( const CExceptionNoMatchFound& p_cException )
         {
             cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 3, CColorCodeBGR( 0, 0, 255 ), -1 );
-            //std::printf( "[%06lu]<CTrackerStereo>(_addNewLandmarks) could not find match for keypoint (%s)\n", m_uFrameCount, p_cException.what( ) );
+            //std::printf( "[%06lu]<CTrackerStereo>(_addNewLandmarks) could not find match for keypoint: '%s'\n", m_uFrameCount, p_cException.what( ) );
         }
     }
 

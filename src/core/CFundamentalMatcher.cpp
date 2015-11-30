@@ -1923,11 +1923,11 @@ const std::shared_ptr< CMatchTracking > CFundamentalMatcher::_getMatch( const cv
         if( m_dMatchingDistanceCutoffOriginal > dMatchingDistanceToOriginal )
         {
             //ds correct keypoint offset
-            cv::KeyPoint cKeyPointCorrected( p_vecPoolKeyPoints[cBestMatch.trainIdx] );
-            cKeyPointCorrected.pt += p_ptOffsetROI;
+            cv::KeyPoint cKeyPointShifted( p_vecPoolKeyPoints[cBestMatch.trainIdx] );
+            cKeyPointShifted.pt += p_ptOffsetROI;
 
             //ds return the match
-            return std::make_shared< CMatchTracking >( cKeyPointCorrected, matDescriptorNew );
+            return std::make_shared< CMatchTracking >( cKeyPointShifted, matDescriptorNew );
         }
         else
         {
@@ -1960,7 +1960,7 @@ void CFundamentalMatcher::_addMeasurementToLandmarkLEFT( const UIDFrame p_uFrame
     const float fSearchRangePixels = ( 1.0+p_dMotionScaling )*p_pLandmark->getLastDisparity( );
     const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
                                                                                          fSearchRangePixels,
-                                                                                         std::max( 0.0f, ptUVLEFT.x-fSearchRangePixels ),
+                                                                                         std::max( 0.0f, ptUVLEFT.x-fSearchRangePixels-4*p_cKeyPoint.size ),
                                                                                          ptUVLEFT.y-4*p_cKeyPoint.size,
                                                                                          p_cKeyPoint.size,
                                                                                          ptUVLEFT,

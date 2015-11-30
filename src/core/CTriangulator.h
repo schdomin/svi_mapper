@@ -33,18 +33,20 @@ private:
     const std::shared_ptr< cv::DescriptorMatcher > m_pMatcher;
     const float m_fMatchingDistanceCutoff;
 
-    //ds triangulation
-    const uint32_t m_uLimitedSearchRangeToLEFT  = 50;
-    const uint32_t m_uLimitedSearchRangeToRIGHT = 10;
-    const uint32_t m_uLimitedSearchRange;
-    const uint32_t m_uAdaptiveSteps;
-    const uint32_t m_uMinimumSearchRangePixels = 50;
+
+    //ds intrinsics
+    const double m_dF;
+    const double m_dFInverse;
+    const double m_dPu;
+    const double m_dPv;
+    const double m_dDuR;
+    const double m_dDuRFlipped;
 
 //ds api
 public:
 
     //ds triangulation methods
-    const CMatchTriangulation getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
+    const CMatchTriangulation getPointTriangulatedInRIGHT( cv::Mat& p_matDisplaySTEREO, const cv::Mat& p_matImageRIGHT,
             const float& p_fUTopLeft,
             const float& p_fVTopLeft,
             const float& p_fKeyPointSizePixels,
@@ -72,10 +74,7 @@ public:
             const cv::Point2f& p_ptUVRIGHT,
             const CDescriptor& p_matReferenceDescriptorRIGHT ) const;
 
-    //ds testing
-    const CPoint3DCAMERA getPointTriangulatedLimitedSVDLS( cv::Mat& p_matDisplayRIGHT, const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
-    const CPoint3DCAMERA getPointTriangulatedLimitedQRLS( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
-    const CPoint3DCAMERA getPointTriangulatedLimitedSVDDLT( const cv::Mat& p_matImageRIGHT, const cv::KeyPoint& p_cKeyPointLEFT, const CDescriptor& p_matReferenceDescriptorLEFT ) const;
+    const CPoint3DCAMERA getPointInLEFT( const cv::Point2f& p_ptUVLEFT, const cv::Point2f& p_ptUVRIGHT ) const;
 
 private:
 
