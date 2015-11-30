@@ -1,5 +1,6 @@
 --------------------------------------------
 svi_mapper version: 1.0
+Contact: https://github.com/schdomin
 
 
 
