@@ -46,7 +46,7 @@ private:
 public:
 
     //ds triangulation methods
-    const CMatchTriangulation getPointTriangulatedInRIGHT( cv::Mat& p_matDisplaySTEREO, const cv::Mat& p_matImageRIGHT,
+    const CMatchTriangulation getPointTriangulatedInRIGHTFull( cv::Mat& p_matDisplaySTEREO, const cv::Mat& p_matImageRIGHT,
             const float& p_fUTopLeft,
             const float& p_fVTopLeft,
             const float& p_fKeyPointSizePixels,
@@ -60,7 +60,6 @@ public:
             const CDescriptor& p_matReferenceDescriptorRIGHT ) const;
 
     const CMatchTriangulation getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
-            const float& p_fSearchRange,
             const float& p_fUTopLeft,
             const float& p_fVTopLeft,
             const float& p_fKeyPointSizePixels,

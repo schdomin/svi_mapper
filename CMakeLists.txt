@@ -82,10 +82,12 @@ src/utility/CIMUInterpolator.cpp
 src/vision/CMiniVisionToolbox.cpp
 src/core/CTriangulator.cpp
 src/core/CFundamentalMatcher.cpp
+src/core/CMapper.cpp
 #src/optimization/Cg2oOptimizer.cpp
 #src/optimization/closure_buffer.cpp
 #src/optimization/closure_checker.cpp
-src/gui/CViewerScene.cpp)
+src/gui/CViewerScene.cpp
+src/optimization/CSolverStereoPosit.cpp)
 
 
 

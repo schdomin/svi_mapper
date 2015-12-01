@@ -47,7 +47,7 @@ CTriangulator::~CTriangulator( )
     std::printf( "<CTriangulator>(~CTriangulator) instance deallocated\n" );
 }
 
-const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHT( cv::Mat& p_matDisplaySTEREO, const cv::Mat& p_matImageRIGHT,
+const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHTFull( cv::Mat& p_matDisplaySTEREO, const cv::Mat& p_matImageRIGHT,
                                                        const float& p_fUTopLeft,
                                                        const float& p_fVTopLeft,
                                                        const float& p_fKeyPointSizePixels,
@@ -182,7 +182,6 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInLEFT( const cv::M
 
 
 const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHT( const cv::Mat& p_matImageRIGHT,
-                                                       const float& p_fSearchRange,
                                                        const float& p_fUTopLeft,
                                                        const float& p_fVTopLeft,
                                                        const float& p_fKeyPointSizePixels,

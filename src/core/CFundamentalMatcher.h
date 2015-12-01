@@ -84,9 +84,10 @@ private:
     const uint8_t m_uRecursionStepSize                         = 2;
     UIDLandmark m_uNumberOfFailedLandmarkOptimizationsTotal    = 0;
     UIDLandmark m_uNumberOfInvalidLandmarksTotal               = 0;
-    UIDLandmark m_uNumberOfTracksStage1 = 0;
-    UIDLandmark m_uNumberOfTracksStage2 = 0;
-    UIDLandmark m_uNumberOfTracksStage3 = 0;
+    UIDLandmark m_uNumberOfTracksStage1   = 0;
+    UIDLandmark m_uNumberOfTracksStage2_1 = 0;
+    UIDLandmark m_uNumberOfTracksStage3   = 0;
+    UIDLandmark m_uNumberOfTracksStage2_2 = 0;
 
     //ds posit solving
     const uint8_t m_uSearchBlockSizePoseOptimization = 15; //15
@@ -109,6 +110,9 @@ public:
 
     //ds register keyframing on currently visible landmarks
     void setKeyFrameToVisibleLandmarks( );
+
+    //ds trigger optimization
+    void optimizeActiveLandmarks( const UIDFrame& p_uFrame ) const;
 
     //ds returns a handle to all currently visible landmarks
     const std::shared_ptr< const std::vector< CLandmark* > > getVisibleOptimizedLandmarks( ) const;
@@ -172,9 +176,10 @@ public:
     const UIDDetectionPoint getNumberOfDetectionPointsTotal( ) const { return m_uAvailableDetectionPointID; }
     const UIDLandmark getNumberOfInvalidLandmarksTotal( ) const { return m_uNumberOfInvalidLandmarksTotal; }
     const UIDLandmark getNumberOfFailedLandmarkOptimizations( ) const { return m_uNumberOfFailedLandmarkOptimizationsTotal; }
-    const UIDLandmark getNumberOfDetectionsPoseOptimizationDirect( ) const { return m_uNumberOfTracksStage1; }
-    const UIDLandmark getNumberOfDetectionsPoseOptimizationDetection( ) const { return m_uNumberOfTracksStage2; }
-    const UIDLandmark getNumberOfDetectionsEpipolar( ) const { return m_uNumberOfTracksStage3; }
+    const UIDLandmark getNumberOfTracksStage1( ) const { return m_uNumberOfTracksStage1; }
+    const UIDLandmark getNumberOfTracksStage2_1( ) const { return m_uNumberOfTracksStage2_1; }
+    const UIDLandmark getNumberOfTracksStage3( ) const { return m_uNumberOfTracksStage3; }
+    const UIDLandmark getNumberOfTracksStage2_2( ) const { return m_uNumberOfTracksStage2_2; }
     const std::vector< CLandmark* >::size_type getNumberOfVisibleLandmarks( ) const { return m_vecVisibleLandmarks.size( ); }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cSolverSterePosit.getDurationTotalSeconds( ); }
     const double getDurationTotalSecondsRegionalTracking( ) const { return m_dDurationTotalSecondsRegionalTracking; }

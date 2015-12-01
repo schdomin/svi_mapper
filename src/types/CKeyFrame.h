@@ -29,16 +29,24 @@ public:
 
 public:
 
+    //ds key frame with closure
     CKeyFrame( const UIDKeyFrame& p_uID,
                const UIDFrame& p_uFrame,
                const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                const CLinearAccelerationIMU& p_vecLinearAcceleration,
                const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
                const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
-               const std::vector< const CMatchICP* > p_vecLoopClosures,
-               const double& p_dInformationFactor );
+               const std::vector< const CMatchICP* > p_vecLoopClosures );
 
-    //ds keyframe loading from file (used for offline cloud matching)
+    //ds key frame without closure
+    CKeyFrame( const UIDKeyFrame& p_uID,
+               const UIDFrame& p_uFrame,
+               const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
+               const CLinearAccelerationIMU& p_vecLinearAcceleration,
+               const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
+               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud );
+
+    //ds key frame loading from file (used for offline cloud matching)
     CKeyFrame( const std::string& p_strFile );
 
     ~CKeyFrame( );
@@ -52,8 +60,7 @@ public:
     const std::vector< const CMeasurementLandmark* > vecMeasurements;
     bool bIsOptimized = false;
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > vecCloud;
-    const std::vector< const CMatchICP* > vecLoopClosures;
-    const double dInformationFactor;
+    std::vector< const CMatchICP* > vecLoopClosures;
 
 private:
 

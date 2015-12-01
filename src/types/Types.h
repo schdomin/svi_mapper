@@ -3,6 +3,8 @@
 
 #include "Typedefs.h"
 
+
+
 struct CMeasurementLandmark
 {
     const UIDLandmark uID;

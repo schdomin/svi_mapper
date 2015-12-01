@@ -1,12 +1,16 @@
 #include <opencv/highgui.h>
 #include <stack>
+#include <thread>
 
 //ds custom
 #include "txt_io/message_reader.h"
 #include "core/CTrackerStereo.h"
+#include "core/CMapper.h"
 #include "exceptions/CExceptionLogfileTree.h"
 #include "utility/CIMUInterpolator.h"
 #include "utility/CParameterBase.h"
+
+
 
 //ds command line parsing (setting params IN/OUT)
 void setParametersNaive( const int& p_iArgc,
@@ -18,6 +22,60 @@ void printHelp( );
 
 //ds speed tests
 void testSpeedEigen( );
+
+
+
+//ds C+11 threading - global scope
+std::shared_ptr< CHandleThreadMapping > g_hMappingThread( std::make_shared< CHandleThreadMapping >( ) );
+
+//ds mapping thread
+void launchMapping( )
+{
+    std::printf( "(launchMapping) thread launched\n" );
+
+    //ds entities
+    CMapper cMapper;
+
+    //ds breaking
+    while( true )
+    {
+        //ds lock the mutex and wait for a call (new key frames or termination)
+        std::unique_lock< std::mutex > cLock( g_hMappingThread->cMutex );
+        g_hMappingThread->cConditionVariable.wait( cLock, []{ return ( !g_hMappingThread->vecKeyFramesToAdd.empty( ) || g_hMappingThread->bTerminationRequested ); } );
+
+
+
+        //ds ------------------------------------- RACE CONDITION SECTION -------------------------------------
+        //ds if termination requested
+        if( g_hMappingThread->bTerminationRequested )
+        {
+            std::printf( "(launchMapping) termination request signal received\n" );
+            g_hMappingThread->bActive = false;
+            cLock.unlock( );
+            g_hMappingThread->cConditionVariable.notify_one( );
+            break;
+        }
+
+        //ds copy key frames fast!
+        cMapper.addKeyFramesSorted( g_hMappingThread->vecKeyFramesToAdd );
+
+        //ds clear pending frames to add
+        g_hMappingThread->vecKeyFramesToAdd.clear( );
+
+        //ds unlock mutex and notify main over the condition variable
+        cLock.unlock( );
+        g_hMappingThread->cConditionVariable.notify_one( );
+        //ds ------------------------------------- RACE CONDITION SECTION -------------------------------------
+
+
+
+        //ds process new key frames after critical section
+        cMapper.integrateAddedKeyFrames( );
+    }
+
+    //ds report
+    std::printf( "(launchMapping) thread terminated\n" );
+}
 
 int32_t main( int32_t argc, char **argv )
 {
@@ -178,6 +236,7 @@ int32_t main( int32_t argc, char **argv )
     CTrackerStereo cTracker( CParameterBase::pCameraLEFT,
                              CParameterBase::pCameraRIGHT,
                              pIMUInterpolator,
+                             g_hMappingThread,
                              eMode,
                              uWaitKeyTimeout );
     try
@@ -195,6 +254,9 @@ int32_t main( int32_t argc, char **argv )
 
     //ds count invalid frames
     UIDFrame uInvalidFrames = 0;
+
+    //ds spawn worker threads
+    std::thread threadMapping( launchMapping );
 
     //ds playback the dump
     while( cMessageReader.good( ) && !cTracker.isShutdownRequested( ) )
@@ -281,29 +343,49 @@ int32_t main( int32_t argc, char **argv )
     const double dDurationRealTime = uFrameCount/20.0;
     const double dDistance       = cTracker.getDistanceTraveled( );
 
+    //ds signal threads
+    std::printf( "(main) signaling for threads for termination\n" );
+    {
+        std::lock_guard< std::mutex > cLockGuard( g_hMappingThread->cMutex );
+        g_hMappingThread->bTerminationRequested = true;
+    }
+    g_hMappingThread->cConditionVariable.notify_one( );
+    std::printf( "(main) waiting for threads to terminate\n" );
+    {
+        std::unique_lock< std::mutex > cLockFinishingUp( g_hMappingThread->cMutex );
+        g_hMappingThread->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hMappingThread->bActive; } );
+    }
+
+    //ds join threads
+    threadMapping.join( );
+
     if( 1 < uFrameCount )
     {
         //ds finalize tracker (e.g. do a last optimization)
         cTracker.finalize( );
+
+        //ds summary
+        CLogger::openBox( );
+        std::printf( "(main) dataset completed\n" );
+
+        std::printf( "\n(main) frame rate (avg): %f fps (%4.2fx real time)\n", uFrameCount/dDurationPure, dDurationRealTime/dDurationTotal );
+
+        std::printf( "\n(main) duration             Total: %7.2fs (1.00) Real: %7.2fs\n", dDurationTotal, dDurationRealTime );
+        std::printf( "(main) duration Regional Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTracking( ), cTracker.getDurationTotalSecondsRegionalTracking( )/dDurationTotal );
+        std::printf( "(main) duration Epipolar Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsEpipolarTracking( ), cTracker.getDurationTotalSecondsEpipolarTracking( )/dDurationTotal );
+        std::printf( "(main) duration       StereoPosit: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsStereoPosit( ), cTracker.getDurationTotalSecondsStereoPosit( )/dDurationTotal );
+
+        std::printf( "\n(main) distance traveled: %fm\n", dDistance );
+        std::printf( "(main) traveling speed (avg): %fm/s\n", dDistance/dDurationRealTime );
+
+        std::printf( "\n(main) total frames: %lu\n", uFrameCount );
+        std::printf( "(main) invalid frames: %li (%4.2f)\n", uInvalidFrames, static_cast< double >( uInvalidFrames )/uFrameCount );
+        CLogger::closeBox( );
     }
-
-    //ds summary
-    CLogger::openBox( );
-    std::printf( "(main) dataset completed\n" );
-
-    std::printf( "\n(main) frame rate (avg): %f fps (%4.2fx real time)\n", uFrameCount/dDurationPure, dDurationRealTime/dDurationTotal );
-
-    std::printf( "\n(main) duration             Total: %7.2fs (1.00) Real: %7.2fs\n", dDurationTotal, dDurationRealTime );
-    std::printf( "(main) duration Regional Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTracking( ), cTracker.getDurationTotalSecondsRegionalTracking( )/dDurationTotal );
-    std::printf( "(main) duration Epipolar Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsEpipolarTracking( ), cTracker.getDurationTotalSecondsEpipolarTracking( )/dDurationTotal );
-    std::printf( "(main) duration       StereoPosit: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsStereoPosit( ), cTracker.getDurationTotalSecondsStereoPosit( )/dDurationTotal );
-
-    std::printf( "\n(main) distance traveled: %fm\n", dDistance );
-    std::printf( "(main) traveling speed (avg): %fm/s\n", dDistance/dDurationRealTime );
-
-    std::printf( "\n(main) total frames: %lu\n", uFrameCount );
-    std::printf( "(main) invalid frames: %li (%4.2f)\n", uInvalidFrames, static_cast< double >( uInvalidFrames )/uFrameCount );
-    CLogger::closeBox( );
+    else
+    {
+        std::printf( "(main) dataset completed - no frames processed\n" );
+    }
 
     //ds speed checks
     //testSpeedEigen( );
