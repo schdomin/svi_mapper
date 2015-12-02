@@ -62,19 +62,23 @@ public:
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                    const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                    const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
+                   const std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
+                   const std::shared_ptr< CHandleMapping > p_hMapper,
                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                    const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                   const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames );
+                   const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
+                   const std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
+                   const std::shared_ptr< CHandleMapping > p_hMapper );
     ~Cg2oOptimizer( );
 
 private:
 
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
-    const std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
-    const std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
     const std::shared_ptr< CHandleLandmarks > m_hLandmarks;
     const std::shared_ptr< CHandleKeyFrames > m_hKeyFrames;
+    const std::shared_ptr< CHandleMapUpdate > m_hMapUpdate;
+    const std::shared_ptr< CHandleMapping > m_hMapper;
 
     g2o::SparseOptimizer m_cOptimizerSparse;
     g2o::SparseOptimizer m_cOptimizerSparseTrajectoryOnly;
@@ -124,13 +128,10 @@ private:
 
 public:
 
-    void optimizeTailLoopClosuresOnly( const UIDKeyFrame& p_uIDBeginKeyFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
-    void optimizeTail( const UIDKeyFrame& p_uIDBeginKeyFrame );
-    void optimizeContinuous( const UIDFrame& p_uFrame,
-                             const UIDKeyFrame& p_uIDBeginKeyFrame,
-                             const std::vector< CLandmark* >::size_type p_uIDBeginLandmark,
-                             const Eigen::Vector3d& p_vecTranslationToG2o,
-                             const std::vector< CKeyFrame* >::size_type& p_uLoopClosureKeyFrames );
+    //ds copying intended
+    void optimize( const COptimizationRequest p_cRequest );
+
+    void sendMapUpdate( ) const;
 
     const uint32_t getNumberOfOptimizations( ) const { return m_uOptimizations; }
 
@@ -223,12 +224,12 @@ private:
     void _setLoopClosure( g2o::VertexSE3* p_pVertexPoseCurrent, const CKeyFrame* pKeyFrameCurrent, const CKeyFrame::CMatchICP* p_pClosure, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _setLandmarkMeasurementsWORLD( g2o::VertexSE3* p_pVertexPoseCurrent,
                            const CKeyFrame* pKeyFrameCurrent,
-                           UIDLandmark& p_uMeasurementsStoredPointXYZ,
-                           UIDLandmark& p_uMeasurementsStoredUVDepth,
-                           UIDLandmark& p_uMeasurementsStoredUVDisparity );
+                           std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredPointXYZ,
+                           std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredUVDepth,
+                           std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredUVDisparity );
 
-    void _applyOptimization( const UIDFrame& p_uFrame, const std::vector< CLandmark* >::size_type& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
-    void _applyOptimization( const UIDFrame& p_uFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
+    void _applyOptimizationToLandmarks( const UIDFrame& p_uFrame, const std::vector< CLandmark* >::size_type& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
+    void _applyOptimizationToKeyFrames( const UIDFrame& p_uFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
 
     //ds used for loop closure edges
     const Eigen::Matrix< double, 6, 6 > _getInformationNoZ( const Eigen::Matrix< double, 6, 6 >& p_matInformationIN ) const;

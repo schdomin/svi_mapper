@@ -41,69 +41,70 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
 
                 //ds compute projection into current frame
                 const CPoint3DCAMERA vecPointXYZLEFT( m_matTransformationWORLDtoLEFT*cMatch.vecPointXYZWORLD );
-                assert( 0.0 < vecPointXYZLEFT.z( ) );
-
-                //ds apply the projection to the transformed point
-                const Eigen::Vector4d vecPointHomogeneous( vecPointXYZLEFT.x( ), vecPointXYZLEFT.y( ), vecPointXYZLEFT.z( ), 1.0 );
-                const Eigen::Vector3d vecABCLEFT  = m_matProjectionLEFT*vecPointHomogeneous;
-                const Eigen::Vector3d vecABCRIGHT = m_matProjectionRIGHT*vecPointHomogeneous;
-
-                //ds buffer c value
-                const double dCLEFT  = vecABCLEFT.z( );
-                const double dCRIGHT = vecABCRIGHT.z( );
-
-                //ds compute error
-                const Eigen::Vector2d vecUVLEFT( vecABCLEFT.x( )/dCLEFT, vecABCLEFT.y( )/dCLEFT );
-                const Eigen::Vector2d vecUVRIGHT( vecABCRIGHT.x( )/dCRIGHT, vecABCRIGHT.y( )/dCRIGHT );
-                const Eigen::Vector4d vecError( vecUVLEFT.x( )-cMatch.ptUVLEFT.x,
-                                                vecUVLEFT.y( )-cMatch.ptUVLEFT.y,
-                                                vecUVRIGHT.x( )-cMatch.ptUVRIGHT.x,
-                                                vecUVRIGHT.y( )-cMatch.ptUVRIGHT.y );
-
-                //ds current error
-                const double dErrorSquaredPixels = vecError.transpose( )*vecError;
-
-                //ds weight optimized points higher
-                double dWeight = 1.0;
-
-                //ds check if outlier
-                if( m_dMaximumErrorInlierPixelsL2 < dErrorSquaredPixels )
+                if( 0.0 < vecPointXYZLEFT.z( ) )
                 {
-                    dWeight = m_dMaximumErrorInlierPixelsL2/dErrorSquaredPixels;
+                    //ds apply the projection to the transformed point
+                    const Eigen::Vector4d vecPointHomogeneous( vecPointXYZLEFT.x( ), vecPointXYZLEFT.y( ), vecPointXYZLEFT.z( ), 1.0 );
+                    const Eigen::Vector3d vecABCLEFT  = m_matProjectionLEFT*vecPointHomogeneous;
+                    const Eigen::Vector3d vecABCRIGHT = m_matProjectionRIGHT*vecPointHomogeneous;
+
+                    //ds buffer c value
+                    const double dCLEFT  = vecABCLEFT.z( );
+                    const double dCRIGHT = vecABCRIGHT.z( );
+
+                    //ds compute error
+                    const Eigen::Vector2d vecUVLEFT( vecABCLEFT.x( )/dCLEFT, vecABCLEFT.y( )/dCLEFT );
+                    const Eigen::Vector2d vecUVRIGHT( vecABCRIGHT.x( )/dCRIGHT, vecABCRIGHT.y( )/dCRIGHT );
+                    const Eigen::Vector4d vecError( vecUVLEFT.x( )-cMatch.ptUVLEFT.x,
+                                                    vecUVLEFT.y( )-cMatch.ptUVLEFT.y,
+                                                    vecUVRIGHT.x( )-cMatch.ptUVRIGHT.x,
+                                                    vecUVRIGHT.y( )-cMatch.ptUVRIGHT.y );
+
+                    //ds current error
+                    const double dErrorSquaredPixels = vecError.transpose( )*vecError;
+
+                    //ds weight optimized points higher
+                    double dWeight = 1.0;
+
+                    //ds check if outlier
+                    if( m_dMaximumErrorInlierPixelsL2 < dErrorSquaredPixels )
+                    {
+                        dWeight = m_dMaximumErrorInlierPixelsL2/dErrorSquaredPixels;
+                    }
+                    else
+                    {
+                        ++uInliersCurrent;
+                    }
+                    dErrorSquaredTotalCurrent += dWeight*dErrorSquaredPixels;
+
+                    //ds get the jacobian of the transform part
+                    Eigen::Matrix< double, 4, 6 > matJacobianTransform;
+                    matJacobianTransform.setZero( );
+                    matJacobianTransform.block<3,3>(0,0).setIdentity( );
+                    matJacobianTransform.block<3,3>(0,3) = -2*CMiniVisionToolbox::getSkew( vecPointXYZLEFT );
+
+                    //ds jacobian of the homogeneous division
+                    Eigen::Matrix< double, 2, 3 > matJacobianLEFT;
+                    matJacobianLEFT << 1/dCLEFT,          0, -vecABCLEFT.x( )/( dCLEFT*dCLEFT ),
+                                              0,   1/dCLEFT, -vecABCLEFT.y( )/( dCLEFT*dCLEFT );
+
+                    Eigen::Matrix< double, 2, 3 > matJacobianRIGHT;
+                    matJacobianRIGHT << 1/dCRIGHT,           0, -vecABCRIGHT.x( )/( dCRIGHT*dCRIGHT ),
+                                                0,   1/dCRIGHT, -vecABCRIGHT.y( )/( dCRIGHT*dCRIGHT );
+
+                    //ds final jacobian
+                    Eigen::Matrix< double, 4, 6 > matJacobian;
+                    matJacobian.setZero( );
+                    matJacobian.block< 2,6 >(0,0) = matJacobianLEFT*m_matProjectionLEFT*matJacobianTransform;
+                    matJacobian.block< 2,6 >(2,0) = matJacobianRIGHT*m_matProjectionRIGHT*matJacobianTransform;
+
+                    //ds precompute transposed
+                    const Eigen::Matrix< double, 6, 4 > matJacobianTransposed( matJacobian.transpose( ) );
+
+                    //ds accumulate
+                    m_matH += dWeight*matJacobianTransposed*matJacobian;
+                    m_vecB += dWeight*matJacobianTransposed*vecError;
                 }
-                else
-                {
-                    ++uInliersCurrent;
-                }
-                dErrorSquaredTotalCurrent += dWeight*dErrorSquaredPixels;
-
-                //ds get the jacobian of the transform part
-                Eigen::Matrix< double, 4, 6 > matJacobianTransform;
-                matJacobianTransform.setZero( );
-                matJacobianTransform.block<3,3>(0,0).setIdentity( );
-                matJacobianTransform.block<3,3>(0,3) = -2*CMiniVisionToolbox::getSkew( vecPointXYZLEFT );
-
-                //ds jacobian of the homogeneous division
-                Eigen::Matrix< double, 2, 3 > matJacobianLEFT;
-                matJacobianLEFT << 1/dCLEFT,          0, -vecABCLEFT.x( )/( dCLEFT*dCLEFT ),
-                                          0,   1/dCLEFT, -vecABCLEFT.y( )/( dCLEFT*dCLEFT );
-
-                Eigen::Matrix< double, 2, 3 > matJacobianRIGHT;
-                matJacobianRIGHT << 1/dCRIGHT,           0, -vecABCRIGHT.x( )/( dCRIGHT*dCRIGHT ),
-                                            0,   1/dCRIGHT, -vecABCRIGHT.y( )/( dCRIGHT*dCRIGHT );
-
-                //ds final jacobian
-                Eigen::Matrix< double, 4, 6 > matJacobian;
-                matJacobian.setZero( );
-                matJacobian.block< 2,6 >(0,0) = matJacobianLEFT*m_matProjectionLEFT*matJacobianTransform;
-                matJacobian.block< 2,6 >(2,0) = matJacobianRIGHT*m_matProjectionRIGHT*matJacobianTransform;
-
-                //ds precompute transposed
-                const Eigen::Matrix< double, 6, 4 > matJacobianTransposed( matJacobian.transpose( ) );
-
-                //ds accumulate
-                m_matH += dWeight*matJacobianTransposed*matJacobian;
-                m_vecB += dWeight*matJacobianTransposed*vecError;
             }
 
             //ds solve the system and update the estimate

@@ -29,8 +29,9 @@ void testSpeedEigen( );
 //ds C+11 threading - global scope
 std::shared_ptr< CHandleLandmarks > g_hLandmarks( std::make_shared< CHandleLandmarks >( ) );
 std::shared_ptr< CHandleKeyFrames > g_hKeyFrames( std::make_shared< CHandleKeyFrames >( ) );
-std::shared_ptr< CHandleMapping > g_hMapping( std::make_shared< CHandleMapping >( ) );
-std::shared_ptr< CHandleOptimization > g_hOptimization( std::make_shared< CHandleOptimization >( ) );
+std::shared_ptr< CHandleMapping > g_hMapper( std::make_shared< CHandleMapping >( ) );
+std::shared_ptr< CHandleOptimization > g_hOptimizer( std::make_shared< CHandleOptimization >( ) );
+std::shared_ptr< CHandleMapUpdate > g_hMapUpdate( std::make_shared< CHandleMapUpdate >( ) );
 
 //ds mapping thread
 void launchMapping( )
@@ -38,43 +39,53 @@ void launchMapping( )
     std::printf( "[1](launchMapping) thread launched\n" );
 
     //ds entities
-    CMapper cMapper( g_hLandmarks, g_hKeyFrames );
+    CMapper cMapper( g_hLandmarks, g_hKeyFrames, g_hOptimizer, g_hMapUpdate );
 
     //ds breaking
     while( true )
     {
         //ds lock the mutex and wait for a call (new key frames or termination)
-        std::unique_lock< std::mutex > cLock( g_hMapping->cMutex );
-        g_hMapping->cConditionVariable.wait( cLock, []{ return ( !g_hMapping->vecKeyFramesToAdd.empty( ) || g_hMapping->bTerminationRequested ); } );
+        std::unique_lock< std::mutex > cLock( g_hMapper->cMutex );
+        g_hMapper->cConditionVariable.wait( cLock, []{ return ( !g_hMapper->bWaitingForOptimizationReception && ( !g_hMapper->vecKeyFramesToAdd.empty( ) || g_hMapper->bTerminationRequested ) ); } );
 
-
-
-        //ds ------------------------------------- RACE CONDITION SECTION -------------------------------------
         //ds if termination requested
-        if( g_hMapping->bTerminationRequested )
+        if( g_hMapper->bTerminationRequested )
         {
             std::printf( "[1](launchMapping) termination request signal received\n" );
-            g_hMapping->bActive = false;
+            g_hMapper->bActive = false;
             cLock.unlock( );
-            g_hMapping->cConditionVariable.notify_one( );
+            g_hMapper->cConditionVariable.notify_one( );
             break;
         }
 
-        //ds copy key frames fast!
-        cMapper.addKeyFramesSorted( g_hMapping->vecKeyFramesToAdd );
+        //ds check if a map update has been broadcasted (blocking complete map)
+        cMapper.checkForMapUpdate( );
 
-        //ds clear pending frames to add
-        g_hMapping->vecKeyFramesToAdd.clear( );
+        //ds trigger optimization if required
+        const bool bOptimizationRequired = cMapper.checkAndRequestOptimization( );
+
+        //ds block further adding of key frames while optimizer has not received our request
+        g_hMapper->bWaitingForOptimizationReception = bOptimizationRequired;
+
+        //ds check if we can add new key frames
+        if( !bOptimizationRequired )
+        {
+            //ds copy new key frames fast!
+            cMapper.addKeyFramesSorted( g_hMapper->vecKeyFramesToAdd );
+
+            //ds clear pending frames to add
+            g_hMapper->vecKeyFramesToAdd.clear( );
+        }
 
         //ds unlock mutex and notify main over the condition variable
         cLock.unlock( );
-        g_hMapping->cConditionVariable.notify_one( );
-        //ds ------------------------------------- RACE CONDITION SECTION -------------------------------------
-
-
+        g_hMapper->cConditionVariable.notify_one( );
 
         //ds process new key frames after critical section (internal race condition with optimization thread)
-        cMapper.integrateAddedKeyFrames( );
+        if( !bOptimizationRequired )
+        {
+            cMapper.integrateAddedKeyFrames( );
+        }
     }
 
     //ds report
@@ -87,24 +98,40 @@ void launchOptimization( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
     std::printf( "[2](launchOptimization) thread launched\n" );
 
     //ds allocate optimizer
-    Cg2oOptimizer cOptimizier( p_pCameraSTEREO, g_hLandmarks, g_hKeyFrames, p_matTransformationWORLDtoLEFTInitial );
+    Cg2oOptimizer cOptimizer( p_pCameraSTEREO,
+                              g_hLandmarks,
+                              g_hKeyFrames,
+                              g_hMapUpdate,
+                              g_hMapper,
+                              p_matTransformationWORLDtoLEFTInitial );
 
     //ds breaking
     while( true )
     {
         //ds lock the mutex and wait for a call (new optimization requests or termination)
-        std::unique_lock< std::mutex > cLock( g_hOptimization->cMutex );
-        g_hOptimization->cConditionVariable.wait( cLock, []{ return ( g_hOptimization->bTerminationRequested ); } );
+        std::unique_lock< std::mutex > cLock( g_hOptimizer->cMutex );
+        g_hOptimizer->cConditionVariable.wait( cLock, []{ return ( g_hOptimizer->bTerminationRequested || !g_hOptimizer->bRequestProcessed ); } );
 
         //ds if termination requested
-        if( g_hOptimization->bTerminationRequested )
+        if( g_hOptimizer->bTerminationRequested )
         {
             std::printf( "[2](launchOptimization) termination request signal received\n" );
-            g_hOptimization->bActive = false;
+            g_hOptimizer->bActive = false;
             cLock.unlock( );
-            g_hOptimization->cConditionVariable.notify_one( );
+            g_hOptimizer->cConditionVariable.notify_one( );
             break;
         }
+
+        //ds run optimization based on request
+        cOptimizer.optimize( g_hOptimizer->cRequest );
+        g_hOptimizer->bRequestProcessed = true;
+
+        //ds unlock mutex and notify main over the condition variable
+        cLock.unlock( );
+        g_hOptimizer->cConditionVariable.notify_one( );
+
+        //ds broadcast map update
+        cOptimizer.sendMapUpdate( );
     }
 
     std::printf( "[2](launchOptimization) thread terminated\n" );
@@ -271,7 +298,8 @@ int32_t main( int32_t argc, char **argv )
     CTrackerStereo cTracker( CParameterBase::pCameraSTEREO,
                              pIMUInterpolator,
                              g_hLandmarks,
-                             g_hMapping,
+                             g_hMapper,
+                             g_hMapUpdate,
                              eMode,
                              uWaitKeyTimeout );
     try
@@ -381,24 +409,24 @@ int32_t main( int32_t argc, char **argv )
 
     //ds signal threads
     CLogger::openBox( );
-    std::printf( "[0](main) signaling for threads for termination\n" );
+    std::printf( "[0](main) signaling threads for termination\n" );
     {
-        std::lock_guard< std::mutex > cLockGuard( g_hMapping->cMutex );
-        g_hMapping->bTerminationRequested = true;
+        std::lock_guard< std::mutex > cLockGuard( g_hMapper->cMutex );
+        g_hMapper->bTerminationRequested = true;
     }
-    g_hMapping->cConditionVariable.notify_one( );
+    g_hMapper->cConditionVariable.notify_one( );
     {
-        std::unique_lock< std::mutex > cLockFinishingUp( g_hMapping->cMutex );
-        g_hMapping->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hMapping->bActive; } );
+        std::unique_lock< std::mutex > cLockFinishingUp( g_hMapper->cMutex );
+        g_hMapper->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hMapper->bActive; } );
     }
     {
-        std::lock_guard< std::mutex > cLockGuard( g_hOptimization->cMutex );
-        g_hOptimization->bTerminationRequested = true;
+        std::lock_guard< std::mutex > cLockGuard( g_hOptimizer->cMutex );
+        g_hOptimizer->bTerminationRequested = true;
     }
-    g_hOptimization->cConditionVariable.notify_one( );
+    g_hOptimizer->cConditionVariable.notify_one( );
     {
-        std::unique_lock< std::mutex > cLockFinishingUp( g_hOptimization->cMutex );
-        g_hOptimization->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hOptimization->bActive; } );
+        std::unique_lock< std::mutex > cLockFinishingUp( g_hOptimizer->cMutex );
+        g_hOptimizer->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hOptimizer->bActive; } );
     }
 
     //ds join threads

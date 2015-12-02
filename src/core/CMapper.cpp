@@ -3,7 +3,13 @@
 
 
 
-CMapper::CMapper( std::shared_ptr< CHandleLandmarks > p_hLandmarks, std::shared_ptr< CHandleKeyFrames > p_hKeyFrames ): m_hLandmarks( p_hLandmarks ), m_hKeyFrames( p_hKeyFrames )
+CMapper::CMapper( std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                  std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
+                  std::shared_ptr< CHandleOptimization > p_hOptimization,
+                  std::shared_ptr< CHandleMapUpdate > p_hMapUpdate ): m_hLandmarks( p_hLandmarks ),
+                                                                      m_hKeyFrames( p_hKeyFrames ),
+                                                                      m_hOptimization( p_hOptimization ),
+                                                                      m_hMapUpdate( p_hMapUpdate )
 {
     m_vecBufferAddedKeyFrames.clear( );
 
@@ -46,11 +52,108 @@ void CMapper::integrateAddedKeyFrames( )
             if( 0 < pKeyFrame->vecLoopClosures.size( ) )
             {
                 std::printf( "[1]<CMapper>(integrateAddedKeyFrames) key frame [%06lu] loop closures: %lu\n", pKeyFrame->uID, pKeyFrame->vecLoopClosures.size( ) );
+
+                //ds relevant for optimization
+                ++m_uLoopClosingKeyFramesInQueue;
             }
 
             //ds add final key frame
             m_hKeyFrames->vecKeyFrames->push_back( pKeyFrame );
         }
+    }
+}
+
+const bool CMapper::checkAndRequestOptimization( )
+{
+    //ds lock - blocking - RAII
+    std::lock_guard< std::mutex > cLockGuardKeyFrames( m_hKeyFrames->cMutex );
+    std::lock_guard< std::mutex > cLockGuardLandmarks( m_hLandmarks->cMutex );
+
+    //ds must be filled
+    if( 1 < m_hKeyFrames->vecKeyFrames->size( ) && !m_bOptimizationPending )
+    {
+        //ds extract information from the keyframes (overview)
+        const double dMotionScalingCurrent  = m_hKeyFrames->vecKeyFrames->back( )->dMotionScaling;
+        const double dMotionScalingPrevious = ( m_hKeyFrames->vecKeyFrames->back( )-1 )->dMotionScaling;
+
+        //ds check if we are not in a critical situation before triggering an optimization
+        if( m_dMaximumMotionScalingForOptimization > ( dMotionScalingCurrent+dMotionScalingPrevious )/2.0 && 0 == m_hKeyFrames->vecKeyFrames->back( )->uCountInstability )
+        {
+            //ds current key frame id
+            const std::vector< CLandmark* >::size_type uIDKeyFrameCurrent = m_hKeyFrames->vecKeyFrames->back( )->uID;
+
+            //ds check if optimization is required (based on key frame id or loop closing) TODO beautify this case
+            if( m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDProcessedKeyFrameLAST                                                                              ||
+               ( m_uLoopClosingKeyFrameWaitingQueue < m_uLoopClosingKeyFramesInQueue && m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDLoopClosureOptimizedLAST ) )
+            {
+                //ds we will trigger no new optimizations until this one is completed
+                m_bOptimizationPending = true;
+
+                //ds compute landmark begin ID
+                const std::vector< CLandmark* >::size_type uIDBeginLandmark = std::min( m_hKeyFrames->vecKeyFrames->at( m_uIDProcessedKeyFrameLAST )->vecMeasurements.front( )->uID, m_hLandmarks->vecLandmarks->back( )->uID );
+
+                {
+                    //ds request optimization - lock
+                    std::lock_guard< std::mutex > cLockGuardOptimization( m_hOptimization->cMutex );
+
+                    //ds set request information
+                    m_hOptimization->cRequest.uFrame                = m_hKeyFrames->vecKeyFrames->back( )->uFrameOfCreation;
+                    m_hOptimization->cRequest.uIDBeginKeyFrame      = m_uIDProcessedKeyFrameLAST;
+                    m_hOptimization->cRequest.uIDBeginLandmark      = uIDBeginLandmark;
+                    m_hOptimization->cRequest.vecTranslationToG2o   = Eigen::Vector3d::Zero( );
+                    m_hOptimization->cRequest.uLoopClosureKeyFrames = m_uLoopClosingKeyFramesInQueue;
+
+                    std::printf( "[1][%06lu]<CMapper>(checkAndRequestOptimization) requesting optimization for key frames [%06lu] to [%06lu]\n",
+                                  m_hOptimization->cRequest.uFrame, m_hOptimization->cRequest.uIDBeginKeyFrame, uIDKeyFrameCurrent );
+
+                    //ds enable processing
+                    m_hOptimization->bRequestProcessed = false;
+                }
+
+                //ds notify optimizer
+                m_hOptimization->cConditionVariable.notify_one( );
+
+                //ds if loop closure triggered
+                if( 0 < m_uLoopClosingKeyFramesInQueue )
+                {
+                    m_uIDLoopClosureOptimizedLAST = uIDKeyFrameCurrent;
+                }
+
+                //ds update counters
+                m_uLoopClosingKeyFramesInQueue = 0;
+
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void CMapper::checkForMapUpdate( )
+{
+    //ds lock map update structure
+    std::lock_guard< std::mutex > cLockGuardMapUpdate( m_hMapUpdate->cMutex );
+
+    //ds if ready and not already read
+    if( m_hMapUpdate->bAvailable && !m_hMapUpdate->bMapperReceived )
+    {
+        assert( !m_hMapUpdate->bTrackerReceived );
+
+        //ds lock key frames
+        std::lock_guard< std::mutex > cLockGuardKeyFrames( m_hKeyFrames->cMutex );
+
+        std::printf( "[1][%06lu]<CMapper>(checkForMapUpdate) received map update - key frame delta: %lu\n",
+                     m_hMapUpdate->pKeyFrameOptimizedLAST->uFrameOfCreation, m_hKeyFrames->vecKeyFrames->back( )->uID-m_hMapUpdate->pKeyFrameOptimizedLAST->uID );
+
+        //ds update optimization criteria
+        m_uIDProcessedKeyFrameLAST= m_hMapUpdate->pKeyFrameOptimizedLAST->uID+1;
+
+        //ds update processed
+        m_hMapUpdate->bMapperReceived = true;
+
+        //ds done
+        m_bOptimizationPending = false;
     }
 }
 

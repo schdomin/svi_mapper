@@ -26,6 +26,7 @@ public:
                     const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
                     std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                     std::shared_ptr< CHandleMapping > p_hMappingThread,
+                    std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
                     const EPlaybackMode& p_eMode,
                     const uint32_t& p_uWaitKeyTimeoutMS = 1 );
     ~CTrackerStereo( );
@@ -84,17 +85,13 @@ private:
     UIDLandmark m_uNumberofVisibleLandmarksLAST = 0;
     const double m_dMaximumMotionScalingForOptimization = 1.05;
     double m_dMotionScalingLAST                         = 1.0;
-    uint8_t m_uCountInstability                         = 0;
+    uint32_t m_uCountInstability                        = 0;
     std::vector< Eigen::Vector3d > m_vecRotations;
 
     //ds g2o optimization
-    std::vector< CKeyFrame* >::size_type m_uNumberOfKeyFrames = 0;
+    std::vector< CKeyFrame* >::size_type m_uNumberOfKeyFrames                 = 0;
     const std::vector< CLandmark* >::size_type m_uMinimumLandmarksForKeyFrame = 50;
-    UIDKeyFrame m_uIDProcessedKeyFrameLAST              = 0;
-    const UIDKeyFrame m_uIDDeltaKeyFrameForOptimization = 20; //10
-    //Cg2oOptimizer m_cGraphOptimizer;
-    Eigen::Vector3d m_vecTranslationToG2o;
-    const uint8_t m_uLandmarkOptimizationEveryNFrames = 10;
+    const uint8_t m_uLandmarkOptimizationEveryNFrames                         = 10;
 
     //ds robocentric world frame refreshing
     const std::shared_ptr< CIMUInterpolator > m_pIMU;

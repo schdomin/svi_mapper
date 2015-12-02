@@ -11,6 +11,7 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCamera
                                 const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
                                 std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                                 std::shared_ptr< CHandleMapping > p_hMappingThread,
+                                std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
                                 const EPlaybackMode& p_eMode,
                                 const uint32_t& p_uWaitKeyTimeoutMS ): m_uWaitKeyTimeoutMS( p_uWaitKeyTimeoutMS ),
                                                                            m_pCameraLEFT( p_pCameraSTEREO->m_pCameraLEFT ),
@@ -41,9 +42,6 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCamera
 
                                                                            m_pTriangulator( std::make_shared< CTriangulator >( m_pCameraSTEREO, m_pExtractor, m_pMatcher, m_dMatchingDistanceCutoffTriangulation ) ),
                                                                            m_cMatcher( m_pTriangulator, m_pDetector, m_dMinimumDepthMeters, m_dMaximumDepthMeters, m_dMatchingDistanceCutoffPoseOptimization, m_dMatchingDistanceCutoffEpipolar, m_uMaximumFailedSubsequentTrackingsPerLandmark ),
-
-                                                                           //m_cGraphOptimizer( m_pCameraSTEREO, m_vecLandmarks, m_vecKeyFrames, m_matTransformationWORLDtoLEFTLAST.inverse( ) ),
-                                                                           m_vecTranslationToG2o( m_vecPositionCurrent ),
 
                                                                            m_pIMU( p_pIMUInterpolator ),
 
@@ -80,7 +78,6 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCamera
     std::printf( "[0][%06lu]<CTrackerStereo>(CTrackerStereo) <Landmark> convergence delta: %f\n", m_uFrameCount, CLandmark::dConvergenceDelta );
     std::printf( "[0][%06lu]<CTrackerStereo>(CTrackerStereo) <Landmark> maximum error L2 inlier: %f\n", m_uFrameCount, CLandmark::dKernelMaximumErrorSquaredPixels );
     std::printf( "[0][%06lu]<CTrackerStereo>(CTrackerStereo) <Landmark> maximum error L2 average: %f\n", m_uFrameCount, CLandmark::dMaximumErrorSquaredAveragePixels );
-    std::printf( "[0][%06lu]<CTrackerStereo>(CTrackerStereo) key frame delta for optimization: %lu\n", m_uFrameCount, m_uIDDeltaKeyFrameForOptimization );
     std::printf( "[0][%06lu]<CTrackerStereo>(CTrackerStereo) instance allocated\n", m_uFrameCount );
     CLogger::closeBox( );
 }
@@ -392,7 +389,9 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                                                                               matTransformationLEFTtoWORLD,
                                                                               p_vecLinearAcceleration.normalized( ),
                                                                               *vecMeasurements,
-                                                                              vecCloud ) );
+                                                                              vecCloud,
+                                                                              m_uCountInstability,
+                                                                              dMotionScaling ) );
             }
             m_hMappingThread->cConditionVariable.notify_one( );
             ++m_uNumberOfKeyFrames;

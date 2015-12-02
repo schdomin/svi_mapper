@@ -25,9 +25,21 @@ struct CHandleMapping
     std::condition_variable cConditionVariable;
     bool bActive               = true;
     bool bTerminationRequested = false;
+    bool bWaitingForOptimizationReception = false;
 
     //ds data
     std::vector< CKeyFrame* > vecKeyFramesToAdd;
+};
+
+//ds optimization
+struct COptimizationRequest
+{
+    //ds data to be set
+    UIDFrame uFrame;
+    std::vector< CKeyFrame* >::size_type uIDBeginKeyFrame;
+    std::vector< CLandmark* >::size_type uIDBeginLandmark;
+    Eigen::Vector3d vecTranslationToG2o;
+    std::vector< CKeyFrame* >::size_type uLoopClosureKeyFrames;
 };
 
 struct CHandleOptimization
@@ -46,8 +58,10 @@ struct CHandleOptimization
     std::condition_variable cConditionVariable;
     bool bActive               = true;
     bool bTerminationRequested = false;
+    bool bRequestProcessed     = true; //ds initial request is none and therefore always processed
 
     //ds data
+    COptimizationRequest cRequest;
 };
 
 //ds landmark sharing: owned by Tracker
@@ -121,6 +135,19 @@ struct CHandleKeyFrames
 
     std::mutex cMutex;
     std::shared_ptr< std::vector< CKeyFrame* > > vecKeyFrames;
+};
+
+//ds map update broadcasted by optimizer
+struct CHandleMapUpdate
+{
+    //ds communication
+    std::mutex cMutex;
+    bool bAvailable       = false;
+    bool bMapperReceived  = false; //ds the mapper handles the update first
+    bool bTrackerReceived = false; //ds then the tracker briefly integrates the update and moves on
+
+    //ds data
+    CKeyFrame* pKeyFrameOptimizedLAST = 0;
 };
 
 #endif //TYPESTHREADING_H

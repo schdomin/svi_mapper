@@ -30,21 +30,25 @@ public:
 public:
 
     //ds key frame with closure
-    CKeyFrame( const UIDKeyFrame& p_uID,
-               const UIDFrame& p_uFrame,
+    CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
+               const uint64_t& p_uFrame,
                const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                const CLinearAccelerationIMU& p_vecLinearAcceleration,
                const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
                const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
+               const uint32_t& p_uCountInstability,
+               const double& p_dMotionScaling,
                const std::vector< const CMatchICP* > p_vecLoopClosures );
 
     //ds key frame without closure
-    CKeyFrame( const UIDKeyFrame& p_uID,
-               const UIDFrame& p_uFrame,
+    CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
+               const uint64_t& p_uFrame,
                const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                const CLinearAccelerationIMU& p_vecLinearAcceleration,
                const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
-               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud );
+               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
+               const uint32_t& p_uCountInstability,
+               const double& p_dMotionScaling );
 
     //ds key frame loading from file (used for offline cloud matching)
     CKeyFrame( const std::string& p_strFile );
@@ -53,13 +57,15 @@ public:
 
 public:
 
-    const UIDKeyFrame uID;
-    const UIDFrame uFrameOfCreation;
+    const std::vector< CKeyFrame* >::size_type uID;
+    const uint64_t uFrameOfCreation;
     Eigen::Isometry3d matTransformationLEFTtoWORLD;
     const CLinearAccelerationIMU vecLinearAccelerationNormalized;
     const std::vector< const CMeasurementLandmark* > vecMeasurements;
     bool bIsOptimized = false;
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > vecCloud;
+    const uint32_t uCountInstability;
+    const double dMotionScaling;
     std::vector< const CMatchICP* > vecLoopClosures;
 
 private:
