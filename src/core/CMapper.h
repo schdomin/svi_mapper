@@ -2,6 +2,7 @@
 #define CMAPPER_H
 
 #include "types/CKeyFrame.h"
+#include "types/CTypesThreading.h"
 
 
 
@@ -11,7 +12,7 @@ class CMapper
 //ds ctor/dtor
 public:
 
-    CMapper( );
+    CMapper( std::shared_ptr< CHandleLandmarks > p_hLandmarks, std::shared_ptr< CHandleKeyFrames > p_hKeyFrames );
     ~CMapper( );
 
 //ds access
@@ -27,8 +28,8 @@ public:
 private:
 
     //ds general
-    std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
-    uint64_t m_uFrameID = 0;
+    std::shared_ptr< CHandleLandmarks > m_hLandmarks;
+    std::shared_ptr< CHandleKeyFrames > m_hKeyFrames;
 
     //ds transfer buffer of key frames to guarantee minimum critical sections in the thread
     std::vector< CKeyFrame* > m_vecBufferAddedKeyFrames;

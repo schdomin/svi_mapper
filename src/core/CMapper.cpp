@@ -3,38 +3,24 @@
 
 
 
-CMapper::CMapper( ): m_vecKeyFrames( std::make_shared< std::vector< CKeyFrame* > >( ) )
+CMapper::CMapper( std::shared_ptr< CHandleLandmarks > p_hLandmarks, std::shared_ptr< CHandleKeyFrames > p_hKeyFrames ): m_hLandmarks( p_hLandmarks ), m_hKeyFrames( p_hKeyFrames )
 {
-    m_vecKeyFrames->clear( );
     m_vecBufferAddedKeyFrames.clear( );
 
     //ds configuration
     CLogger::openBox( );
-    std::printf( "[1][%06lu]<CMapper>(CMapper) minimum key frame distance: %lu\n", m_uFrameID, m_uMinimumLoopClosingKeyFrameDistance );
-    std::printf( "[1][%06lu]<CMapper>(CMapper) minimum matches for closure: %lu\n", m_uFrameID, m_uMinimumNumberOfMatchesLoopClosure );
-    std::printf( "[1][%06lu]<CMapper>(CMapper) closure search radius: %fm\n", m_uFrameID, m_dLoopClosingRadiusSquaredMeters );
-    std::printf( "[1][%06lu]<CMapper>(CMapper) instance allocated\n", m_uFrameID );
+    std::printf( "[1]<CMapper>(CMapper) minimum key frame distance: %lu\n", m_uMinimumLoopClosingKeyFrameDistance );
+    std::printf( "[1]<CMapper>(CMapper) minimum matches for closure: %lu\n", m_uMinimumNumberOfMatchesLoopClosure );
+    std::printf( "[1]<CMapper>(CMapper) closure search radius: %fm\n", m_dLoopClosingRadiusSquaredMeters );
+    std::printf( "[1]<CMapper>(CMapper) instance allocated\n" );
     CLogger::closeBox( );
 }
 
 CMapper::~CMapper( )
 {
     //ds info
-    std::vector< CKeyFrame* >::size_type uNumberOfKeyFramesDeallocated = 0;
-
-    //ds free keyframes
-    for( const CKeyFrame* pKeyFrame: *m_vecKeyFrames )
-    {
-        assert( 0 != pKeyFrame );
-        delete pKeyFrame;
-        ++uNumberOfKeyFramesDeallocated;
-    }
-
-    //ds info
-    std::printf( "[1][%06lu]<CTrackerStereo>(~CTrackerStereo) dealloacted key frames: %lu/%lu\n", m_uFrameID, uNumberOfKeyFramesDeallocated, m_vecKeyFrames->size( ) );
-    m_vecKeyFrames->clear( );
-    std::printf( "[1][%06lu]<CMapper>(CMapper) total computation time: %fs\n", m_uFrameID, m_dDurationTotalSeconds );
-    std::printf( "[1][%06lu]<CMapper>(CMapper) instance deallocated\n", m_uFrameID );
+    std::printf( "[1]<CMapper>(CMapper) total computation time: %fs\n", m_dDurationTotalSeconds );
+    std::printf( "[1]<CMapper>(CMapper) instance deallocated\n" );
 }
 
 void CMapper::addKeyFramesSorted( const std::vector< CKeyFrame* >& p_vecKeyFramesToAdd )
@@ -46,20 +32,25 @@ void CMapper::addKeyFramesSorted( const std::vector< CKeyFrame* >& p_vecKeyFrame
 
 void CMapper::integrateAddedKeyFrames( )
 {
-    //ds loop over the buffer
-    for( CKeyFrame* pKeyFrame: m_vecBufferAddedKeyFrames )
     {
-        //ds compute loop closures
-        pKeyFrame->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrame, m_dLoopClosingRadiusSquaredMeters, m_uMinimumNumberOfMatchesLoopClosure );
+        //ds lock - blocking - RAII
+        std::lock_guard< std::mutex > cLockGuard( m_hKeyFrames->cMutex );
 
-        //ds info
-        if( 0 < pKeyFrame->vecLoopClosures.size( ) )
+        //ds loop over the buffer
+        for( CKeyFrame* pKeyFrame: m_vecBufferAddedKeyFrames )
         {
-            std::printf( "[1][%06lu]<CMapper>(integrateAddedKeyFrames) key frame [%06lu] loop closures: %lu\n", m_uFrameID, pKeyFrame->uID, pKeyFrame->vecLoopClosures.size( ) );
-        }
+            //ds compute loop closures
+            pKeyFrame->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrame, m_dLoopClosingRadiusSquaredMeters, m_uMinimumNumberOfMatchesLoopClosure );
 
-        //ds add final key frame
-        m_vecKeyFrames->push_back( pKeyFrame );
+            //ds info
+            if( 0 < pKeyFrame->vecLoopClosures.size( ) )
+            {
+                std::printf( "[1]<CMapper>(integrateAddedKeyFrames) key frame [%06lu] loop closures: %lu\n", pKeyFrame->uID, pKeyFrame->vecLoopClosures.size( ) );
+            }
+
+            //ds add final key frame
+            m_hKeyFrames->vecKeyFrames->push_back( pKeyFrame );
+        }
     }
 }
 
@@ -82,7 +73,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CMapper::_getLoopClosuresForKey
     std::vector< const CKeyFrame* > vecPotentialClosureKeyFrames;
 
     //ds check all keyframes for distance
-    for( const CKeyFrame* pKeyFrameReference: *m_vecKeyFrames )
+    for( const CKeyFrame* pKeyFrameReference: *m_hKeyFrames->vecKeyFrames )
     {
         //ds break if near to current id (forward closing)
         if( m_uMinimumLoopClosingKeyFrameDistance > uIDQuery-pKeyFrameReference->uID )

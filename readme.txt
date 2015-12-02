@@ -17,7 +17,7 @@ thin_visensor: https://github.com/grisetti/thin_drivers
 
 
 --------------------------------------------
-build sequence example (shell in project root):
+build sequence EXAMPLE (shell in project root):
 
 mkdir build
 cd build
@@ -30,4 +30,11 @@ make -j666
 output filepath:
 
 bin
+
+
+
+--------------------------------------------
+application requirements:
+threads: 2
+RAM: 4-32GB (depending on scale)
 

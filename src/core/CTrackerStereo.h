@@ -11,7 +11,7 @@
 #include "types/CKeyFrame.h"
 //#include "optimization/Cg2oOptimizer.h"
 #include "utility/CIMUInterpolator.h"
-#include "parallelization/CTypesThreading.h"
+#include "types/CTypesThreading.h"
 
 
 
@@ -22,10 +22,10 @@ class CTrackerStereo
 public:
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCameraLEFT,
-                    const std::shared_ptr< CPinholeCamera > p_pCameraRIGHT,
+    CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                     const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
-                    std::shared_ptr< CHandleThreadMapping > p_hMappingThread,
+                    std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                    std::shared_ptr< CHandleMapping > p_hMappingThread,
                     const EPlaybackMode& p_eMode,
                     const uint32_t& p_uWaitKeyTimeoutMS = 1 );
     ~CTrackerStereo( );
@@ -40,7 +40,8 @@ private:
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
     //ds thread handles
-    std::shared_ptr< CHandleThreadMapping > m_hMappingThread;
+    std::shared_ptr< CHandleLandmarks > m_hLandmarks;
+    std::shared_ptr< CHandleMapping > m_hMappingThread;
 
     //ds reference information
     UIDFrame m_uFrameCount = 0;
@@ -81,15 +82,12 @@ private:
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
     UIDLandmark m_uAvailableLandmarkID          = 0;
     UIDLandmark m_uNumberofVisibleLandmarksLAST = 0;
-    std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
-    //std::shared_ptr< std::array< CLandmark*, 8388608 > > m_arrLandmarks;
     const double m_dMaximumMotionScalingForOptimization = 1.05;
     double m_dMotionScalingLAST                         = 1.0;
     uint8_t m_uCountInstability                         = 0;
     std::vector< Eigen::Vector3d > m_vecRotations;
 
     //ds g2o optimization
-    std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
     std::vector< CKeyFrame* >::size_type m_uNumberOfKeyFrames = 0;
     const std::vector< CLandmark* >::size_type m_uMinimumLandmarksForKeyFrame = 50;
     UIDKeyFrame m_uIDProcessedKeyFrameLAST              = 0;
@@ -126,8 +124,6 @@ public:
 
     const UIDFrame getFrameCount( ) const { return m_uFrameCount; }
     const bool isShutdownRequested( ) const { return m_bIsShutdownRequested; }
-    const std::shared_ptr< std::vector< CLandmark* > > getLandmarksHandle( ) const { return m_vecLandmarks; }
-    const std::shared_ptr< std::vector< CKeyFrame* > > getKeyFramesHandle( ) const { return m_vecKeyFrames; }
     const bool isFrameAvailable( ) const { return m_bIsFrameAvailable; }
     const std::pair< bool, Eigen::Isometry3d > getFrameLEFTtoWORLD( ){ m_bIsFrameAvailable = false; return m_prFrameLEFTtoWORLD; }
     void finalize( );

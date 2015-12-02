@@ -2,13 +2,17 @@
 #define CG2OOPTIMIZER_H
 
 #include "g2o/core/sparse_optimizer.h"
+#include "g2o/types/slam3d/types_slam3d.h"
 
 #include "vision/CStereoCamera.h"
 #include "types/CLandmark.h"
 #include "types/CKeyFrame.h"
+#include "types/CTypesThreading.h"
 
 #include "closure_buffer.h"
 #include "closure_checker.h"
+
+
 
 class Cg2oOptimizer
 {
@@ -56,12 +60,12 @@ class Cg2oOptimizer
 public:
 
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
-                   const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
+                   const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                   const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
-                   const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames );
+                   const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                   const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames );
     ~Cg2oOptimizer( );
 
 private:
@@ -69,6 +73,8 @@ private:
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
     const std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
     const std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
+    const std::shared_ptr< CHandleLandmarks > m_hLandmarks;
+    const std::shared_ptr< CHandleKeyFrames > m_hKeyFrames;
 
     g2o::SparseOptimizer m_cOptimizerSparse;
     g2o::SparseOptimizer m_cOptimizerSparseTrajectoryOnly;

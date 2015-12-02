@@ -9,6 +9,7 @@
 #include "exceptions/CExceptionLogfileTree.h"
 #include "utility/CIMUInterpolator.h"
 #include "utility/CParameterBase.h"
+#include "optimization/Cg2oOptimizer.h"
 
 
 
@@ -26,55 +27,87 @@ void testSpeedEigen( );
 
 
 //ds C+11 threading - global scope
-std::shared_ptr< CHandleThreadMapping > g_hMappingThread( std::make_shared< CHandleThreadMapping >( ) );
+std::shared_ptr< CHandleLandmarks > g_hLandmarks( std::make_shared< CHandleLandmarks >( ) );
+std::shared_ptr< CHandleKeyFrames > g_hKeyFrames( std::make_shared< CHandleKeyFrames >( ) );
+std::shared_ptr< CHandleMapping > g_hMapping( std::make_shared< CHandleMapping >( ) );
+std::shared_ptr< CHandleOptimization > g_hOptimization( std::make_shared< CHandleOptimization >( ) );
 
 //ds mapping thread
 void launchMapping( )
 {
-    std::printf( "(launchMapping) thread launched\n" );
+    std::printf( "[1](launchMapping) thread launched\n" );
 
     //ds entities
-    CMapper cMapper;
+    CMapper cMapper( g_hLandmarks, g_hKeyFrames );
 
     //ds breaking
     while( true )
     {
         //ds lock the mutex and wait for a call (new key frames or termination)
-        std::unique_lock< std::mutex > cLock( g_hMappingThread->cMutex );
-        g_hMappingThread->cConditionVariable.wait( cLock, []{ return ( !g_hMappingThread->vecKeyFramesToAdd.empty( ) || g_hMappingThread->bTerminationRequested ); } );
+        std::unique_lock< std::mutex > cLock( g_hMapping->cMutex );
+        g_hMapping->cConditionVariable.wait( cLock, []{ return ( !g_hMapping->vecKeyFramesToAdd.empty( ) || g_hMapping->bTerminationRequested ); } );
 
 
 
         //ds ------------------------------------- RACE CONDITION SECTION -------------------------------------
         //ds if termination requested
-        if( g_hMappingThread->bTerminationRequested )
+        if( g_hMapping->bTerminationRequested )
         {
-            std::printf( "(launchMapping) termination request signal received\n" );
-            g_hMappingThread->bActive = false;
+            std::printf( "[1](launchMapping) termination request signal received\n" );
+            g_hMapping->bActive = false;
             cLock.unlock( );
-            g_hMappingThread->cConditionVariable.notify_one( );
+            g_hMapping->cConditionVariable.notify_one( );
             break;
         }
 
         //ds copy key frames fast!
-        cMapper.addKeyFramesSorted( g_hMappingThread->vecKeyFramesToAdd );
+        cMapper.addKeyFramesSorted( g_hMapping->vecKeyFramesToAdd );
 
         //ds clear pending frames to add
-        g_hMappingThread->vecKeyFramesToAdd.clear( );
+        g_hMapping->vecKeyFramesToAdd.clear( );
 
         //ds unlock mutex and notify main over the condition variable
         cLock.unlock( );
-        g_hMappingThread->cConditionVariable.notify_one( );
+        g_hMapping->cConditionVariable.notify_one( );
         //ds ------------------------------------- RACE CONDITION SECTION -------------------------------------
 
 
 
-        //ds process new key frames after critical section
+        //ds process new key frames after critical section (internal race condition with optimization thread)
         cMapper.integrateAddedKeyFrames( );
     }
 
     //ds report
-    std::printf( "(launchMapping) thread terminated\n" );
+    std::printf( "[1](launchMapping) thread terminated\n" );
+}
+
+//ds optimization thread
+void launchOptimization( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO, const Eigen::Isometry3d p_matTransformationWORLDtoLEFTInitial )
+{
+    std::printf( "[2](launchOptimization) thread launched\n" );
+
+    //ds allocate optimizer
+    Cg2oOptimizer cOptimizier( p_pCameraSTEREO, g_hLandmarks, g_hKeyFrames, p_matTransformationWORLDtoLEFTInitial );
+
+    //ds breaking
+    while( true )
+    {
+        //ds lock the mutex and wait for a call (new optimization requests or termination)
+        std::unique_lock< std::mutex > cLock( g_hOptimization->cMutex );
+        g_hOptimization->cConditionVariable.wait( cLock, []{ return ( g_hOptimization->bTerminationRequested ); } );
+
+        //ds if termination requested
+        if( g_hOptimization->bTerminationRequested )
+        {
+            std::printf( "[2](launchOptimization) termination request signal received\n" );
+            g_hOptimization->bActive = false;
+            cLock.unlock( );
+            g_hOptimization->cConditionVariable.notify_one( );
+            break;
+        }
+    }
+
+    std::printf( "[2](launchOptimization) thread terminated\n" );
 }
 
 int32_t main( int32_t argc, char **argv )
@@ -93,7 +126,7 @@ int32_t main( int32_t argc, char **argv )
     //ds escape here on failure
     if( strInfileMessageDump.empty( ) )
     {
-        std::printf( "(main) no message file specified\n" );
+        std::printf( "[0](main) no message file specified\n" );
         printHelp( );
         std::fflush( stdout );
         return 1;
@@ -130,7 +163,7 @@ int32_t main( int32_t argc, char **argv )
         default:
         {
             //ds exit
-            std::printf( "(main) interactive mode not supported, aborting\n" );
+            std::printf( "[0](main) interactive mode not supported, aborting\n" );
             printHelp( );
             std::fflush( stdout);
             return 0;
@@ -144,7 +177,7 @@ int32_t main( int32_t argc, char **argv )
     //ds escape here on failure
     if( !cMessageReader.good( ) )
     {
-        std::printf( "(main) unable to open message file: '%s'\n", strInfileMessageDump.c_str( ) );
+        std::printf( "[0](main) unable to open message file: '%s'\n", strInfileMessageDump.c_str( ) );
         printHelp( );
         std::fflush( stdout );
         return 1;
@@ -161,9 +194,9 @@ int32_t main( int32_t argc, char **argv )
 
     //ds log configuration
     CLogger::openBox( );
-    std::printf( "(main) strConfigurationCameraLEFT  := '%s'\n", strConfigurationCameraLEFT.c_str( ) );
-    std::printf( "(main) strConfigurationCameraRIGHT := '%s'\n", strConfigurationCameraRIGHT.c_str( ) );
-    std::printf( "(main) strInfileMessageDump        := '%s'\n", strInfileMessageDump.c_str( ) );
+    std::printf( "[0](main) strConfigurationCameraLEFT  := '%s'\n", strConfigurationCameraLEFT.c_str( ) );
+    std::printf( "[0](main) strConfigurationCameraRIGHT := '%s'\n", strConfigurationCameraRIGHT.c_str( ) );
+    std::printf( "[0](main) strInfileMessageDump        := '%s'\n", strInfileMessageDump.c_str( ) );
     //std::printf( "(main) openCV build information: \n%s", cv::getBuildInformation( ).c_str( ) );
     std::fflush( stdout );
     CLogger::closeBox( );
@@ -172,25 +205,26 @@ int32_t main( int32_t argc, char **argv )
     {
         //ds load camera parameters
         CParameterBase::loadCameraLEFT( strConfigurationCameraLEFT );
-        std::printf( "(main) successfully imported camera LEFT\n" );
+        std::printf( "[0](main) successfully imported camera LEFT\n" );
         CParameterBase::loadCameraRIGHT( strConfigurationCameraRIGHT );
-        std::printf( "(main) successfully imported camera RIGHT\n" );
+        std::printf( "[0](main) successfully imported camera RIGHT\n" );
+        CParameterBase::constructCameraSTEREO( );
     }
     catch( const CExceptionParameter& p_cException )
     {
-        std::printf( "(main) unable to import camera parameters - CExceptionParameter: '%s'\n", p_cException.what( ) );
+        std::printf( "[0](main) unable to import camera parameters - CExceptionParameter: '%s'\n", p_cException.what( ) );
         std::fflush( stdout );
         return 1;
     }
     catch( const std::invalid_argument& p_cException )
     {
-        std::printf( "(main) unable to import camera parameters - std::invalid_argument: '%s'\n", p_cException.what( ) );
+        std::printf( "[0](main) unable to import camera parameters - std::invalid_argument: '%s'\n", p_cException.what( ) );
         std::fflush( stdout );
         return 1;
     }
     catch( const std::out_of_range& p_cException )
     {
-        std::printf( "(main) unable to import camera parameters - std::out_of_range: '%s'\n", p_cException.what( ) );
+        std::printf( "[0](main) unable to import camera parameters - std::out_of_range: '%s'\n", p_cException.what( ) );
         std::fflush( stdout );
         return 1;
     }
@@ -231,12 +265,13 @@ int32_t main( int32_t argc, char **argv )
     assert( pIMUInterpolator->isCalibrated( ) );
     assert( 0 != CParameterBase::pCameraLEFT );
     assert( 0 != CParameterBase::pCameraRIGHT );
+    assert( 0 != CParameterBase::pCameraSTEREO );
 
     //ds allocate the tracker
-    CTrackerStereo cTracker( CParameterBase::pCameraLEFT,
-                             CParameterBase::pCameraRIGHT,
+    CTrackerStereo cTracker( CParameterBase::pCameraSTEREO,
                              pIMUInterpolator,
-                             g_hMappingThread,
+                             g_hLandmarks,
+                             g_hMapping,
                              eMode,
                              uWaitKeyTimeout );
     try
@@ -246,7 +281,7 @@ int32_t main( int32_t argc, char **argv )
     }
     catch( const CExceptionLogfileTree& p_cException )
     {
-        std::printf( "(main) unable to sanitize file tree - exception: '%s'\n", p_cException.what( ) );
+        std::printf( "[0](main) unable to sanitize file tree - exception: '%s'\n", p_cException.what( ) );
         printHelp( );
         std::fflush( stdout );
         return 1;
@@ -257,6 +292,7 @@ int32_t main( int32_t argc, char **argv )
 
     //ds spawn worker threads
     std::thread threadMapping( launchMapping );
+    std::thread threadOptimization( launchOptimization, CParameterBase::pCameraSTEREO, pIMUInterpolator->getTransformationWORLDtoCAMERA( CParameterBase::pCameraLEFT->m_matRotationIMUtoCAMERA ) );
 
     //ds playback the dump
     while( cMessageReader.good( ) && !cTracker.isShutdownRequested( ) )
@@ -321,12 +357,12 @@ int32_t main( int32_t argc, char **argv )
                 //ds check timestamp mismatch
                 if( pMessageCameraLEFT->timestamp( ) < pMessageCameraRIGHT->timestamp( ) )
                 {
-                    std::printf( "(main) timestamp mismatch LEFT: %f < RIGHT: %f - processing skipped\n", pMessageCameraLEFT->timestamp( ), pMessageCameraRIGHT->timestamp( ) );
+                    std::printf( "[0](main) timestamp mismatch LEFT: %f < RIGHT: %f - processing skipped\n", pMessageCameraLEFT->timestamp( ), pMessageCameraRIGHT->timestamp( ) );
                     pMessageCameraLEFT.reset( );
                 }
                 else
                 {
-                    std::printf( "(main) timestamp mismatch LEFT: %f > RIGHT: %f - processing skipped\n", pMessageCameraLEFT->timestamp( ), pMessageCameraRIGHT->timestamp( ) );
+                    std::printf( "[0](main) timestamp mismatch LEFT: %f > RIGHT: %f - processing skipped\n", pMessageCameraLEFT->timestamp( ), pMessageCameraRIGHT->timestamp( ) );
                     pMessageCameraRIGHT.reset( );
                 }
 
@@ -344,20 +380,33 @@ int32_t main( int32_t argc, char **argv )
     const double dDistance       = cTracker.getDistanceTraveled( );
 
     //ds signal threads
-    std::printf( "(main) signaling for threads for termination\n" );
+    CLogger::openBox( );
+    std::printf( "[0](main) signaling for threads for termination\n" );
     {
-        std::lock_guard< std::mutex > cLockGuard( g_hMappingThread->cMutex );
-        g_hMappingThread->bTerminationRequested = true;
+        std::lock_guard< std::mutex > cLockGuard( g_hMapping->cMutex );
+        g_hMapping->bTerminationRequested = true;
     }
-    g_hMappingThread->cConditionVariable.notify_one( );
-    std::printf( "(main) waiting for threads to terminate\n" );
+    g_hMapping->cConditionVariable.notify_one( );
     {
-        std::unique_lock< std::mutex > cLockFinishingUp( g_hMappingThread->cMutex );
-        g_hMappingThread->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hMappingThread->bActive; } );
+        std::unique_lock< std::mutex > cLockFinishingUp( g_hMapping->cMutex );
+        g_hMapping->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hMapping->bActive; } );
+    }
+    {
+        std::lock_guard< std::mutex > cLockGuard( g_hOptimization->cMutex );
+        g_hOptimization->bTerminationRequested = true;
+    }
+    g_hOptimization->cConditionVariable.notify_one( );
+    {
+        std::unique_lock< std::mutex > cLockFinishingUp( g_hOptimization->cMutex );
+        g_hOptimization->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hOptimization->bActive; } );
     }
 
     //ds join threads
     threadMapping.join( );
+    threadOptimization.join( );
+
+    std::printf( "[0](main) all threads shut down successfully\n" );
+    CLogger::closeBox( );
 
     if( 1 < uFrameCount )
     {
@@ -366,25 +415,25 @@ int32_t main( int32_t argc, char **argv )
 
         //ds summary
         CLogger::openBox( );
-        std::printf( "(main) dataset completed\n" );
+        std::printf( "[0](main) dataset completed\n" );
 
-        std::printf( "\n(main) frame rate (avg): %f fps (%4.2fx real time)\n", uFrameCount/dDurationPure, dDurationRealTime/dDurationTotal );
+        std::printf( "\n[0](main) frame rate (avg): %f fps (%4.2fx real time)\n", uFrameCount/dDurationPure, dDurationRealTime/dDurationTotal );
 
-        std::printf( "\n(main) duration             Total: %7.2fs (1.00) Real: %7.2fs\n", dDurationTotal, dDurationRealTime );
-        std::printf( "(main) duration Regional Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTracking( ), cTracker.getDurationTotalSecondsRegionalTracking( )/dDurationTotal );
-        std::printf( "(main) duration Epipolar Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsEpipolarTracking( ), cTracker.getDurationTotalSecondsEpipolarTracking( )/dDurationTotal );
-        std::printf( "(main) duration       StereoPosit: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsStereoPosit( ), cTracker.getDurationTotalSecondsStereoPosit( )/dDurationTotal );
+        std::printf( "\n[0](main) duration             Total: %7.2fs (1.00) Real: %7.2fs\n", dDurationTotal, dDurationRealTime );
+        std::printf( "[0](main) duration Regional Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTracking( ), cTracker.getDurationTotalSecondsRegionalTracking( )/dDurationTotal );
+        std::printf( "[0](main) duration Epipolar Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsEpipolarTracking( ), cTracker.getDurationTotalSecondsEpipolarTracking( )/dDurationTotal );
+        std::printf( "[0](main) duration       StereoPosit: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsStereoPosit( ), cTracker.getDurationTotalSecondsStereoPosit( )/dDurationTotal );
 
-        std::printf( "\n(main) distance traveled: %fm\n", dDistance );
-        std::printf( "(main) traveling speed (avg): %fm/s\n", dDistance/dDurationRealTime );
+        std::printf( "\n[0](main) distance traveled: %fm\n", dDistance );
+        std::printf( "[0](main) traveling speed (avg): %fm/s\n", dDistance/dDurationRealTime );
 
-        std::printf( "\n(main) total frames: %lu\n", uFrameCount );
-        std::printf( "(main) invalid frames: %li (%4.2f)\n", uInvalidFrames, static_cast< double >( uInvalidFrames )/uFrameCount );
+        std::printf( "\n[0](main) total frames: %lu\n", uFrameCount );
+        std::printf( "[0](main) invalid frames: %li (%4.2f)\n", uInvalidFrames, static_cast< double >( uInvalidFrames )/uFrameCount );
         CLogger::closeBox( );
     }
     else
     {
-        std::printf( "(main) dataset completed - no frames processed\n" );
+        std::printf( "[0](main) dataset completed - no frames processed\n" );
     }
 
     //ds speed checks
@@ -450,14 +499,14 @@ void setParametersNaive( const int& p_iArgc,
     }
     catch( const std::invalid_argument& p_cException )
     {
-        std::printf( "(setParametersNaive) malformed command line syntax\n" );
+        std::printf( "[0](setParametersNaive) malformed command line syntax\n" );
         printHelp( );
         std::fflush( stdout );
         std::exit( -1 );
     }
     catch( const std::out_of_range& p_cException )
     {
-        std::printf( "(setParametersNaive) malformed command line syntax\n" );
+        std::printf( "[0](setParametersNaive) malformed command line syntax\n" );
         printHelp( );
         std::fflush( stdout );
         std::exit( -1 );
@@ -466,14 +515,14 @@ void setParametersNaive( const int& p_iArgc,
 
 void printHelp( )
 {
-    std::printf( "(printHelp) usage: stereo_fps -messages='textfile_path' [-mode='interactive'|'stepwise'|'benchmark']\n" );
+    std::printf( "[0](printHelp) usage: stereo_fps -messages='textfile_path' [-mode='interactive'|'stepwise'|'benchmark']\n" );
 }
 
 void testSpeedEigen( )
 {
     //ds build speed check
     CLogger::openBox( );
-    std::printf( "(testSpeedEigen) speed test started - this might take a while\n" );
+    std::printf( "[0](testSpeedEigen) speed test started - this might take a while\n" );
     Eigen::Matrix< double, 100, 100 > matTest( Eigen::Matrix< double, 100, 100 >::Identity( ) );
     const double dTimeStartSeconds = CTimer::getTimeSeconds( );
     for( uint64_t u = 0; u < 1e5; ++u )
@@ -487,6 +536,6 @@ void testSpeedEigen( )
             }
         }
     }
-    std::printf( "(testSpeedEigen) speed test run complete - duration: %fs\n", CTimer::getTimeSeconds( )-dTimeStartSeconds );
+    std::printf( "[0](testSpeedEigen) speed test run complete - duration: %fs\n", CTimer::getTimeSeconds( )-dTimeStartSeconds );
     CLogger::closeBox( );
 }

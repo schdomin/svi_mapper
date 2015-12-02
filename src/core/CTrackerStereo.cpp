@@ -7,16 +7,17 @@
 #include "exceptions/CExceptionPoseOptimization.h"
 #include "exceptions/CExceptionNoMatchFound.h"
 
-CTrackerStereo::CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCameraLEFT,
-                                const std::shared_ptr< CPinholeCamera > p_pCameraRIGHT,
+CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                                 const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
-                                std::shared_ptr< CHandleThreadMapping > p_hMappingThread,
+                                std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                                std::shared_ptr< CHandleMapping > p_hMappingThread,
                                 const EPlaybackMode& p_eMode,
                                 const uint32_t& p_uWaitKeyTimeoutMS ): m_uWaitKeyTimeoutMS( p_uWaitKeyTimeoutMS ),
-                                                                           m_pCameraLEFT( p_pCameraLEFT ),
-                                                                           m_pCameraRIGHT( p_pCameraRIGHT ),
-                                                                           m_pCameraSTEREO( std::make_shared< CStereoCamera >( m_pCameraLEFT, m_pCameraRIGHT ) ),
+                                                                           m_pCameraLEFT( p_pCameraSTEREO->m_pCameraLEFT ),
+                                                                           m_pCameraRIGHT( p_pCameraSTEREO->m_pCameraRIGHT ),
+                                                                           m_pCameraSTEREO( p_pCameraSTEREO ),
 
+                                                                           m_hLandmarks( p_hLandmarks ),
                                                                            m_hMappingThread( p_hMappingThread ),
 
                                                                            m_matTransformationWORLDtoLEFTLAST( p_pIMUInterpolator->getTransformationWORLDtoCAMERA( m_pCameraLEFT->m_matRotationIMUtoCAMERA ) ),
@@ -41,9 +42,6 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCamer
                                                                            m_pTriangulator( std::make_shared< CTriangulator >( m_pCameraSTEREO, m_pExtractor, m_pMatcher, m_dMatchingDistanceCutoffTriangulation ) ),
                                                                            m_cMatcher( m_pTriangulator, m_pDetector, m_dMinimumDepthMeters, m_dMaximumDepthMeters, m_dMatchingDistanceCutoffPoseOptimization, m_dMatchingDistanceCutoffEpipolar, m_uMaximumFailedSubsequentTrackingsPerLandmark ),
 
-                                                                           m_vecLandmarks( std::make_shared< std::vector< CLandmark* > >( ) ),
-                                                                           m_vecKeyFrames( std::make_shared< std::vector< CKeyFrame* > >( ) ),
-
                                                                            //m_cGraphOptimizer( m_pCameraSTEREO, m_vecLandmarks, m_vecKeyFrames, m_matTransformationWORLDtoLEFTLAST.inverse( ) ),
                                                                            m_vecTranslationToG2o( m_vecPositionCurrent ),
 
@@ -51,8 +49,6 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCamer
 
                                                                            m_eMode( p_eMode )
 {
-    m_vecLandmarks->clear( );
-    m_vecKeyFrames->clear( );
     m_vecRotations.clear( );
 
     //ds windows
@@ -91,35 +87,6 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CPinholeCamera > p_pCamer
 
 CTrackerStereo::~CTrackerStereo( )
 {
-    //ds deallocation counts
-    std::vector< CLandmark* >::size_type uNumberOfLandmarksDeallocated = 0;
-    std::vector< CKeyFrame* >::size_type uNumberOfKeyFramesDeallocated = 0;
-
-    //ds free all landmarks
-    for( const CLandmark* pLandmark: *m_vecLandmarks )
-    {
-        //ds write final state to file before deleting
-        //CLogger::CLogLandmarkFinal::addEntry( pLandmark );
-
-        //ds save optimized landmarks to separate file
-        if( pLandmark->bIsOptimal && 1 < pLandmark->uNumberOfKeyFramePresences )
-        {
-            //CLogger::CLogLandmarkFinalOptimized::addEntry( pLandmark );
-        }
-
-        assert( 0 != pLandmark );
-        delete pLandmark;
-        ++uNumberOfLandmarksDeallocated;
-    }
-
-    //ds free keyframes
-    for( const CKeyFrame* pKeyFrame: *m_vecKeyFrames )
-    {
-        assert( 0 != pKeyFrame );
-        delete pKeyFrame;
-        ++uNumberOfKeyFramesDeallocated;
-    }
-
     /*ds close loggers
     CLogger::CLogLandmarkCreation::close( );
     CLogger::CLogLandmarkFinal::close( );
@@ -127,8 +94,6 @@ CTrackerStereo::~CTrackerStereo( )
     CLogger::CLogTrajectory::close( );
     CLogger::CLogIMUInput::close( );*/
 
-    std::printf( "[0][%06lu]<CTrackerStereo>(~CTrackerStereo) deallocated landmarks: %lu/%lu\n", m_uFrameCount, uNumberOfLandmarksDeallocated, m_vecLandmarks->size( ) );
-    std::printf( "[0][%06lu]<CTrackerStereo>(~CTrackerStereo) dealloacted key frames: %lu/%lu\n", m_uFrameCount, uNumberOfKeyFramesDeallocated, m_vecKeyFrames->size( ) );
     std::printf( "[0][%06lu]<CTrackerStereo>(~CTrackerStereo) instance deallocated\n", m_uFrameCount );
 }
 
@@ -647,8 +612,13 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
         //ds all visible in this frame
         m_uNumberofVisibleLandmarksLAST += vecNewLandmarks->size( );
 
-        //ds add to permanent reference holder (this will copy the landmark references)
-        m_vecLandmarks->insert( m_vecLandmarks->end( ), vecNewLandmarks->begin( ), vecNewLandmarks->end( ) );
+        {
+            //ds lock - blocking - RAII
+            std::lock_guard< std::mutex > cLockGuard( m_hLandmarks->cMutex );
+
+            //ds add to permanent reference holder (this will copy the landmark references)
+            m_hLandmarks->vecLandmarks->insert( m_hLandmarks->vecLandmarks->end( ), vecNewLandmarks->begin( ), vecNewLandmarks->end( ) );
+        }
 
         //ds add this measurement point to the epipolar matcher (which will remove references from its detection point -> does not affect the landmarks main vector)
         m_cMatcher.addDetectionPoint( p_matTransformationLEFTtoWORLD, vecNewLandmarks );
@@ -660,28 +630,30 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
 
 void CTrackerStereo::_updateWORLDFrame( const Eigen::Vector3d& p_vecTranslationWORLD )
 {
+    assert( false );
+
     std::printf( "[0][%06lu]<CTrackerStereo>(_updateWORLDFrame) refreshing WORLD frame - ", m_uFrameCount );
 
     //ds set initial frame in g2o
     //m_cGraphOptimizer.updateSTART( p_vecTranslationWORLD );
 
-    //ds move all keyframes
+    /*ds move all keyframes
     for( CKeyFrame* pKeyFrame: *m_vecKeyFrames )
     {
         pKeyFrame->matTransformationLEFTtoWORLD.translation( ) -= p_vecTranslationWORLD;
 
         //ds update in g2o
         //m_cGraphOptimizer.updateEstimate( pKeyFrame );
-    }
+    }*/
 
-    //ds move all landmarks
+    /*ds move all landmarks
     for( CLandmark* pLandmark: *m_vecLandmarks )
     {
         pLandmark->vecPointXYZOptimized -= p_vecTranslationWORLD;
 
         //ds update in g2o
         //m_cGraphOptimizer.updateEstimate( pLandmark );
-    }
+    }*/
 
     //ds done
     std::printf( "complete!\n" );
@@ -741,7 +713,7 @@ void CTrackerStereo::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotio
             std::snprintf( chBuffer, 1024, "[%13.2f|%05lu] STEPWISE | X: %5.1f Y: %5.1f Z: %5.1f DELTA L2: %4.2f MOTION: %4.2f | LANDMARKS V: %3lu (%3lu,%3lu,%3lu,%3lu) F: %4lu I: %4lu TOTAL: %4lu | DETECTIONS: %2lu(%3lu) | KFs: %3lu | OPTs: %02u",
                            m_dTimestampLASTSeconds, m_uFrameCount,
                            m_vecPositionCurrent.x( ), m_vecPositionCurrent.y( ), m_vecPositionCurrent.z( ), m_dTranslationDeltaSquaredNormCurrent, p_dMotionScaling,
-                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_vecLandmarks->size( ),
+                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_uAvailableLandmarkID,
                            m_cMatcher.getNumberOfDetectionPointsActive( ), m_cMatcher.getNumberOfDetectionPointsTotal( ),
                            m_uNumberOfKeyFrames, 0 ); //m_cGraphOptimizer.getNumberOfOptimizations( )
             break;
@@ -751,7 +723,7 @@ void CTrackerStereo::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotio
             std::snprintf( chBuffer, 1024, "[%13.2f|%05lu] BENCHMARK FPS: %4.1f | X: %5.1f Y: %5.1f Z: %5.1f DELTA L2: %4.2f SCALING: %4.2f | LANDMARKS V: %3lu (%3lu,%3lu,%3lu,%3lu) F: %4lu I: %4lu TOTAL: %4lu | DETECTIONS: %2lu(%3lu) | KFs: %3lu | OPTs: %02u",
                            m_dTimestampLASTSeconds, m_uFrameCount, m_dPreviousFrameRate,
                            m_vecPositionCurrent.x( ), m_vecPositionCurrent.y( ), m_vecPositionCurrent.z( ), m_dTranslationDeltaSquaredNormCurrent, p_dMotionScaling,
-                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_vecLandmarks->size( ),
+                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_uAvailableLandmarkID,
                            m_cMatcher.getNumberOfDetectionPointsActive( ), m_cMatcher.getNumberOfDetectionPointsTotal( ),
                            m_uNumberOfKeyFrames, 0 );
             break;

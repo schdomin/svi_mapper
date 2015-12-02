@@ -10,14 +10,13 @@
 #include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/optimization_algorithm_gauss_newton.h"
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
-#include "configuration/CConfigurationCamera.h"
 #include "exceptions/CExceptionLogfileTree.h"
 
 //ds CONTINOUS CONSTRUCTOR
 Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                              const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
-                              const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
-                              const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial ): Cg2oOptimizer( p_pCameraSTEREO, p_vecLandmarks, p_vecKeyFrames )
+                              const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                              const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
+                              const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial ): Cg2oOptimizer( p_pCameraSTEREO, p_hLandmarks, p_hKeyFrames )
 {
     CLogger::openBox( );
     std::printf( "<Cg2oOptimizer>(Cg2oOptimizer) configuration: lm_var_cholmod COMPLETE\n" );
@@ -54,13 +53,13 @@ Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraST
 
 //ds TAILWISE CONSTRUCTOR
 Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                              const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
-                              const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames ): m_pCameraSTEREO( p_pCameraSTEREO ),
-                                                                                       m_vecLandmarks( p_vecLandmarks ),
-                                                                                       m_vecKeyFrames( p_vecKeyFrames ),
-                                                                                       m_matInformationPose( 100000*Eigen::Matrix< double, 6, 6 >::Identity( ) ),
-                                                                                       m_matInformationLoopClosure( _getInformationNoZ( static_cast< Eigen::Matrix< double, 6, 6 > >( 10*m_matInformationPose ) ) ),
-                                                                                       m_matInformationLandmarkClosure( 1000*Eigen::Matrix< double, 3, 3 >::Identity( ) )
+                              const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
+                              const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames ): m_pCameraSTEREO( p_pCameraSTEREO ),
+                                                                                        m_hLandmarks( p_hLandmarks ),
+                                                                                        m_hKeyFrames( p_hKeyFrames ),
+                                                                                        m_matInformationPose( 100000*Eigen::Matrix< double, 6, 6 >::Identity( ) ),
+                                                                                        m_matInformationLoopClosure( _getInformationNoZ( static_cast< Eigen::Matrix< double, 6, 6 > >( 10*m_matInformationPose ) ) ),
+                                                                                        m_matInformationLandmarkClosure( 1000*Eigen::Matrix< double, 3, 3 >::Identity( ) )
 {
     m_vecLandmarksInGraph.clear( );
     m_vecKeyFramesInGraph.clear( );
@@ -116,7 +115,7 @@ Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraST
 
 Cg2oOptimizer::~Cg2oOptimizer( )
 {
-    //ds nothing to do
+    std::printf( "<Cg2oOptimizer>(Cg2oOptimizer) instance deallocated\n" );
 }
 
 void Cg2oOptimizer::optimizeTailLoopClosuresOnly( const UIDKeyFrame& p_uIDBeginKeyFrame, const Eigen::Vector3d& p_vecTranslationToG2o )

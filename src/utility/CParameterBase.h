@@ -8,7 +8,7 @@
 
 //ds custom
 #include "exceptions/CExceptionParameter.h"
-#include "vision/CPinholeCamera.h"
+#include "vision/CStereoCamera.h"
 
 
 
@@ -199,6 +199,7 @@ public:
                                                           vecRotationToIMUInitial,
                                                           vecTranslationToIMUInitial,
                                                           matRotationCorrectionCAMERAtoIMU );
+        assert( 0 != pCameraLEFT );
     }
 
     //ds THROWS: CExceptionParameter, std::invalid_argument, std::out_of_range
@@ -235,6 +236,16 @@ public:
                                                            vecRotationToIMUInitial,
                                                            vecTranslationToIMUInitial,
                                                            matRotationCorrectionCAMERAtoIMU );
+        assert( 0 != pCameraRIGHT );
+    }
+
+    //ds construct stereo camera (does not throw)
+    static void constructCameraSTEREO( )
+    {
+        assert( 0 != pCameraLEFT );
+        assert( 0 != pCameraRIGHT );
+        pCameraSTEREO = std::make_shared< CStereoCamera >( pCameraLEFT, pCameraRIGHT );
+        assert( 0 != pCameraSTEREO );
     }
 
 //ds buffered parameters
@@ -242,11 +253,13 @@ public:
 
     static std::shared_ptr< CPinholeCamera > pCameraLEFT;
     static std::shared_ptr< CPinholeCamera > pCameraRIGHT;
+    static std::shared_ptr< CStereoCamera > pCameraSTEREO;
 
 };
 
 //ds allow only single instantiation of parameter base entities (usually in main) LET THIS BE!
 std::shared_ptr< CPinholeCamera > CParameterBase::pCameraLEFT  = 0;
 std::shared_ptr< CPinholeCamera > CParameterBase::pCameraRIGHT = 0;
+std::shared_ptr< CStereoCamera > CParameterBase::pCameraSTEREO = 0;
 
 #endif //CPARAMETERBASE_H

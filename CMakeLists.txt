@@ -62,8 +62,8 @@ add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -fopenmp)
 #ds include dirs
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${OpenCV_INCLUDE_DIRS})
-#include_directories(${G2O_INCLUDE_DIR})
-#include_directories(${CHOLMOD_INCLUDE_DIR})
+include_directories(${G2O_INCLUDE_DIR})
+include_directories(${CHOLMOD_INCLUDE_DIR})
 include_directories(${QT_INCLUDES})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLUT_INCLUDE_DIRS})
@@ -83,9 +83,9 @@ src/vision/CMiniVisionToolbox.cpp
 src/core/CTriangulator.cpp
 src/core/CFundamentalMatcher.cpp
 src/core/CMapper.cpp
-#src/optimization/Cg2oOptimizer.cpp
-#src/optimization/closure_buffer.cpp
-#src/optimization/closure_checker.cpp
+src/optimization/Cg2oOptimizer.cpp
+src/optimization/closure_buffer.cpp
+src/optimization/closure_checker.cpp
 src/gui/CViewerScene.cpp
 src/optimization/CSolverStereoPosit.cpp)
 
@@ -94,11 +94,11 @@ src/optimization/CSolverStereoPosit.cpp)
 #ds libraries
 set(LIBRARIES_GENERAL
 ${OpenCV_LIBRARIES}
-#${G2O_CORE_LIBRARY}
-#${G2O_TYPES_SLAM3D}
-#${G2O_SOLVER_CHOLMOD}
-#${CHOLMOD_LIBRARY}
-#${G2O_STUFF_LIBRARY}
+${G2O_CORE_LIBRARY}
+${G2O_TYPES_SLAM3D}
+${G2O_SOLVER_CHOLMOD}
+${CHOLMOD_LIBRARY}
+${G2O_STUFF_LIBRARY}
 ${FPS_MAPPER_TXT_IO_LIBRARY}
 -fopenmp
 -pthread)
