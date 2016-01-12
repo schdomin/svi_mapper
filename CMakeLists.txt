@@ -84,6 +84,7 @@ src/core/CTriangulator.cpp
 src/core/CFundamentalMatcher.cpp
 src/core/CMapper.cpp
 src/optimization/Cg2oOptimizer.cpp
+src/optimization/edge_se3_linear_acceleration.cpp
 src/optimization/closure_buffer.cpp
 src/optimization/closure_checker.cpp
 src/gui/CViewerScene.cpp

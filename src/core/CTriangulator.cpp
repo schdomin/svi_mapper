@@ -33,11 +33,12 @@ CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCa
     std::printf( "<CTriangulator>(CTriangulator) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
     std::printf( "<CTriangulator>(CTriangulator) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
     std::printf( "<CTriangulator>(CTriangulator) matching distance cutoff: %f\n", m_fMatchingDistanceCutoff );
-    std::printf( "<CTriangulator>(CTriangulator) dF: %f\n", m_dF );
-    std::printf( "<CTriangulator>(CTriangulator) dPu: %f\n", m_dPu );
-    std::printf( "<CTriangulator>(CTriangulator) dPv: %f\n", m_dPv );
-    std::printf( "<CTriangulator>(CTriangulator) DuR: %f\n", m_dDuR );
-    std::printf( "<CTriangulator>(CTriangulator) minimum depth: %fm\n", m_dDuRFlipped/m_pCameraSTEREO->m_uPixelWidth );
+    std::printf( "<CTriangulator>(CTriangulator) dF: %fp\n", m_dF );
+    std::printf( "<CTriangulator>(CTriangulator) dPu: %fp\n", m_dPu );
+    std::printf( "<CTriangulator>(CTriangulator) dPv: %fp\n", m_dPv );
+    std::printf( "<CTriangulator>(CTriangulator) DuR: %fp\n", m_dDuR );
+    std::printf( "<CTriangulator>(CTriangulator) minimum depth: %fm (%up)\n", m_dDuRFlipped/m_pCameraSTEREO->m_uPixelWidth, m_pCameraSTEREO->m_uPixelWidth );
+    std::printf( "<CTriangulator>(CTriangulator) maximum depth: %fm (1p)\n", m_dDuRFlipped );
     std::printf( "<CTriangulator>(CTriangulator) instance allocated\n" );
     CLogger::closeBox( );
 }

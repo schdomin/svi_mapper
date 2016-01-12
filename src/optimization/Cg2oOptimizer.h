@@ -3,6 +3,7 @@
 
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/types/slam3d/types_slam3d.h"
+#include "edge_se3_linear_acceleration.h"
 
 #include "vision/CStereoCamera.h"
 #include "types/CLandmark.h"

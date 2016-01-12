@@ -12,6 +12,21 @@
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #include "exceptions/CExceptionLogfileTree.h"
 
+//ds register custom g2o types
+namespace g2o
+{
+    G2O_REGISTER_TYPE( EDGE_SE3_LINEAR_ACCELERATION, EdgeSE3LinearAcceleration )
+
+    //ds if drawing is enabled
+    #ifdef G2O_HAVE_OPENGL
+
+        G2O_REGISTER_ACTION( EdgeSE3LinearAccelerationDrawAction )
+
+    #endif
+}
+
+
+
 //ds CONTINOUS CONSTRUCTOR
 Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                               const std::shared_ptr< CHandleLandmarks > p_hLandmarks,

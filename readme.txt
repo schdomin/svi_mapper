@@ -8,11 +8,10 @@ contact: https://github.com/schdomin
 --------------------------------------------
 dependencies:
 
-       OpenCV: https://github.com/Itseez/opencv/archive/2.4.11.zip (2.4.8-11)
-          g2o: https://github.com/schdomin/g2o (fork)
-thin_visensor: https://github.com/grisetti/thin_drivers
-   fps_mapper: https://www.google.ch (txt_io library)
-          ROS: http://www.ros.org (dataset acquisition)
+      OpenCV: https://github.com/Itseez/opencv/archive/2.4.11.zip (2.4.8-11)
+         g2o: https://github.com/RainerKuemmerle/g2o
+thin_drivers: https://github.com/grisetti/thin_drivers (visensor/txt_io library)
+         ROS: http://www.ros.org (dataset acquisition)
 
 
 
@@ -27,14 +26,8 @@ make -j666
 
 
 --------------------------------------------
-output filepath:
-
-bin
-
-
-
---------------------------------------------
 application requirements:
-threads: 2
-RAM: 4-32GB (depending on scale)
+
+threads: 3
+RAM: 4-32GB (depending on desired map scale)
 
