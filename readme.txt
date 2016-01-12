@@ -44,19 +44,22 @@ RAM: 4-32GB (depending on desired map scale)
 
 
 
-MMMMMMMMMMMMMMMMMMMMM.                             MMMMMMMMMMMMMMMMMMMMM
- `MMMMMMMMMMMMMMMMMMMM           M\  /M           MMMMMMMMMMMMMMMMMMMM'
-   `MMMMMMMMMMMMMMMMMMM          MMMMMM          MMMMMMMMMMMMMMMMMMM'  
-     MMMMMMMMMMMMMMMMMMM-_______MMMMMMMM_______-MMMMMMMMMMMMMMMMMMM    
-      MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM    
-      MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM    
-      MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM    
-     .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.    
-    MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM  
-                   `MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM'               
-                          `MMMMMMMMMMMMMMMMMM'                  
-                              `MMMMMMMMMM'               
-                                 MMMMMM
-                                  MMMM
-                                   MM
+
+
+
+_____________________                              _____________________
+`-._                 \           |\__/|           /                 _.-'
+    \                 \          |    |          /                 /  
+     \                 `-_______/      \_______-'                 /    
+      |                                                          |    
+      |                                                          |    
+      |                                                          |    
+      /                                                          \    
+     /_____________                                  _____________\
+                   `----._                    _.----'                
+                          `--.            .--'                          
+                              `-.      .-'                              
+                                 \    /                     
+                                  \  /                                  
+                                   \/ 
 
