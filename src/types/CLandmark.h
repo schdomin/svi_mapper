@@ -112,6 +112,7 @@ public:
     const CMeasurementLandmark* getLastMeasurement( ) const { return m_vecMeasurements.back( ); }
     const double getLastDepth( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->vecPointXYZLEFT.z( ); }
     const CPoint3DCAMERA getLastPointXYZLEFT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->vecPointXYZLEFT; }
+    const CPoint3DWORLD getLastPointXYZOptimized( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->vecPointXYZWORLDOptimized; }
     const std::vector< CMeasurementLandmark* >::size_type getNumberOfMeasurements( ) const { return m_vecMeasurements.size( ); }
     void optimize( const UIDFrame& p_uFrame );
 

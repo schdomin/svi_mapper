@@ -26,7 +26,6 @@ public:
                     const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
                     std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                     std::shared_ptr< CHandleMapping > p_hMappingThread,
-                    std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
                     const EPlaybackMode& p_eMode,
                     const uint32_t& p_uWaitKeyTimeoutMS = 1 );
     ~CTrackerStereo( );
@@ -42,7 +41,7 @@ private:
 
     //ds thread handles
     std::shared_ptr< CHandleLandmarks > m_hLandmarks;
-    std::shared_ptr< CHandleMapping > m_hMappingThread;
+    std::shared_ptr< CHandleMapping > m_hMapper;
 
     //ds reference information
     UIDFrame m_uFrameCount = 0;
@@ -81,8 +80,8 @@ private:
     CFundamentalMatcher m_cMatcher;
 
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
-    UIDLandmark m_uAvailableLandmarkID          = 0;
-    UIDLandmark m_uNumberofVisibleLandmarksLAST = 0;
+    std::vector< CLandmark* >::size_type m_uAvailableLandmarkID = 0;
+    int32_t m_uNumberofVisibleLandmarksLAST                     = 0;
     const double m_dMaximumMotionScalingForOptimization = 1.05;
     double m_dMotionScalingLAST                         = 1.0;
     uint32_t m_uCountInstability                        = 0;
@@ -118,6 +117,7 @@ public:
     void receivevDataVI( const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageLEFT,
                          const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageRIGHT,
                          const std::shared_ptr< txt_io::CIMUMessage > p_pIMU );
+    void updateMap( const CMapUpdate& p_cMapUpdate );
 
     const UIDFrame getFrameCount( ) const { return m_uFrameCount; }
     const bool isShutdownRequested( ) const { return m_bIsShutdownRequested; }

@@ -62,14 +62,14 @@ public:
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                    const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                    const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
-                   const std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
                    const std::shared_ptr< CHandleMapping > p_hMapper,
+                   const std::shared_ptr< CHandleTracking > p_hTracker,
                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                    const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                    const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
-                   const std::shared_ptr< CHandleMapUpdate > p_hMapUpdate,
-                   const std::shared_ptr< CHandleMapping > p_hMapper );
+                   const std::shared_ptr< CHandleMapping > p_hMapper,
+                   const std::shared_ptr< CHandleTracking > p_hTracker );
     ~Cg2oOptimizer( );
 
 private:
@@ -77,8 +77,8 @@ private:
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
     const std::shared_ptr< CHandleLandmarks > m_hLandmarks;
     const std::shared_ptr< CHandleKeyFrames > m_hKeyFrames;
-    const std::shared_ptr< CHandleMapUpdate > m_hMapUpdate;
     const std::shared_ptr< CHandleMapping > m_hMapper;
+    const std::shared_ptr< CHandleTracking > m_hTracker;
 
     g2o::SparseOptimizer m_cOptimizerSparse;
     g2o::SparseOptimizer m_cOptimizerSparseTrajectoryOnly;
@@ -131,15 +131,10 @@ public:
     //ds copying intended
     void optimize( const COptimizationRequest p_cRequest );
 
-    void sendMapUpdate( ) const;
-
     const uint32_t getNumberOfOptimizations( ) const { return m_uOptimizations; }
 
     //ds clears g2o files in logging directory
     void clearFiles( ) const;
-
-    //ds saves final graph
-    void saveFinalGraph( const UIDFrame& p_uFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
 
     //ds manual loop closing
     void updateLoopClosuresFromKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uIDBeginKeyFrame,
@@ -199,6 +194,7 @@ public:
 private:
 
     uint64_t _optimizeLimited( g2o::SparseOptimizer& p_cOptimizer );
+    uint64_t _optimizeUnLimited( g2o::SparseOptimizer& p_cOptimizer );
 
     g2o::EdgeSE3LinearAcceleration* _getEdgeLinearAcceleration( g2o::VertexSE3* p_pVertexPose,
                                                                 const CLinearAccelerationIMU& p_vecLinearAccelerationNormalized ) const;

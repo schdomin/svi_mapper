@@ -36,9 +36,6 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
             //ds for all the points
             for( const CSolverStereoPosit::CMatch& cMatch: p_vecMeasurements )
             {
-                //ds only handle optimized landmarks
-                assert( cMatch.pLandmark->bIsOptimal );
-
                 //ds compute projection into current frame
                 const CPoint3DCAMERA vecPointXYZLEFT( m_matTransformationWORLDtoLEFT*cMatch.vecPointXYZWORLD );
                 if( 0.0 < vecPointXYZLEFT.z( ) )

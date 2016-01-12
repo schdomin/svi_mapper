@@ -8,6 +8,20 @@
 #include "CKeyFrame.h"
 
 
+//ds map update broadcasted by optimizer
+struct CMapUpdate
+{
+    //ds communication
+    bool bAvailableForMapper  = false;
+    bool bAvailableForTracker = false; //ds the tracker handles the update first
+
+    //ds data
+    Eigen::Isometry3d matPoseLEFTtoWORLD;
+    Eigen::Isometry3d matPoseLEFTtoWORLDBeforeOptimization;
+    std::vector< CKeyFrame* >::size_type uIDKeyFrame;
+    std::vector< CLandmark* >::size_type uIDLandmark;
+    uint64_t uIDFrame;
+};
 
 struct CHandleMapping
 {
@@ -29,6 +43,7 @@ struct CHandleMapping
 
     //ds data
     std::vector< CKeyFrame* > vecKeyFramesToAdd;
+    CMapUpdate cMapUpdate;
 };
 
 //ds optimization
@@ -44,15 +59,6 @@ struct COptimizationRequest
 
 struct CHandleOptimization
 {
-    CHandleOptimization( )
-    {
-
-    }
-    ~CHandleOptimization( )
-    {
-
-    }
-
     //ds communication
     std::mutex cMutex;
     std::condition_variable cConditionVariable;
@@ -62,6 +68,14 @@ struct CHandleOptimization
 
     //ds data
     COptimizationRequest cRequest;
+};
+
+struct CHandleTracking
+{
+    //ds communication
+    std::mutex cMutex;
+    std::condition_variable cConditionVariable;
+    bool bBusy          = false;
 };
 
 //ds landmark sharing: owned by Tracker
@@ -135,19 +149,6 @@ struct CHandleKeyFrames
 
     std::mutex cMutex;
     std::shared_ptr< std::vector< CKeyFrame* > > vecKeyFrames;
-};
-
-//ds map update broadcasted by optimizer
-struct CHandleMapUpdate
-{
-    //ds communication
-    std::mutex cMutex;
-    bool bAvailable       = false;
-    bool bMapperReceived  = false; //ds the mapper handles the update first
-    bool bTrackerReceived = false; //ds then the tracker briefly integrates the update and moves on
-
-    //ds data
-    CKeyFrame* pKeyFrameOptimizedLAST = 0;
 };
 
 #endif //TYPESTHREADING_H

@@ -5,11 +5,11 @@
 
 CMapper::CMapper( std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                   std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
-                  std::shared_ptr< CHandleOptimization > p_hOptimization,
-                  std::shared_ptr< CHandleMapUpdate > p_hMapUpdate ): m_hLandmarks( p_hLandmarks ),
+                  std::shared_ptr< CHandleMapping > p_hMapping,
+                  std::shared_ptr< CHandleOptimization > p_hOptimization ): m_hLandmarks( p_hLandmarks ),
                                                                       m_hKeyFrames( p_hKeyFrames ),
-                                                                      m_hOptimization( p_hOptimization ),
-                                                                      m_hMapUpdate( p_hMapUpdate )
+                                                                      m_hMapping( p_hMapping ),
+                                                                      m_hOptimization( p_hOptimization )
 {
     m_vecBufferAddedKeyFrames.clear( );
 
@@ -38,37 +38,28 @@ void CMapper::addKeyFramesSorted( const std::vector< CKeyFrame* >& p_vecKeyFrame
 
 void CMapper::integrateAddedKeyFrames( )
 {
+    //ds loop over the buffer
+    for( CKeyFrame* pKeyFrame: m_vecBufferAddedKeyFrames )
     {
-        //ds lock - blocking - RAII
-        std::lock_guard< std::mutex > cLockGuard( m_hKeyFrames->cMutex );
+        //ds compute loop closures
+        pKeyFrame->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrame, m_dLoopClosingRadiusSquaredMeters, m_uMinimumNumberOfMatchesLoopClosure );
 
-        //ds loop over the buffer
-        for( CKeyFrame* pKeyFrame: m_vecBufferAddedKeyFrames )
+        //ds info
+        if( 0 < pKeyFrame->vecLoopClosures.size( ) )
         {
-            //ds compute loop closures
-            pKeyFrame->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrame, m_dLoopClosingRadiusSquaredMeters, m_uMinimumNumberOfMatchesLoopClosure );
+            std::printf( "[1]<CMapper>(integrateAddedKeyFrames) key frame [%06lu] loop closures: %lu\n", pKeyFrame->uID, pKeyFrame->vecLoopClosures.size( ) );
 
-            //ds info
-            if( 0 < pKeyFrame->vecLoopClosures.size( ) )
-            {
-                std::printf( "[1]<CMapper>(integrateAddedKeyFrames) key frame [%06lu] loop closures: %lu\n", pKeyFrame->uID, pKeyFrame->vecLoopClosures.size( ) );
-
-                //ds relevant for optimization
-                ++m_uLoopClosingKeyFramesInQueue;
-            }
-
-            //ds add final key frame
-            m_hKeyFrames->vecKeyFrames->push_back( pKeyFrame );
+            //ds relevant for optimization
+            ++m_uLoopClosingKeyFramesInQueue;
         }
+
+        //ds add final key frame
+        m_hKeyFrames->vecKeyFrames->push_back( pKeyFrame );
     }
 }
 
 const bool CMapper::checkAndRequestOptimization( )
 {
-    //ds lock - blocking - RAII
-    std::lock_guard< std::mutex > cLockGuardKeyFrames( m_hKeyFrames->cMutex );
-    std::lock_guard< std::mutex > cLockGuardLandmarks( m_hLandmarks->cMutex );
-
     //ds must be filled
     if( 1 < m_hKeyFrames->vecKeyFrames->size( ) && !m_bOptimizationPending )
     {
@@ -130,33 +121,19 @@ const bool CMapper::checkAndRequestOptimization( )
     return false;
 }
 
-void CMapper::checkForMapUpdate( )
+void CMapper::updateMap( )
 {
-    //ds lock map update structure
-    std::lock_guard< std::mutex > cLockGuardMapUpdate( m_hMapUpdate->cMutex );
+    std::printf( "[1][%06lu]<CMapper>(updateMap) received map update - key frame delta: %lu\n",
+                 m_hMapping->cMapUpdate.uIDFrame, m_hKeyFrames->vecKeyFrames->back( )->uID-m_hMapping->cMapUpdate.uIDKeyFrame );
 
-    //ds if ready and not already read
-    if( m_hMapUpdate->bAvailable && !m_hMapUpdate->bMapperReceived )
-    {
-        assert( !m_hMapUpdate->bTrackerReceived );
+    //ds update optimization criteria
+    m_uIDProcessedKeyFrameLAST= m_hMapping->cMapUpdate.uIDKeyFrame+1;
 
-        //ds lock key frames
-        std::lock_guard< std::mutex > cLockGuardKeyFrames( m_hKeyFrames->cMutex );
-
-        std::printf( "[1][%06lu]<CMapper>(checkForMapUpdate) received map update - key frame delta: %lu\n",
-                     m_hMapUpdate->pKeyFrameOptimizedLAST->uFrameOfCreation, m_hKeyFrames->vecKeyFrames->back( )->uID-m_hMapUpdate->pKeyFrameOptimizedLAST->uID );
-
-        //ds update optimization criteria
-        m_uIDProcessedKeyFrameLAST= m_hMapUpdate->pKeyFrameOptimizedLAST->uID+1;
-
-        //ds update processed
-        m_hMapUpdate->bMapperReceived = true;
-
-        //ds done
-        m_bOptimizationPending = false;
-    }
+    //ds done
+    m_bOptimizationPending = false;
 }
 
+//ds locked key frames from upper scope
 const std::vector< const CKeyFrame::CMatchICP* > CMapper::_getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrame,
                                                                                        const double& p_dSearchRadiusMeters,
                                                                                        const std::vector< CMatchCloud >::size_type& p_uMinimumNumberOfMatchesLoopClosure )
@@ -324,6 +301,12 @@ const std::vector< const CKeyFrame::CMatchICP* > CMapper::_getLoopClosuresForKey
                     //std::printf( "system did not converge\n" );
                 }
             }
+        }
+
+        //ds escape if we have enough closures
+        if( m_uMaximumNumberOfLoopClosuresPerKF == vecLoopClosures.size( ) )
+        {
+            break;
         }
     }
 

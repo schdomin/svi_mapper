@@ -14,8 +14,8 @@ public:
 
     CMapper( std::shared_ptr< CHandleLandmarks > p_hLandmarks,
              std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
-             std::shared_ptr< CHandleOptimization > p_hOptimization,
-             std::shared_ptr< CHandleMapUpdate > p_hMapUpdate );
+             std::shared_ptr< CHandleMapping > p_hMapping,
+             std::shared_ptr< CHandleOptimization > p_hOptimization );
     ~CMapper( );
 
 //ds access
@@ -31,7 +31,7 @@ public:
     const bool checkAndRequestOptimization( );
 
     //ds check for map update
-    void checkForMapUpdate( );
+    void updateMap( );
 
 //ds internals
 private:
@@ -39,19 +39,20 @@ private:
     //ds general
     std::shared_ptr< CHandleLandmarks > m_hLandmarks;
     std::shared_ptr< CHandleKeyFrames > m_hKeyFrames;
+    std::shared_ptr< CHandleMapping > m_hMapping;
     std::shared_ptr< CHandleOptimization > m_hOptimization;
-    const std::shared_ptr< CHandleMapUpdate > m_hMapUpdate;
 
     //ds transfer buffer of key frames to guarantee minimum critical sections in the thread
     std::vector< CKeyFrame* > m_vecBufferAddedKeyFrames;
 
     //ds loop closing
     const std::vector< CKeyFrame* >::size_type m_uMinimumLoopClosingKeyFrameDistance = 20; //20
-    const std::vector< CMatchCloud >::size_type m_uMinimumNumberOfMatchesLoopClosure = 25; //25
+    const std::vector< CMatchCloud >::size_type m_uMinimumNumberOfMatchesLoopClosure = 50; //25
     const std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFrameWaitingQueue    = 1;
     std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFramesInQueue              = 0;
     std::vector< CKeyFrame* >::size_type m_uIDLoopClosureOptimizedLAST               = 0;
     const double m_dLoopClosingRadiusSquaredMeters                                   = 1000.0;
+    const std::vector< CKeyFrame* >::size_type m_uMaximumNumberOfLoopClosuresPerKF   = 3;
 
     //ds optimization triggering
     const std::vector< CLandmark* >::size_type m_uMinimumLandmarksForKeyFrame    = 50;

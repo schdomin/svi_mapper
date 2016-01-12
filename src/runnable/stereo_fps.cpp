@@ -31,7 +31,7 @@ std::shared_ptr< CHandleLandmarks > g_hLandmarks( std::make_shared< CHandleLandm
 std::shared_ptr< CHandleKeyFrames > g_hKeyFrames( std::make_shared< CHandleKeyFrames >( ) );
 std::shared_ptr< CHandleMapping > g_hMapper( std::make_shared< CHandleMapping >( ) );
 std::shared_ptr< CHandleOptimization > g_hOptimizer( std::make_shared< CHandleOptimization >( ) );
-std::shared_ptr< CHandleMapUpdate > g_hMapUpdate( std::make_shared< CHandleMapUpdate >( ) );
+std::shared_ptr< CHandleTracking > g_hTracker( std::make_shared< CHandleTracking >( ) );
 
 //ds mapping thread
 void launchMapping( )
@@ -39,30 +39,54 @@ void launchMapping( )
     std::printf( "[1](launchMapping) thread launched\n" );
 
     //ds entities
-    CMapper cMapper( g_hLandmarks, g_hKeyFrames, g_hOptimizer, g_hMapUpdate );
+    CMapper cMapper( g_hLandmarks, g_hKeyFrames, g_hMapper, g_hOptimizer );
+
+    //ds acquire locks (for overview in this scope)
+    std::unique_lock< std::mutex > cLockMapper( g_hMapper->cMutex, std::defer_lock );
+    std::unique_lock< std::mutex > cLockLandmarks( g_hLandmarks->cMutex, std::defer_lock );
+    std::unique_lock< std::mutex > cLockKeyFrames( g_hKeyFrames->cMutex, std::defer_lock );
 
     //ds breaking
     while( true )
     {
-        //ds lock the mutex and wait for a call (new key frames or termination)
-        std::unique_lock< std::mutex > cLock( g_hMapper->cMutex );
-        g_hMapper->cConditionVariable.wait( cLock, []{ return ( !g_hMapper->bWaitingForOptimizationReception && ( !g_hMapper->vecKeyFramesToAdd.empty( ) || g_hMapper->bTerminationRequested ) ); } );
+        //ds lock the mutex and wait for a call (new key frames, map update or termination)
+        cLockMapper.lock( );
+        g_hMapper->cConditionVariable.wait( cLockMapper, []{ return ( !g_hMapper->bWaitingForOptimizationReception && ( !g_hMapper->vecKeyFramesToAdd.empty( )||
+                                                                                                                             g_hMapper->bTerminationRequested ||
+                                                                                                                    g_hMapper->cMapUpdate.bAvailableForMapper ) ); } );
+
+        //std::cerr << "mapper: in" <<  std::endl;
 
         //ds if termination requested
         if( g_hMapper->bTerminationRequested )
         {
             std::printf( "[1](launchMapping) termination request signal received\n" );
             g_hMapper->bActive = false;
-            cLock.unlock( );
-            g_hMapper->cConditionVariable.notify_one( );
+            cLockMapper.unlock( );
+            g_hMapper->cConditionVariable.notify_all( );
             break;
         }
 
-        //ds check if a map update has been broadcasted (blocking complete map)
-        cMapper.checkForMapUpdate( );
+        //ds check if a map update has been broadcasted from the optimizer
+        if( g_hMapper->cMapUpdate.bAvailableForMapper )
+        {
+            //ds update map
+            assert( !g_hMapper->cMapUpdate.bAvailableForTracker );
+            cLockKeyFrames.lock( );
+            cMapper.updateMap( );
+            cLockKeyFrames.unlock( );
 
-        //ds trigger optimization if required
+            //ds update processed
+            g_hMapper->cMapUpdate.bAvailableForMapper   = false;
+            g_hMapper->bWaitingForOptimizationReception = false;
+        }
+
+        //ds trigger optimization if required (fast)
+        cLockLandmarks.lock( );
+        cLockKeyFrames.lock( );
         const bool bOptimizationRequired = cMapper.checkAndRequestOptimization( );
+        cLockKeyFrames.unlock( );
+        cLockLandmarks.unlock( );
 
         //ds block further adding of key frames while optimizer has not received our request
         g_hMapper->bWaitingForOptimizationReception = bOptimizationRequired;
@@ -70,7 +94,7 @@ void launchMapping( )
         //ds check if we can add new key frames
         if( !bOptimizationRequired )
         {
-            //ds copy new key frames fast!
+            //ds copy new key frames to buffer fast!
             cMapper.addKeyFramesSorted( g_hMapper->vecKeyFramesToAdd );
 
             //ds clear pending frames to add
@@ -78,14 +102,19 @@ void launchMapping( )
         }
 
         //ds unlock mutex and notify main over the condition variable
-        cLock.unlock( );
-        g_hMapper->cConditionVariable.notify_one( );
+        cLockMapper.unlock( );
+        g_hMapper->cConditionVariable.notify_all( );
 
-        //ds process new key frames after critical section (internal race condition with optimization thread)
+        //ds process new key frames after critical section (internal race condition with optimization thread) - if not waiting for an optimization
         if( !bOptimizationRequired )
         {
+            //ds lock - blocking - RAII
+            cLockKeyFrames.lock( );
             cMapper.integrateAddedKeyFrames( );
+            cLockKeyFrames.unlock( );
         }
+
+        //std::cerr << "mapper: out" << std::endl;
     }
 
     //ds report
@@ -101,37 +130,41 @@ void launchOptimization( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
     Cg2oOptimizer cOptimizer( p_pCameraSTEREO,
                               g_hLandmarks,
                               g_hKeyFrames,
-                              g_hMapUpdate,
                               g_hMapper,
+                              g_hTracker,
                               p_matTransformationWORLDtoLEFTInitial );
+
+    //ds acquire locks (for overview in this scope)
+    std::unique_lock< std::mutex > cLockOptimizer( g_hOptimizer->cMutex, std::defer_lock );
 
     //ds breaking
     while( true )
     {
         //ds lock the mutex and wait for a call (new optimization requests or termination)
-        std::unique_lock< std::mutex > cLock( g_hOptimizer->cMutex );
-        g_hOptimizer->cConditionVariable.wait( cLock, []{ return ( g_hOptimizer->bTerminationRequested || !g_hOptimizer->bRequestProcessed ); } );
+        cLockOptimizer.lock( );
+        g_hOptimizer->cConditionVariable.wait( cLockOptimizer, []{ return ( g_hOptimizer->bTerminationRequested || !g_hOptimizer->bRequestProcessed ); } );
+
+        //std::cerr << "optimizer: in" <<  std::endl;
 
         //ds if termination requested
         if( g_hOptimizer->bTerminationRequested )
         {
             std::printf( "[2](launchOptimization) termination request signal received\n" );
             g_hOptimizer->bActive = false;
-            cLock.unlock( );
+            cLockOptimizer.unlock( );
             g_hOptimizer->cConditionVariable.notify_one( );
             break;
         }
 
-        //ds run optimization based on request
+        //ds run optimization based on request (heavy INNER LOCKING)
         cOptimizer.optimize( g_hOptimizer->cRequest );
         g_hOptimizer->bRequestProcessed = true;
 
         //ds unlock mutex and notify main over the condition variable
-        cLock.unlock( );
+        cLockOptimizer.unlock( );
         g_hOptimizer->cConditionVariable.notify_one( );
 
-        //ds broadcast map update
-        cOptimizer.sendMapUpdate( );
+        //std::cerr << "optimizer: out" <<  std::endl;
     }
 
     std::printf( "[2](launchOptimization) thread terminated\n" );
@@ -140,6 +173,12 @@ void launchOptimization( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
 int32_t main( int32_t argc, char **argv )
 {
     //assert( false );
+
+    //ds thread control
+    std::unique_lock< std::mutex > cLockMapper( g_hMapper->cMutex, std::defer_lock );
+    std::unique_lock< std::mutex > cLockOptimizer( g_hOptimizer->cMutex, std::defer_lock );
+    std::unique_lock< std::mutex > cLockTracker( g_hTracker->cMutex );
+    g_hTracker->bBusy = true;
 
     //ds defaults
     std::string strMode              = "benchmark";
@@ -155,7 +194,6 @@ int32_t main( int32_t argc, char **argv )
     {
         std::printf( "[0](main) no message file specified\n" );
         printHelp( );
-        std::fflush( stdout );
         return 1;
     }
 
@@ -192,7 +230,6 @@ int32_t main( int32_t argc, char **argv )
             //ds exit
             std::printf( "[0](main) interactive mode not supported, aborting\n" );
             printHelp( );
-            std::fflush( stdout);
             return 0;
         }
     }
@@ -206,7 +243,6 @@ int32_t main( int32_t argc, char **argv )
     {
         std::printf( "[0](main) unable to open message file: '%s'\n", strInfileMessageDump.c_str( ) );
         printHelp( );
-        std::fflush( stdout );
         return 1;
     }
 
@@ -225,7 +261,6 @@ int32_t main( int32_t argc, char **argv )
     std::printf( "[0](main) strConfigurationCameraRIGHT := '%s'\n", strConfigurationCameraRIGHT.c_str( ) );
     std::printf( "[0](main) strInfileMessageDump        := '%s'\n", strInfileMessageDump.c_str( ) );
     //std::printf( "(main) openCV build information: \n%s", cv::getBuildInformation( ).c_str( ) );
-    std::fflush( stdout );
     CLogger::closeBox( );
 
     try
@@ -240,19 +275,16 @@ int32_t main( int32_t argc, char **argv )
     catch( const CExceptionParameter& p_cException )
     {
         std::printf( "[0](main) unable to import camera parameters - CExceptionParameter: '%s'\n", p_cException.what( ) );
-        std::fflush( stdout );
         return 1;
     }
     catch( const std::invalid_argument& p_cException )
     {
         std::printf( "[0](main) unable to import camera parameters - std::invalid_argument: '%s'\n", p_cException.what( ) );
-        std::fflush( stdout );
         return 1;
     }
     catch( const std::out_of_range& p_cException )
     {
         std::printf( "[0](main) unable to import camera parameters - std::out_of_range: '%s'\n", p_cException.what( ) );
-        std::fflush( stdout );
         return 1;
     }
 
@@ -299,7 +331,6 @@ int32_t main( int32_t argc, char **argv )
                              pIMUInterpolator,
                              g_hLandmarks,
                              g_hMapper,
-                             g_hMapUpdate,
                              eMode,
                              uWaitKeyTimeout );
     try
@@ -311,7 +342,6 @@ int32_t main( int32_t argc, char **argv )
     {
         std::printf( "[0](main) unable to sanitize file tree - exception: '%s'\n", p_cException.what( ) );
         printHelp( );
-        std::fflush( stdout );
         return 1;
     }
 
@@ -321,6 +351,9 @@ int32_t main( int32_t argc, char **argv )
     //ds spawn worker threads
     std::thread threadMapping( launchMapping );
     std::thread threadOptimization( launchOptimization, CParameterBase::pCameraSTEREO, pIMUInterpolator->getTransformationWORLDtoCAMERA( CParameterBase::pCameraLEFT->m_matRotationIMUtoCAMERA ) );
+    g_hTracker->bBusy = false;
+    cLockTracker.unlock( );
+    g_hTracker->cConditionVariable.notify_one( );
 
     //ds playback the dump
     while( cMessageReader.good( ) && !cTracker.isShutdownRequested( ) )
@@ -367,8 +400,50 @@ int32_t main( int32_t argc, char **argv )
                 assert( pMessageIMU->timestamp( ) == pMessageCameraLEFT->timestamp( ) );
                 assert( pMessageIMU->timestamp( ) == pMessageCameraRIGHT->timestamp( ) );
 
-                //ds callback with triplet
+                //ds callback with triplet (locking busy tracker so optimization application will wait) - or getting blocked while optimization is applying update
+                cLockTracker.lock( );
+                g_hTracker->bBusy = true;
+
+                //std::cerr << "tracker: in" << std::endl;
+
+                //ds check if there's a map update available
+                cLockMapper.lock( );
+                if( g_hMapper->cMapUpdate.bAvailableForTracker )
+                {
+                    //ds signal optimizer that we received the update
+                    assert( !g_hMapper->cMapUpdate.bAvailableForMapper );
+                    g_hMapper->cMapUpdate.bAvailableForTracker = false;
+                    const CMapUpdate cUpdate( g_hMapper->cMapUpdate );
+                    cLockMapper.unlock( );
+                    g_hMapper->cConditionVariable.notify_all( );
+
+                    //std::cerr << "tracker: received update" << std::endl;
+
+                    {
+                        //ds process update
+                        std::lock_guard< std::mutex > cLockLandmarks( g_hLandmarks->cMutex );
+                        std::lock_guard< std::mutex > cLockKeyFrames( g_hKeyFrames->cMutex );
+                        cTracker.updateMap( cUpdate );
+                    }
+
+                    //ds lock again to enable mapper update
+                    cLockMapper.lock( );
+                    g_hMapper->cMapUpdate.bAvailableForMapper = true;
+                    cLockMapper.unlock( );
+                    g_hMapper->cConditionVariable.notify_all( );
+                }
+                else
+                {
+                    cLockMapper.unlock( );
+                }
+
+                //ds evaluate images and IMU (inner landmark locking)
                 cTracker.receivevDataVI( pMessageCameraLEFT, pMessageCameraRIGHT, pMessageIMU );
+                g_hTracker->bBusy = false;
+                cLockTracker.unlock( );
+                g_hTracker->cConditionVariable.notify_one( );
+
+                //std::cerr << "tracker: out" << std::endl;
 
                 //ds reset holders
                 pMessageCameraLEFT.reset( );
@@ -407,27 +482,25 @@ int32_t main( int32_t argc, char **argv )
     const double dDurationRealTime = uFrameCount/20.0;
     const double dDistance       = cTracker.getDistanceTraveled( );
 
-    //ds signal threads
+    //ds signal threads: mapper
     CLogger::openBox( );
     std::printf( "[0](main) signaling threads for termination\n" );
-    {
-        std::lock_guard< std::mutex > cLockGuard( g_hMapper->cMutex );
-        g_hMapper->bTerminationRequested = true;
-    }
+    cLockMapper.lock( );
+    g_hMapper->bTerminationRequested = true;
+    cLockMapper.unlock( );
     g_hMapper->cConditionVariable.notify_one( );
-    {
-        std::unique_lock< std::mutex > cLockFinishingUp( g_hMapper->cMutex );
-        g_hMapper->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hMapper->bActive; } );
-    }
-    {
-        std::lock_guard< std::mutex > cLockGuard( g_hOptimizer->cMutex );
-        g_hOptimizer->bTerminationRequested = true;
-    }
+    cLockMapper.lock( );
+    g_hMapper->cConditionVariable.wait( cLockMapper, []{ return !g_hMapper->bActive; } );
+    cLockMapper.unlock( );
+
+    //ds optimizer
+    cLockOptimizer.lock( );
+    g_hOptimizer->bTerminationRequested = true;
+    cLockOptimizer.unlock( );
     g_hOptimizer->cConditionVariable.notify_one( );
-    {
-        std::unique_lock< std::mutex > cLockFinishingUp( g_hOptimizer->cMutex );
-        g_hOptimizer->cConditionVariable.wait( cLockFinishingUp, []{ return !g_hOptimizer->bActive; } );
-    }
+    cLockOptimizer.lock( );
+    g_hOptimizer->cConditionVariable.wait( cLockOptimizer, []{ return !g_hOptimizer->bActive; } );
+    cLockOptimizer.unlock( );
 
     //ds join threads
     threadMapping.join( );
@@ -468,7 +541,6 @@ int32_t main( int32_t argc, char **argv )
     //testSpeedEigen( );
 
     //ds exit
-    std::fflush( stdout);
     return 0;
 }
 
@@ -517,7 +589,6 @@ void setParametersNaive( const int& p_iArgc,
         {
             //ds print help and exit here
             printHelp( );
-            std::fflush( stdout );
             std::exit( 0 );
         }
 
@@ -529,14 +600,12 @@ void setParametersNaive( const int& p_iArgc,
     {
         std::printf( "[0](setParametersNaive) malformed command line syntax\n" );
         printHelp( );
-        std::fflush( stdout );
         std::exit( -1 );
     }
     catch( const std::out_of_range& p_cException )
     {
         std::printf( "[0](setParametersNaive) malformed command line syntax\n" );
         printHelp( );
-        std::fflush( stdout );
         std::exit( -1 );
     }
 }

@@ -8,6 +8,7 @@
 #include "exceptions/CExceptionEpipolarLine.h"
 
 CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
+                                    const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                                     const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle,
                                     const double& p_dMinimumDepthMeters,
                                     const double& p_dMaximumDepthMeters,
@@ -17,6 +18,7 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
                                                                               m_pCameraLEFT( m_pTriangulator->m_pCameraSTEREO->m_pCameraLEFT ),
                                                                               m_pCameraRIGHT( m_pTriangulator->m_pCameraSTEREO->m_pCameraRIGHT ),
                                                                               m_pCameraSTEREO( m_pTriangulator->m_pCameraSTEREO ),
+                                                                              m_hLandmarks( p_hLandmarks ),
                                                                               m_pDetector( p_pDetectorSingle ),
                                                                               m_pExtractor( m_pTriangulator->m_pExtractor ),
                                                                               m_pMatcher( m_pTriangulator->m_pMatcher ),
@@ -33,6 +35,7 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
 {
     m_vecDetectionPointsActive.clear( );
     m_vecVisibleLandmarks.clear( );
+    m_vecMeasurementsVisible.clear( );
 
     CLogger::openBox( );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
@@ -53,6 +56,7 @@ CFundamentalMatcher::~CFundamentalMatcher( )
     std::printf( "<CFundamentalMatcher>(~CFundamentalMatcher) instance deallocated\n" );
 }
 
+//ds landmark locked in upper scope
 void CFundamentalMatcher::addDetectionPoint( const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD, const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks )
 {
     assert( 0 < p_vecLandmarks->size( ) );
@@ -137,7 +141,7 @@ const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CFun
     return vecCloud;
 }
 
-//ds compute 3D pose using stereo posit - EXCEPTION
+//ds compute 3D pose using stereo posit - EXCEPTION - locked from upper scope
 const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame p_uFrame,
                                                                   cv::Mat& p_matDisplayLEFT,
                                                                   cv::Mat& p_matDisplayRIGHT,
@@ -229,7 +233,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                             }
 
                             //ds latter landmark update (cannot be done before pose is optimized)
-                            vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark, pLandmark->vecPointXYZOptimized, cMatchRIGHT.vecPointXYZCAMERA, ptUVEstimateLEFT, cMatchRIGHT.ptUVCAMERA, matDescriptorLEFT, matDescriptorRIGHT ) );
+                            vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark->uID, pLandmark->vecPointXYZOptimized, cMatchRIGHT.vecPointXYZCAMERA, ptUVEstimateLEFT, cMatchRIGHT.ptUVCAMERA, matDescriptorLEFT, matDescriptorRIGHT ) );
                             cv::circle( p_matDisplayLEFT, ptUVEstimateLEFT, 4, CColorCodeBGR( 0, 255, 0 ), 1 );
                             ++m_uNumberOfTracksStage1;
                         }
@@ -279,7 +283,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                                 }
 
                                 //ds latter landmark update (cannot be done before pose is optimized)
-                                vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark, pLandmark->vecPointXYZOptimized, cMatchLEFT.vecPointXYZCAMERA, cMatchLEFT.ptUVCAMERA, ptUVEstimateRIGHT, matDescriptorLEFT, matDescriptorRIGHT ) );
+                                vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark->uID, pLandmark->vecPointXYZOptimized, cMatchLEFT.vecPointXYZCAMERA, cMatchLEFT.ptUVCAMERA, ptUVEstimateRIGHT, matDescriptorLEFT, matDescriptorRIGHT ) );
                                 cv::circle( p_matDisplayRIGHT, ptUVEstimateRIGHT, 4, CColorCodeBGR( 0, 255, 0 ), 1 );
                                 ++m_uNumberOfTracksStage1;
                             }
@@ -373,7 +377,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                                                 if( m_dMatchingDistanceCutoffTrackingStage2 > cv::norm( pLandmark->getLastDescriptorRIGHT( ), matDescriptorRIGHT, cv::NORM_HAMMING ) )
                                                 {
                                                     //ds latter landmark update (cannot be done before pose is optimized)
-                                                    vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark, vecPointXYZ, cMatchRIGHT.vecPointXYZCAMERA, ptBestMatchLEFTInCamera, cMatchRIGHT.ptUVCAMERA, matDescriptorLEFT, matDescriptorRIGHT ) );
+                                                    vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark->uID, vecPointXYZ, cMatchRIGHT.vecPointXYZCAMERA, ptBestMatchLEFTInCamera, cMatchRIGHT.ptUVCAMERA, matDescriptorLEFT, matDescriptorRIGHT ) );
                                                     cv::circle( p_matDisplayLEFT, ptBestMatchLEFTInCamera, 4, CColorCodeBGR( 255, 255, 255 ), 1 );
                                                     ++m_uNumberOfTracksStage2_1;
                                                 }
@@ -488,7 +492,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
                                                     if( m_dMatchingDistanceCutoffTrackingStage2 > cv::norm( pLandmark->getLastDescriptorLEFT( ), matDescriptorLEFT, cv::NORM_HAMMING ) )
                                                     {
                                                         //ds latter landmark update (cannot be done before pose is optimized)
-                                                        vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark, vecPointXYZ, cMatchLEFT.vecPointXYZCAMERA, cMatchLEFT.ptUVCAMERA, ptBestMatchRIGHTInCamera, matDescriptorLEFT, matDescriptorRIGHT ) );
+                                                        vecMeasurementsForStereoPosit.push_back( CSolverStereoPosit::CMatch( pLandmark->uID, vecPointXYZ, cMatchLEFT.vecPointXYZCAMERA, cMatchLEFT.ptUVCAMERA, ptBestMatchRIGHTInCamera, matDescriptorLEFT, matDescriptorRIGHT ) );
                                                         cv::circle( p_matDisplayRIGHT, ptBestMatchRIGHTInCamera, 4, CColorCodeBGR( 255, 255, 255 ), 1 );
                                                         ++m_uNumberOfTracksStage2_1;
                                                     }
@@ -544,7 +548,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
     const Eigen::Isometry3d matTransformationLEFTtoWORLD( matTransformationWORLDtoLEFT.inverse( ) );
 
     //ds update all visible landmarks
-    for( CSolverStereoPosit::CMatch cMatchSTEREO: vecMeasurementsForStereoPosit )
+    for( const CSolverStereoPosit::CMatch& cMatchSTEREO: vecMeasurementsForStereoPosit )
     {
         _addMeasurementToLandmarkSTEREO( p_uFrame, cMatchSTEREO, matTransformationLEFTtoWORLD, matTransformationWORLDtoLEFT, matProjectionWORLDtoLEFT, matProjectionWORLDtoRIGHT );
     }
@@ -1069,23 +1073,21 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseRefinedOnVisibleLandmarks( c
     return Eigen::Isometry3d( );
 }
 
-const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFundamentalMatcher::getMeasurementsEpipolar( const UIDFrame p_uFrame,
-                                                                                                                        const cv::Mat& p_matImageLEFT,
-                                                                                                                        const cv::Mat& p_matImageRIGHT,
-                                                                                                                        const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
-                                                                                                                        const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
-                                                                                                                        const double& p_dMotionScaling,
-                                                                                                                        cv::Mat& p_matDisplayLEFT,
-                                                                                                                        cv::Mat& p_matDisplayRIGHT )
+//ds locking landmarks in upper scope
+void CFundamentalMatcher::trackEpipolar( const UIDFrame p_uFrame,
+                                        const cv::Mat& p_matImageLEFT,
+                                        const cv::Mat& p_matImageRIGHT,
+                                        const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
+                                        const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
+                                        const double& p_dMotionScaling,
+                                        cv::Mat& p_matDisplayLEFT,
+                                        cv::Mat& p_matDisplayRIGHT )
 {
     assert( 1.0 <= p_dMotionScaling );
 
     //ds precompute intrinsics
     const MatrixProjection matProjectionWORLDtoLEFT( m_pCameraLEFT->m_matProjection*p_matTransformationWORLDtoLEFT.matrix( ) );
     const MatrixProjection matProjectionWORLDtoRIGHT( m_pCameraRIGHT->m_matProjection*p_matTransformationWORLDtoLEFT.matrix( ) );
-
-    //ds measurements to return
-    std::shared_ptr< std::vector< const CMeasurementLandmark* > > vecMeasurements( std::make_shared< std::vector< const CMeasurementLandmark* > >( ) );
 
     //ds new active measurement points
     std::vector< CDetectionPoint > vecDetectionPointsActive;
@@ -1101,6 +1103,7 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
     m_uNumberOfTracksStage2_2 = 0;
     UIDLandmark uNumberOfFailedLandmarkOptimizations = 0;
     UIDLandmark uNumberOfInvalidLandmarks = 0;
+    m_vecMeasurementsVisible.clear( );
 
     //ds timing
     const double dTimeStartSeconds = CTimer::getTimeSeconds( );
@@ -1109,7 +1112,6 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
     for( const CDetectionPoint& cDetectionPoint: m_vecDetectionPointsActive )
     {
         //ds visible (=in this image detected) active (=not detected in this image but failed detections below threshold)
-        std::vector< const CMeasurementLandmark* > vecMeasurementsPerDetectionPoint;
         std::shared_ptr< std::vector< CLandmark* > >vecActiveLandmarksPerDetectionPoint( std::make_shared< std::vector< CLandmark* > >( ) );
 
         //ds check relative transform
@@ -1149,7 +1151,7 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
                 if( pLandmark->bIsCurrentlyVisible )
                 {
                     //ds just register the measurement
-                    vecMeasurementsPerDetectionPoint.push_back( pLandmark->getLastMeasurement( ) );
+                    m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
                     vecActiveLandmarksPerDetectionPoint->push_back( pLandmark );
                 }
                 else
@@ -1324,7 +1326,7 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
                                                            matProjectionWORLDtoLEFT,
                                                            matProjectionWORLDtoRIGHT,
                                                            p_dMotionScaling );
-                            vecMeasurementsPerDetectionPoint.push_back( pLandmark->getLastMeasurement( ) );
+                            m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
 
                             //ds update info
                             ++m_uNumberOfTracksStage3;
@@ -1441,7 +1443,7 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
                                                                                  matProjectionWORLDtoRIGHT );
 
                                                 //ds add measurement to matcher
-                                                vecMeasurementsPerDetectionPoint.push_back( pLandmark->getLastMeasurement( ) );
+                                                m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
 
                                                 //ds info
                                                 cv::circle( p_matDisplayLEFT, ptBestMatchLEFTInCamera, 4, CColorCodeBGR( 255, 0, 0 ), 1 );
@@ -1565,7 +1567,7 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
                                                                                      matProjectionWORLDtoRIGHT );
 
                                                     //ds add measurement to matcher
-                                                    vecMeasurementsPerDetectionPoint.push_back( pLandmark->getLastMeasurement( ) );
+                                                    m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
 
                                                     //ds info
                                                     cv::circle( p_matDisplayRIGHT, ptBestMatchRIGHTInCamera, 4, CColorCodeBGR( 255, 0, 0 ), 1 );
@@ -1622,9 +1624,6 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
         {
             //ds register the measurement point and its active landmarks anew
             vecDetectionPointsActive.push_back( CDetectionPoint( cDetectionPoint.uID, cDetectionPoint.matTransformationLEFTtoWORLD, vecActiveLandmarksPerDetectionPoint ) );
-
-            //ds combine visible landmarks
-            vecMeasurements->insert( vecMeasurements->end( ), vecMeasurementsPerDetectionPoint.begin( ), vecMeasurementsPerDetectionPoint.end( ) );
         }
         else
         {
@@ -1646,8 +1645,6 @@ const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > CFunda
 
     //ds update active measurement points
     m_vecDetectionPointsActive.swap( vecDetectionPointsActive );
-
-    return vecMeasurements;
 }
 
 const cv::Mat CFundamentalMatcher::getMaskVisibleLandmarks( ) const
@@ -1702,12 +1699,12 @@ void CFundamentalMatcher::drawVisibleLandmarks( cv::Mat& p_matDisplayLEFT, cv::M
     for( const CLandmark* pLandmark: m_vecVisibleLandmarks )
     {
         //ds compute green brightness based on depth (further away -> darker)
-        uint8_t uGreenValue = 255-std::sqrt( pLandmark->getLastDepth( ) )*20;
+        const uint8_t uGreenValue = 255-pLandmark->getLastDepth( )/100.0*255;
         cv::circle( p_matDisplayLEFT, pLandmark->getLastDetectionLEFT( ), 2, CColorCodeBGR( 0, uGreenValue, 0 ), -1 );
         cv::circle( p_matDisplayRIGHT, pLandmark->getLastDetectionRIGHT( ), 2, CColorCodeBGR( 0, uGreenValue, 0 ), -1 );
 
-        //ds get 3d position in current camera frame
-        const CPoint3DCAMERA vecXYZLEFT( p_matTransformationWORLDtoLEFT*pLandmark->vecPointXYZOptimized );
+        //ds get 3d position in current camera frame (trivial)
+        const CPoint3DCAMERA vecXYZLEFT( p_matTransformationWORLDtoLEFT*pLandmark->getLastPointXYZOptimized( ) );
 
         //ds also draw reprojections
         cv::circle( p_matDisplayLEFT, m_pCameraLEFT->getProjection( vecXYZLEFT ), 6, CColorCodeBGR( 0, uGreenValue, 0 ), 1 );
@@ -2061,7 +2058,7 @@ void CFundamentalMatcher::_addMeasurementToLandmarkLEFT( const UIDFrame p_uFrame
 }
 
 void CFundamentalMatcher::_addMeasurementToLandmarkSTEREO( const UIDFrame p_uFrame,
-        CSolverStereoPosit::CMatch& p_cMatchSTEREO,
+                                                           const CSolverStereoPosit::CMatch& p_cMatchSTEREO,
                                                            const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
                                                            const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
                                                            const MatrixProjection& p_matProjectionWORLDtoLEFT,
@@ -2073,22 +2070,24 @@ void CFundamentalMatcher::_addMeasurementToLandmarkSTEREO( const UIDFrame p_uFra
     assert( m_dMinimumDepthMeters < p_cMatchSTEREO.vecPointXYZLEFT.z( ) );
     assert( m_dMaximumDepthMeters > p_cMatchSTEREO.vecPointXYZLEFT.z( ) );
 
-    //ds update landmark (NO EXCEPTIONS HERE)
-    p_cMatchSTEREO.pLandmark->bIsCurrentlyVisible        = true;
-    p_cMatchSTEREO.pLandmark->uFailedSubsequentTrackings = 0;
-    p_cMatchSTEREO.pLandmark->addMeasurement( p_uFrame,
-                                              p_cMatchSTEREO.ptUVLEFT,
-                                              p_cMatchSTEREO.ptUVRIGHT,
-                                              p_cMatchSTEREO.matDescriptorLEFT,
-                                              p_cMatchSTEREO.matDescriptorRIGHT,
-                                              p_cMatchSTEREO.vecPointXYZLEFT,
-                                              p_matTransformationLEFTtoWORLD,
-                                              p_matTransformationWORLDtoLEFT,
-                                              p_matProjectionWORLDtoLEFT,
-                                              p_matProjectionWORLDtoRIGHT );
+    //ds update landmark directly (NO EXCEPTIONS HERE)
+    CLandmark* pLandmark = m_hLandmarks->vecLandmarks->at( p_cMatchSTEREO.uIDLandmark );
+    assert( 0 != pLandmark );
+    pLandmark->bIsCurrentlyVisible        = true;
+    pLandmark->uFailedSubsequentTrackings = 0;
+    pLandmark->addMeasurement( p_uFrame,
+                               p_cMatchSTEREO.ptUVLEFT,
+                               p_cMatchSTEREO.ptUVRIGHT,
+                               p_cMatchSTEREO.matDescriptorLEFT,
+                               p_cMatchSTEREO.matDescriptorRIGHT,
+                               p_cMatchSTEREO.vecPointXYZLEFT,
+                               p_matTransformationLEFTtoWORLD,
+                               p_matTransformationWORLDtoLEFT,
+                               p_matProjectionWORLDtoLEFT,
+                               p_matProjectionWORLDtoRIGHT );
 
     //ds add to vector for fast search
-    m_vecVisibleLandmarks.push_back( p_cMatchSTEREO.pLandmark );
+    m_vecVisibleLandmarks.push_back( pLandmark );
 }
 
 void CFundamentalMatcher::_addMeasurementToLandmarkSTEREO( const UIDFrame p_uFrame,

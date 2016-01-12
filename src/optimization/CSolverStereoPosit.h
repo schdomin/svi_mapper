@@ -18,7 +18,7 @@ public:
 
     struct CMatch
     {
-        CLandmark* pLandmark;
+        const std::vector< CLandmark* >::size_type uIDLandmark;
         const CPoint3DWORLD vecPointXYZWORLD;
         const CPoint3DCAMERA vecPointXYZLEFT;
         const cv::Point2f ptUVLEFT;
@@ -26,19 +26,19 @@ public:
         const CDescriptor matDescriptorLEFT;
         const CDescriptor matDescriptorRIGHT;
 
-        CMatch( CLandmark* p_pLandmark,
-                                      const CPoint3DCAMERA& p_vecPointXYZWORLD,
-                                      const CPoint3DCAMERA& p_vecPointXYZLEFT,
-                                      const cv::Point2f& p_ptUVLEFT,
-                                      const cv::Point2f& p_ptUVRIGHT,
-                                      const CDescriptor& p_matDescriptorLEFT,
-                                      const CDescriptor& p_matDescriptorRIGHT ): pLandmark( p_pLandmark ),
-                                                                                 vecPointXYZWORLD( p_vecPointXYZWORLD ),
-                                                                                 vecPointXYZLEFT( p_vecPointXYZLEFT ),
-                                                                                 ptUVLEFT( p_ptUVLEFT ),
-                                                                                 ptUVRIGHT( p_ptUVRIGHT ),
-                                                                                 matDescriptorLEFT( p_matDescriptorLEFT ),
-                                                                                 matDescriptorRIGHT( p_matDescriptorRIGHT )
+        CMatch( const std::vector< CLandmark* >::size_type& p_uIDLandmark,
+                const CPoint3DCAMERA& p_vecPointXYZWORLD,
+                const CPoint3DCAMERA& p_vecPointXYZLEFT,
+                const cv::Point2f& p_ptUVLEFT,
+                const cv::Point2f& p_ptUVRIGHT,
+                const CDescriptor& p_matDescriptorLEFT,
+                const CDescriptor& p_matDescriptorRIGHT ): uIDLandmark( p_uIDLandmark ),
+                                                           vecPointXYZWORLD( p_vecPointXYZWORLD ),
+                                                           vecPointXYZLEFT( p_vecPointXYZLEFT ),
+                                                           ptUVLEFT( p_ptUVLEFT ),
+                                                           ptUVRIGHT( p_ptUVRIGHT ),
+                                                           matDescriptorLEFT( p_matDescriptorLEFT ),
+                                                           matDescriptorRIGHT( p_matDescriptorRIGHT )
         {
             //ds nothing to do
         }

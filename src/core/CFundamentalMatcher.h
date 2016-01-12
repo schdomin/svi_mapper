@@ -5,6 +5,7 @@
 #include "types/CLandmark.h"
 #include "types/TypesCloud.h"
 #include "optimization/CSolverStereoPosit.h"
+#include "types/CTypesThreading.h"
 
 class CFundamentalMatcher
 {
@@ -41,6 +42,7 @@ private:
 public:
 
     CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
+                      const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
                       const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle,
                       const double& p_dMinimumDepthMeters,
                       const double& p_dMaximumDepthMeters,
@@ -60,6 +62,9 @@ private:
     const std::shared_ptr< CPinholeCamera > m_pCameraRIGHT;
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
+    //ds for landmark access sections
+    const std::shared_ptr< CHandleLandmarks > m_hLandmarks;
+
     //ds matching
     const std::shared_ptr< cv::FeatureDetector > m_pDetector;
     const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
@@ -77,6 +82,7 @@ private:
     UIDDetectionPoint m_uAvailableDetectionPointID;
     std::vector< CDetectionPoint > m_vecDetectionPointsActive;
     std::vector< CLandmark* > m_vecVisibleLandmarks;
+    std::vector< const CMeasurementLandmark* > m_vecMeasurementsVisible;
 
     //ds internal
     const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark;
@@ -119,6 +125,7 @@ public:
 
     //ds returns cloud version of currently visible landmarks
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > getCloudForVisibleOptimizedLandmarks( const UIDFrame& p_uFrame ) const;
+    const std::vector< const CMeasurementLandmark* > getMeasurementsForVisibleLandmarks( ) const { return m_vecMeasurementsVisible; }
 
     const Eigen::Isometry3d getPoseStereoPosit( const UIDFrame p_uFrame,
                                                     cv::Mat& p_matDisplayLEFT,
@@ -144,14 +151,14 @@ public:
 
     const Eigen::Isometry3d getPoseRefinedOnVisibleLandmarks( const Eigen::Isometry3d& p_matTransformationWORLDtoLEFTEstimate );
 
-    const std::shared_ptr< const std::vector< const CMeasurementLandmark* > > getMeasurementsEpipolar( const UIDFrame p_uFrame,
-                                                                                                       const cv::Mat& p_matImageLEFT,
-                                                                                                       const cv::Mat& p_matImageRIGHT,
-                                                                                                       const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
-                                                                                                       const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
-                                                                                                       const double& p_dMotionScaling,
-                                                                                                       cv::Mat& p_matDisplayLEFT,
-                                                                                                       cv::Mat& p_matDisplayRIGHT );
+    void trackEpipolar( const UIDFrame p_uFrame,
+                       const cv::Mat& p_matImageLEFT,
+                       const cv::Mat& p_matImageRIGHT,
+                       const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
+                       const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
+                       const double& p_dMotionScaling,
+                       cv::Mat& p_matDisplayLEFT,
+                       cv::Mat& p_matDisplayRIGHT );
 
     //ds returns an image mask containing the currently visible landmarks (used to avoid re-detection of identical features)
     const cv::Mat getMaskVisibleLandmarks( ) const;
@@ -225,7 +232,7 @@ private:
                                    const double& p_dMotionScaling );
 
     void _addMeasurementToLandmarkSTEREO( const UIDFrame p_uFrame,
-            CSolverStereoPosit::CMatch& p_cMatchSTEREO,
+                                    const CSolverStereoPosit::CMatch& p_cMatchSTEREO,
                                     const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
                                     const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
                                     const MatrixProjection& p_matProjectionWORLDtoLEFT,
