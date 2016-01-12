@@ -1,11 +1,11 @@
---------------------------------------------
+------------------------------------------------------------------------
 project: svi_mapper
 version: 1.0
 contact: https://github.com/schdomin
 
 
 
---------------------------------------------
+------------------------------------------------------------------------
 dependencies:
 
       OpenCV: https://github.com/Itseez/opencv/archive/2.4.11.zip (2.4.8-11)
@@ -15,7 +15,7 @@ thin_drivers: https://github.com/grisetti/thin_drivers (visensor/txt_io library)
 
 
 
---------------------------------------------
+------------------------------------------------------------------------
 build sequence EXAMPLE (shell in project root):
 
 mkdir build
@@ -25,7 +25,7 @@ make -j666
 
 
 
---------------------------------------------
+------------------------------------------------------------------------
 hardware requirements:
 
 threads: 3
@@ -46,20 +46,19 @@ RAM: 4-32GB (depending on desired map scale)
 
 
 
-
-_____________________                              _____________________
-`-._                 \           |\__/|           /                 _.-'
-    \                 \          |    |          /                 /  
-     \                 `-_______/      \_______-'                 /    
-      |                                                          |    
-      |                                                          |    
-      |                                                          |    
-      /                                                          \    
-     /_____________                                  _____________\
-                   `----._                    _.----'                
-                          `--.            .--'                          
-                              `-.      .-'                              
-                                 \    /                     
-                                  \  /                                  
-                                   \/ 
+MMMMMMMMMMMMMMMMMMMMM.                             MMMMMMMMMMMMMMMMMMMMM
+ `MMMMMMMMMMMMMMMMMMMM           M\  /M           MMMMMMMMMMMMMMMMMMMM'
+   `MMMMMMMMMMMMMMMMMMM          MMMMMM          MMMMMMMMMMMMMMMMMMM'  
+     MMMMMMMMMMMMMMMMMMM-_______MMMMMMMM_______-MMMMMMMMMMMMMMMMMMM    
+      MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM    
+      MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM    
+      MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM    
+     .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.    
+    MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM  
+                   `MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM'                
+                          `MMMMMMMMMMMMMMMMMM'                    
+                              `MMMMMMMMMM'                              
+                                 MMMMMM             
+                                  MMMM                                  
+                                   MM 
 
