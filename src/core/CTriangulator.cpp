@@ -38,7 +38,7 @@ CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCa
     std::printf( "<CTriangulator>(CTriangulator) dPv: %fp\n", m_dPv );
     std::printf( "<CTriangulator>(CTriangulator) DuR: %fp\n", m_dDuR );
     std::printf( "<CTriangulator>(CTriangulator) minimum depth: %fm (%up)\n", m_dDuRFlipped/m_pCameraSTEREO->m_uPixelWidth, m_pCameraSTEREO->m_uPixelWidth );
-    std::printf( "<CTriangulator>(CTriangulator) maximum depth: %fm (1p)\n", m_dDuRFlipped );
+    std::printf( "<CTriangulator>(CTriangulator) maximum depth: %fm (%fp)\n", m_dDuRFlipped/CTriangulator::dMinimumDisparityPixels, CTriangulator::dMinimumDisparityPixels );
     std::printf( "<CTriangulator>(CTriangulator) instance allocated\n" );
     CLogger::closeBox( );
 }
@@ -109,7 +109,7 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHTFull( cv::Ma
         //ds buffer point
         const cv::Point2f ptUVRIGHT( vecPoolKeyPoints[iIDMatch].pt+cv::Point2f( p_fUTopLeft, p_fVTopLeft ) );
 
-        //ds return triangulated point
+        //ds return triangulated point (EXCEPTION IN CONSTRUCTOR)
         return CMatchTriangulation( getPointInLEFT( p_ptUVLEFT, ptUVRIGHT ), ptUVRIGHT, matPoolDescriptors.row(iIDMatch) );
     }
     else
@@ -172,7 +172,7 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInLEFT( const cv::M
         //ds buffer point
         const cv::Point2f ptUVLEFT( vecPoolKeyPoints[iIDMatch].pt+cv::Point2f( p_fUTopLeft, p_fVTopLeft ) );
 
-        //ds return triangulated point
+        //ds return triangulated point (EXCEPTION IN CONSTRUCTOR)
         return CMatchTriangulation( getPointInLEFT( ptUVLEFT, p_ptUVRIGHT ), ptUVLEFT, matPoolDescriptors.row(iIDMatch) );
     }
     else
@@ -243,7 +243,7 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHT( const cv::
         //ds buffer point
         const cv::Point2f ptUVRIGHT( vecPoolKeyPoints[iIDMatch].pt+cv::Point2f( p_fUTopLeft, p_fVTopLeft ) );
 
-        //ds return triangulated point
+        //ds return triangulated point (EXCEPTION IN CONSTRUCTOR)
         return CMatchTriangulation( getPointInLEFT( p_ptUVLEFT, ptUVRIGHT ), ptUVRIGHT, matPoolDescriptors.row(iIDMatch) );
     }
     else
@@ -314,7 +314,7 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInLEFT( const cv::M
         //ds buffer point
         const cv::Point2f ptUVLEFT( vecPoolKeyPoints[iIDMatch].pt+cv::Point2f( p_fUTopLeft, p_fVTopLeft ) );
 
-        //ds return triangulated point
+        //ds return triangulated point (EXCEPTION IN CONSTRUCTOR)
         return CMatchTriangulation( getPointInLEFT( ptUVLEFT, p_ptUVRIGHT ), ptUVLEFT, matPoolDescriptors.row(iIDMatch) );
     }
     else
@@ -325,7 +325,14 @@ const CMatchTriangulation CTriangulator::getPointTriangulatedInLEFT( const cv::M
 
 const CPoint3DCAMERA CTriangulator::getPointInLEFT( const cv::Point2f& p_ptUVLEFT, const cv::Point2f& p_ptUVRIGHT ) const
 {
-    //ds input validation
+    //ds check for minimal disparity
+    if( p_ptUVLEFT.x-p_ptUVRIGHT.x < CTriangulator::dMinimumDisparityPixels )
+    {
+        //std::printf( "<CTriangulator>(getPointInLEFT) zero disparity: %f %f | %f %f\n", p_ptUVLEFT.x, p_ptUVLEFT.y, p_ptUVRIGHT.x, p_ptUVRIGHT.y );
+        throw CExceptionNoMatchFound( "<CTriangulator>(getPointInLEFT) zero disparity" );
+    }
+
+    //ds regular input validation
     assert( p_ptUVRIGHT.x < p_ptUVLEFT.x );
     assert( p_ptUVRIGHT.y == p_ptUVLEFT.y );
 

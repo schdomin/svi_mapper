@@ -8,9 +8,9 @@ project(svi_mapper)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules" ${CMAKE_MODULE_PATH})
 message("CMake module path: ${CMAKE_MODULE_PATH}")
 
-#ds default build type DEBUG
+#ds default build type RELEASE
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE DEBUG)
+  set(CMAKE_BUILD_TYPE RELEASE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 message("build type: ${CMAKE_BUILD_TYPE}")
@@ -68,7 +68,7 @@ include_directories(${QT_INCLUDES})
 include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLUT_INCLUDE_DIRS})
 include_directories(${QGLVIEWER_INCLUDE_DIR})
-include_directories(${FPS_MAPPER_INCLUDE_DIR})
+include_directories(${TXT_IO_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 
@@ -100,7 +100,7 @@ ${G2O_TYPES_SLAM3D}
 ${G2O_SOLVER_CHOLMOD}
 ${CHOLMOD_LIBRARY}
 ${G2O_STUFF_LIBRARY}
-${FPS_MAPPER_TXT_IO_LIBRARY}
+${TXT_IO_LIBRARY}
 -fopenmp
 -pthread)
 
@@ -124,7 +124,7 @@ target_link_libraries(stereo_fps ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION}
 add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)
 target_link_libraries(test_cloud_matching ${OpenCV_LIBRARIES} ${LIBRARIES_VISUALIZATION})
 add_executable(validate_dataset src/runnable/validate_dataset.cpp)
-target_link_libraries(validate_dataset ${FPS_MAPPER_TXT_IO_LIBRARY})
+target_link_libraries(validate_dataset ${TXT_IO_LIBRARY})
 
 #ds utilities
 add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)

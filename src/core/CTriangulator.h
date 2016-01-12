@@ -19,6 +19,7 @@ public:
 public:
 
     static constexpr float fMinimumSearchRangePixels = 60.0;
+    static constexpr double dMinimumDisparityPixels  = 0.01;
 
 //ds members
 private:

@@ -6,5 +6,5 @@ FPS_MAPPER_TXT_IO_LIBRARY="/home/dom/workspace_catkin/devel/lib/libthin_txt_io_l
 
 
 on a single line:
--D OpenCV_DIR="/home/dom/libraries/cpp/opencv-2.4.11/release" -D G2O_ROOT="/home/dom/libraries/cpp/g2o" -D FPS_MAPPER_INCLUDE_DIR="/home/dom/workspace_catkin/src/thin_drivers/thin_state_publisher/src" -D FPS_MAPPER_TXT_IO_LIBRARY="/home/dom/workspace_catkin/devel/lib/libthin_txt_io_library.so"
+-D OpenCV_DIR="/home/dom/libraries/cpp/opencv-2.4.11/release" -D G2O_ROOT="/home/dom/libraries/cpp/g2o" -D TXT_IO_INCLUDE_DIR="/home/dom/workspace_catkin/src/thin_drivers/thin_state_publisher/src" -D TXT_IO_LIBRARY="/home/dom/workspace_catkin/devel/lib/libthin_txt_io_library.so"
 

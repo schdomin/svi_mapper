@@ -615,9 +615,13 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
                 ++m_uAvailableLandmarkID;
 
                 //ds draw detected point
-                cv::line( p_matDisplaySTEREO, ptLandmarkLEFT, cv::Point2f( ptLandmarkLEFT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkLEFT.y ), CColorCodeBGR( 175, 175, 175 ) );
+                //cv::line( p_matDisplaySTEREO, ptLandmarkLEFT, cv::Point2f( ptLandmarkLEFT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkLEFT.y ), CColorCodeBGR( 175, 175, 175 ) );
                 cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 2, CColorCodeBGR( 0, 255, 0 ), -1 );
-                cv::putText( p_matDisplaySTEREO, std::to_string( pLandmark->uID ) , cv::Point2d( ptLandmarkLEFT.x+pLandmark->dKeyPointSize, ptLandmarkLEFT.y+pLandmark->dKeyPointSize ), cv::FONT_HERSHEY_PLAIN, 0.5, CColorCodeBGR( 0, 0, 255 ) );
+
+                //ds draw acquisition information
+                char chBuffer[10];
+                std::snprintf( chBuffer, 10, "%lu|%.1f", pLandmark->uID, dDepthMeters );
+                cv::putText( p_matDisplaySTEREO, chBuffer , cv::Point2d( ptLandmarkLEFT.x+pLandmark->dKeyPointSize, ptLandmarkLEFT.y+pLandmark->dKeyPointSize ), cv::FONT_HERSHEY_PLAIN, 0.5, CColorCodeBGR( 0, 0, 255 ) );
 
                 //ds draw reprojection of triangulation
                 cv::circle( p_matDisplaySTEREO, cv::Point2d( ptLandmarkRIGHT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkRIGHT.y ), 2, CColorCodeBGR( 255, 0, 0 ), -1 );
@@ -635,7 +639,7 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
         }
     }
 
-    //ds if we couldnt find new landmarks
+    //ds if we couldn't find new landmarks
     if( 0 == vecNewLandmarks->size( ) )
     {
         std::printf( "[0][%06lu]<CTrackerStereo>(_getNewLandmarks) unable to detect new landmarks\n", m_uFrameCount );
