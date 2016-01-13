@@ -122,6 +122,9 @@ public:
                             const MatrixProjection& p_matProjectionWORLDtoLEFT,
                             const MatrixProjection& p_matProjectionWORLDtoRIGHT );
 
+    //ds data structure size
+    const uint64_t getSizeBytes( ) const;
+
 private:
 
     //ds calibrate 3d point

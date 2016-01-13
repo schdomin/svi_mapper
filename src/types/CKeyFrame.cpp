@@ -291,3 +291,16 @@ std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CKeyFrame:
 
     return vecPoints;
 }
+
+const uint64_t CKeyFrame::getSizeBytes( ) const
+{
+    //ds compute static size
+    uint64_t uSizeBytes = sizeof( CKeyFrame );
+
+    //ds add dynamic sizes
+    uSizeBytes += vecCloud->size( )*sizeof( CDescriptorVectorPoint3DWORLD );
+    uSizeBytes += vecLoopClosures.size( )*sizeof( CMatchICP );
+
+    //ds done
+    return uSizeBytes;
+}

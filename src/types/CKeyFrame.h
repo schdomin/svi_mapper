@@ -82,6 +82,9 @@ public:
     //ds offline loading
     std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > getCloudFromFile( const std::string& p_strFile );
 
+    //ds data structure size
+    const uint64_t getSizeBytes( ) const;
+
 };
 
 #endif //CKEYFRAME_H

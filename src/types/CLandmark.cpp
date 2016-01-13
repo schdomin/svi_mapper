@@ -152,6 +152,22 @@ void CLandmark::clearMeasurements( const CPoint3DWORLD& p_vecXYZWORLD,
     m_vecMeasurements.push_back( pMeasurementLast );
 }
 
+const uint64_t CLandmark::getSizeBytes( ) const
+{
+    //ds compute static size
+    uint64_t uSizeBytes = sizeof( CLandmark );
+
+    //ds add dynamic sizes: descriptor histories
+    uSizeBytes += vecDescriptorsLEFT.size( )*sizeof( CDescriptor );
+    uSizeBytes += vecDescriptorsRIGHT.size( )*sizeof( CDescriptor );
+
+    //ds add dynamic sizes: measurements
+    uSizeBytes += m_vecMeasurements.size( )*sizeof( CMeasurementLandmark );
+
+    //ds done
+    return uSizeBytes;
+}
+
 const CPoint3DWORLD CLandmark::_getOptimizedLandmarkLEFT3D( const UIDFrame& p_uFrame, const CPoint3DWORLD& p_vecInitialGuess )
 {
     //ds initial values

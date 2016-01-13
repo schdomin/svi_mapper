@@ -93,6 +93,9 @@ struct CHandleLandmarks
         //ds deallocation count
         std::vector< CLandmark* >::size_type uNumberOfLandmarksDeallocated = 0;
 
+        //ds total data structure size
+        uint64_t uSizeBytes = 0;
+
         //ds free all landmarks
         for( const CLandmark* pLandmark: *vecLandmarks )
         {
@@ -105,13 +108,16 @@ struct CHandleLandmarks
                 //CLogger::CLogLandmarkFinalOptimized::addEntry( pLandmark );
             }
 
+            //ds accumulate size information
+            uSizeBytes += pLandmark->getSizeBytes( );
+
             assert( 0 != pLandmark );
             delete pLandmark;
             ++uNumberOfLandmarksDeallocated;
         }
 
         //ds info TODO compute real memory usage
-        std::printf( "<CHandleLandmarks>(~CHandleLandmarks) dealloacted landmarks: %lu/%lu (%.0fMB)\n", uNumberOfLandmarksDeallocated, vecLandmarks->size( ), vecLandmarks->size( )*sizeof( CLandmark )/1e6 );
+        std::printf( "<CHandleLandmarks>(~CHandleLandmarks) dealloacted landmarks: %lu/%lu (%.0fMB)\n", uNumberOfLandmarksDeallocated, vecLandmarks->size( ), uSizeBytes/1e6 );
         vecLandmarks->clear( );
     }
 
@@ -134,16 +140,20 @@ struct CHandleKeyFrames
         //ds info
         std::vector< CKeyFrame* >::size_type uNumberOfKeyFramesDeallocated = 0;
 
+        //ds total data structure size
+        uint64_t uSizeBytes = 0;
+
         //ds free keyframes
         for( const CKeyFrame* pKeyFrame: *vecKeyFrames )
         {
+            uSizeBytes += pKeyFrame->getSizeBytes( );
             assert( 0 != pKeyFrame );
             delete pKeyFrame;
             ++uNumberOfKeyFramesDeallocated;
         }
 
         //ds info TODO compute real memory usage
-        std::printf( "<CHandleKeyFrames>(~CHandleKeyFrames) dealloacted key frames: %lu/%lu (%.0fMB)\n", uNumberOfKeyFramesDeallocated, vecKeyFrames->size( ), vecKeyFrames->size( )*sizeof( CKeyFrame )/1e6 );
+        std::printf( "<CHandleKeyFrames>(~CHandleKeyFrames) dealloacted key frames: %lu/%lu (%.0fMB)\n", uNumberOfKeyFramesDeallocated, vecKeyFrames->size( ), uSizeBytes/1e6 );
         vecKeyFrames->clear( );
     }
 
