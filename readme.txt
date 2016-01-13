@@ -33,19 +33,6 @@ RAM: 4-32GB (depending on desired map scale)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 MMMMMMMMMMMMMMMMMMMMM.           .    .           .MMMMMMMMMMMMMMMMMMMMM
  `MMMMMMMMMMMMMMMMMMMM           M\  /M           MMMMMMMMMMMMMMMMMMMM'
    `MMMMMMMMMMMMMMMMMMM          MMMMMM          MMMMMMMMMMMMMMMMMMM'  
