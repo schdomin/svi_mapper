@@ -48,7 +48,9 @@ message(" ")
 
 #ds output paths
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 message("binaries: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+message("libraries: ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 message(" ")
 
 
@@ -115,6 +117,10 @@ ${QT_QTCORE_LIBRARY}
 GLU)
 
 
+
+#ds g2o edges
+add_library(G2oEdges SHARED src/optimization/G2oEdges.cpp src/optimization/edge_se3_linear_acceleration.cpp)
+#target_link_libraries(G2oEdges)
 
 #ds core binaries
 add_executable(stereo_fps src/runnable/stereo_fps.cpp src/core/CTrackerStereo.cpp ${SOURCEFILES})
