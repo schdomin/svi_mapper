@@ -41,8 +41,10 @@ void CMapper::integrateAddedKeyFrames( )
     //ds loop over the buffer
     for( CKeyFrame* pKeyFrame: m_vecBufferAddedKeyFrames )
     {
+        //ds TESTING
+        pKeyFrame->vecLoopClosures.clear( );
         //ds compute loop closures
-        pKeyFrame->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrame, m_dLoopClosingRadiusSquaredMeters, m_uMinimumNumberOfMatchesLoopClosure );
+        //pKeyFrame->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrame, m_dLoopClosingRadiusSquaredMeters, m_uMinimumNumberOfMatchesLoopClosure );
 
         //ds info
         if( 0 < pKeyFrame->vecLoopClosures.size( ) )

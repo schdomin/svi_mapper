@@ -73,7 +73,7 @@ private:
     const uint8_t m_uVisibleLandmarksMinimum;
     const double m_dMinimumDepthMeters = 0.05;
     const double m_dMaximumDepthMeters = 1000.0;
-    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 1e6; //20;
+    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 20; //1e6; //20;
     UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
     std::shared_ptr< CTriangulator > m_pTriangulator;

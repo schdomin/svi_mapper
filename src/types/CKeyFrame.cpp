@@ -1,4 +1,7 @@
 #include "CKeyFrame.h"
+#include "../utility/CWrapperOpenCV.h"
+
+
 
 CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                       const uint64_t& p_uFrame,
@@ -14,6 +17,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                                                 vecLinearAccelerationNormalized( p_vecLinearAcceleration ),
                                                                                 vecMeasurements( p_vecMeasurements ),
                                                                                 vecCloud( p_vecCloud ),
+                                                                                vecDescriptorPool( getDescriptorPool( vecCloud ) ),
                                                                                 uCountInstability( p_uCountInstability ),
                                                                                 dMotionScaling( p_dMotionScaling ),
                                                                                 vecLoopClosures( p_vecLoopClosures )
@@ -21,7 +25,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
     assert( !vecCloud->empty( ) );
 
     //ds save the cloud to a file
-    //saveCloudToFile( );
+    saveCloudToFile( );
 }
 
 CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
@@ -37,13 +41,14 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                         vecLinearAccelerationNormalized( p_vecLinearAcceleration ),
                                                         vecMeasurements( p_vecMeasurements ),
                                                         vecCloud( p_vecCloud ),
+                                                        vecDescriptorPool( getDescriptorPool( vecCloud ) ),
                                                         uCountInstability( p_uCountInstability ),
                                                         dMotionScaling( p_dMotionScaling )
 {
     assert( !vecCloud->empty( ) );
 
     //ds save the cloud to a file
-    //saveCloudToFile( );
+    saveCloudToFile( );
 }
 
 CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.substr( p_strFile.length( )-12, 6 ) ) ),
@@ -52,6 +57,7 @@ CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.
                                                       vecLinearAccelerationNormalized( CLinearAccelerationIMU( 0.0, 0.0, 0.0 ) ),
                                                       vecMeasurements( std::vector< const CMeasurementLandmark* >( 0 ) ),
                                                       vecCloud( getCloudFromFile( p_strFile ) ),
+                                                      vecDescriptorPool( getDescriptorPool( vecCloud ) ),
                                                       uCountInstability( 0 ),
                                                       dMotionScaling( 1.0 ),
                                                       vecLoopClosures( std::vector< const CMatchICP* >( 0 ) )
@@ -113,7 +119,7 @@ void CKeyFrame::saveCloudToFile( ) const
         for( const CDescriptor& pDescriptorLEFT: pPoint.vecDescriptors )
         {
             //ds print the descriptor elements
-            for( uint8_t u = 0; u < pDescriptorLEFT.cols; ++u ){ CLogger::writeDatum( ofCloud, pDescriptorLEFT.data[u] ); }
+            for( int32_t u = 0; u < pDescriptorLEFT.cols; ++u ){ CLogger::writeDatum( ofCloud, pDescriptorLEFT.data[u] ); }
         }
     }
 
@@ -274,10 +280,10 @@ std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CKeyFrame:
         for( std::vector< CMeasurementLandmark* >::size_type v = 0; v < uNumberOfDescriptors; ++v )
         {
             //ds current descriptor
-            CDescriptor matDescriptor( 1, 64, CV_8U );
+            CDescriptor matDescriptor( 1, DESCRIPTOR_SIZE_BYTES, CV_8U );
 
             //ds every descriptor contains 64 fields
-            for( uint8_t w = 0; w < 64; ++w )
+            for( uint32_t w = 0; w < DESCRIPTOR_SIZE_BYTES; ++w )
             {
                 CLogger::readDatum( ifMessages, matDescriptor.data[w] );
             }
@@ -303,4 +309,21 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
 
     //ds done
     return uSizeBytes;
+}
+
+const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud )
+{
+    std::vector< CDescriptorBRIEF > vecDescriptorPool( 0 );
+
+    //ds fill the pool
+    for( const CDescriptorVectorPoint3DWORLD& vecDescriptors: *p_vecCloud )
+    {
+        //ds add up descriptors
+        for( const CDescriptor& cDescriptor: vecDescriptors.vecDescriptors )
+        {
+            vecDescriptorPool.push_back( CWrapperOpenCV::getDescriptorBRIEF( cDescriptor ) );
+        }
+    }
+
+    return vecDescriptorPool;
 }

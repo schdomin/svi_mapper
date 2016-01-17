@@ -3,7 +3,9 @@
 
 #include "CLandmark.h"
 #include "TypesCloud.h"
-#include "utility/CLogger.h"
+#include "../utility/CLogger.h"
+
+
 
 class CKeyFrame
 {
@@ -64,6 +66,7 @@ public:
     const std::vector< const CMeasurementLandmark* > vecMeasurements;
     bool bIsOptimized = false;
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > vecCloud;
+    const std::vector< CDescriptorBRIEF > vecDescriptorPool;
     const uint32_t uCountInstability;
     const double dMotionScaling;
     std::vector< const CMatchICP* > vecLoopClosures;
@@ -84,6 +87,9 @@ public:
 
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
+
+    //ds full descriptor pool
+    const std::vector< CDescriptorBRIEF > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud );
 
 };
 

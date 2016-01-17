@@ -137,6 +137,10 @@ add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp sr
 add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
 add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)
 target_link_libraries(triangulation_sampling ${OpenCV_LIBRARIES})
+add_executable(create_cloud src/runnable/create_cloud.cpp src/utility/CLogger.cpp)
+#add_executable(match_clouds_custom src/runnable/match_clouds_custom.cpp src/utility/CLogger.cpp)
+add_executable(match_clouds src/runnable/match_clouds.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
+target_link_libraries(match_clouds ${OpenCV_LIBRARIES})
 
 #ds list binaries UGLY GULY
 message("stereo_fps")

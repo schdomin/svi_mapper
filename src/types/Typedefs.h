@@ -14,6 +14,10 @@ enum EPlaybackMode
     ePlaybackBenchmark
 };
 
+
+#define DESCRIPTOR_SIZE_BITS 256
+#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
+
 //typedef Eigen::Vector3d CPoint2DNormalized;
 typedef Eigen::Vector3d CPoint2DHomogenized;
 typedef Eigen::Vector3d CPoint2DInCameraFrameHomogenized;
@@ -49,5 +53,8 @@ typedef Eigen::Matrix< double, 6, 6 > EigenMatrix6d;
 template< uint32_t uRows >
 using CDescriptors = cv::Matx< uchar, uRows, 64 >;*/
 typedef cv::Mat CDescriptors;
+
+
+typedef Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 1 > CDescriptorBRIEF;
 
 #endif //TYPEDEFS_H

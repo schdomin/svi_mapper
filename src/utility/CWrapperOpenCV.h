@@ -129,6 +129,33 @@ public:
         return Eigen::Vector2d( p_ptA.x-p_vecB.x( ), p_ptA.y-p_vecB.y( ) );
     }
 
+    inline static const CDescriptorBRIEF getDescriptorBRIEF( const cv::Mat& p_cDescriptor )
+    {
+        //ds return vector
+        CDescriptorBRIEF vecDescriptor;
+
+        //ds opencv descriptors are bytewise
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BYTES; ++u )
+        {
+            //ds get minimal datafrom cv::mat
+            const uchar chValue = p_cDescriptor.at< uchar >( u );
+
+            //ds get bitstring
+            for( uint8_t v = 0; v < 8; ++v )
+            {
+                vecDescriptor[u*8+v] = ( chValue >> v ) & 1;
+            }
+        }
+
+        return vecDescriptor;
+    }
+
+    inline static const uint32_t getDistanceHamming( const CDescriptorBRIEF& p_vecDescriptorQuery, const CDescriptorBRIEF& p_vecDescriptorReference )
+    {
+        //ds simple absolute subtraction
+        return ( p_vecDescriptorQuery-p_vecDescriptorReference ).count( );
+    }
+
 };
 
 #endif //#define CWRAPPEROPENCV_H_
