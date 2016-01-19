@@ -3,7 +3,6 @@
 
 #include "Typedefs.h"
 
-#define MAXIMUM_DEPTH 3
 
 
 template< uint64_t uMaximumDepth, uint32_t uDescriptorSize >
@@ -56,46 +55,46 @@ private:
         //ds if best was found - we can spawn leaves
         if( -1 != uIndexSplitBit && uMaximumDepth > p_uDepth )
         {
-            //ds enabled
-            bHasLeaves = true;
-
-            //ds log split
-            //std::printf( "[%03lu] split (%0.1f) for index: %03i/%03u (descriptors: %lu)\n", p_uLevel, fOnesFraction, uIndexSplitBit, p_uDescriptorSize, p_vecDescriptors.size( ) );
-
-            //ds update mask
-            p_cMask[uIndexSplitBit] = 0;
-
-            //ds first we have to split the descriptors by the found index - preallocate vectors since we know how many ones we have
-            std::vector< CDescriptorBRIEF > vecDescriptorsLeafOnes( 0 );
-            vecDescriptorsLeafOnes.reserve( uOnesTotal );
-            std::vector< CDescriptorBRIEF > vecDescriptorsLeafZeros( 0 );
-            vecDescriptorsLeafZeros.reserve( p_vecDescriptors.size( )-uOnesTotal );
-
-            //ds loop over all descriptors and assing them to the new vectors
-            for( const CDescriptorBRIEF& cDescriptor: p_vecDescriptors )
+            //ds check if we have enough data to split (NOT REQUIRED IF DEPTH IS SET ACCORDINGLY)
+            if( 0 < uOnesTotal && 0.5 > fOnesFraction )
             {
-                //ds check if split bit is one
-                if( cDescriptor[uIndexSplitBit] )
+                //ds enabled
+                bHasLeaves = true;
+
+                //ds log split
+                //std::printf( "[%03lu] split (%0.1f) for index: %03i/%03u (descriptors: %lu)\n", p_uLevel, fOnesFraction, uIndexSplitBit, p_uDescriptorSize, p_vecDescriptors.size( ) );
+
+                //ds update mask
+                p_cMask[uIndexSplitBit] = 0;
+
+                //ds first we have to split the descriptors by the found index - preallocate vectors since we know how many ones we have
+                std::vector< CDescriptorBRIEF > vecDescriptorsLeafOnes( 0 );
+                vecDescriptorsLeafOnes.reserve( uOnesTotal );
+                std::vector< CDescriptorBRIEF > vecDescriptorsLeafZeros( 0 );
+                vecDescriptorsLeafZeros.reserve( p_vecDescriptors.size( )-uOnesTotal );
+
+                //ds loop over all descriptors and assing them to the new vectors
+                for( const CDescriptorBRIEF& cDescriptor: p_vecDescriptors )
                 {
-                    vecDescriptorsLeafOnes.push_back( cDescriptor );
+                    //ds check if split bit is one
+                    if( cDescriptor[uIndexSplitBit] )
+                    {
+                        vecDescriptorsLeafOnes.push_back( cDescriptor );
+                    }
+                    else
+                    {
+                        vecDescriptorsLeafZeros.push_back( cDescriptor );
+                    }
                 }
-                else
-                {
-                    vecDescriptorsLeafZeros.push_back( cDescriptor );
-                }
+
+                //ds if there are elements for leaves
+                assert( 0 < vecDescriptorsLeafOnes.size( ) );
+                pLeafOnes = new CBRIEFNode( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
+
+                assert( 0 < vecDescriptorsLeafZeros.size( ) );
+                pLeafZeros = new CBRIEFNode( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
             }
-
-            //ds if there are elements for leaves
-            assert( 0 < vecDescriptorsLeafOnes.size( ) );
-            pLeafOnes = new CBRIEFNode( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
-
-            assert( 0 < vecDescriptorsLeafZeros.size( ) );
-            pLeafZeros = new CBRIEFNode( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
         }
-
-        //ds free old mask
-        //delete[] p_cMask;
-
     }
 
 public:

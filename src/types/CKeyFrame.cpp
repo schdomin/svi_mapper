@@ -18,6 +18,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                                                 vecMeasurements( p_vecMeasurements ),
                                                                                 vecCloud( p_vecCloud ),
                                                                                 vecDescriptorPool( getDescriptorPool( vecCloud ) ),
+                                                                                vecDescriptorPoolCV( getDescriptorPoolCV( vecCloud ) ),
                                                                                 uCountInstability( p_uCountInstability ),
                                                                                 dMotionScaling( p_dMotionScaling ),
                                                                                 vecLoopClosures( p_vecLoopClosures )
@@ -42,6 +43,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                         vecMeasurements( p_vecMeasurements ),
                                                         vecCloud( p_vecCloud ),
                                                         vecDescriptorPool( getDescriptorPool( vecCloud ) ),
+                                                        vecDescriptorPoolCV( getDescriptorPoolCV( vecCloud ) ),
                                                         uCountInstability( p_uCountInstability ),
                                                         dMotionScaling( p_dMotionScaling )
 {
@@ -58,6 +60,7 @@ CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.
                                                       vecMeasurements( std::vector< const CMeasurementLandmark* >( 0 ) ),
                                                       vecCloud( getCloudFromFile( p_strFile ) ),
                                                       vecDescriptorPool( getDescriptorPool( vecCloud ) ),
+                                                      vecDescriptorPoolCV( getDescriptorPoolCV( vecCloud ) ),
                                                       uCountInstability( 0 ),
                                                       dMotionScaling( 1.0 ),
                                                       vecLoopClosures( std::vector< const CMatchICP* >( 0 ) )
@@ -322,6 +325,23 @@ const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::s
         for( const CDescriptor& cDescriptor: vecDescriptors.vecDescriptors )
         {
             vecDescriptorPool.push_back( CWrapperOpenCV::getDescriptorBRIEF( cDescriptor ) );
+        }
+    }
+
+    return vecDescriptorPool;
+}
+
+const CDescriptors CKeyFrame::getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud )
+{
+    CDescriptors vecDescriptorPool( 0, DESCRIPTOR_SIZE_BYTES, CV_8U );
+
+    //ds fill the pool
+    for( const CDescriptorVectorPoint3DWORLD& vecDescriptors: *p_vecCloud )
+    {
+        //ds add up descriptors row-wise
+        for( const CDescriptor& cDescriptor: vecDescriptors.vecDescriptors )
+        {
+            vecDescriptorPool.push_back( cDescriptor );
         }
     }
 
