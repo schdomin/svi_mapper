@@ -2,6 +2,7 @@
 #define CBRIEFNODE_H
 
 #include "Typedefs.h"
+#include "../utility/CWrapperOpenCV.h"
 
 
 
@@ -9,12 +10,16 @@ template< uint64_t uMaximumDepth, uint32_t uDescriptorSize >
 class CBRIEFNode
 {
 
+//ds eigen memory alignment
+public:
+
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 //ds ctor/dtor
 public:
 
     //ds access only through this constructor
-    CBRIEFNode( const uint64_t& p_uDepth,
-                const std::vector< CDescriptorBRIEF >& p_vecDescriptors ): CBRIEFNode( p_uDepth, p_vecDescriptors, CDescriptorBRIEF::Ones( ) )
+    CBRIEFNode( const std::vector< CDescriptorBRIEF >& p_vecDescriptors ): CBRIEFNode< uMaximumDepth, uDescriptorSize >( 0, p_vecDescriptors, CDescriptorBRIEF::Ones( ) )
     {
         //ds wrapped
     }
@@ -38,13 +43,13 @@ private:
                 const float fPartitioningCurrent = std::fabs( 0.5-_getOnesFraction( uIndexBit, p_vecDescriptors, uOnesTotal ) );
 
                 //ds if better
-                if( fOnesFraction > fPartitioningCurrent )
+                if( fPartitioning > fPartitioningCurrent )
                 {
-                    fOnesFraction  = fPartitioningCurrent;
+                    fPartitioning  = fPartitioningCurrent;
                     uIndexSplitBit = uIndexBit;
 
                     //ds finalize loop if maximum target is reached
-                    if( 0.0 == fOnesFraction )
+                    if( 0.0 == fPartitioning )
                     {
                         break;
                     }
@@ -56,7 +61,7 @@ private:
         if( -1 != uIndexSplitBit && uMaximumDepth > p_uDepth )
         {
             //ds check if we have enough data to split (NOT REQUIRED IF DEPTH IS SET ACCORDINGLY)
-            if( 0 < uOnesTotal && 0.5 > fOnesFraction )
+            if( 0 < uOnesTotal && 0.5 > fPartitioning )
             {
                 //ds enabled
                 bHasLeaves = true;
@@ -89,10 +94,32 @@ private:
 
                 //ds if there are elements for leaves
                 assert( 0 < vecDescriptorsLeafOnes.size( ) );
-                pLeafOnes = new CBRIEFNode( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
+                pLeafOnes = new CBRIEFNode< uMaximumDepth, uDescriptorSize >( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
 
                 assert( 0 < vecDescriptorsLeafZeros.size( ) );
-                pLeafZeros = new CBRIEFNode( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
+                pLeafZeros = new CBRIEFNode< uMaximumDepth, uDescriptorSize >( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
+            }
+            else
+            {
+                //ds if we got a final node with more than one descriptor
+                if( 1 < p_vecDescriptors.size( ) )
+                {
+                    //ds compute internal difference
+                    uint32_t uDiversity = 0;
+                    const CDescriptorBRIEF cDescriptorReference( p_vecDescriptors.front( ) );
+                    for( const CDescriptorBRIEF& cDescriptorInner: p_vecDescriptors )
+                    {
+                        uDiversity += CWrapperOpenCV::getDistanceHamming( cDescriptorInner, cDescriptorReference );
+                    }
+
+                    //ds if theres no differences we can reduce the vector to one single element
+                    if( 0 == uDiversity )
+                    {
+                        //ds reduce vector to one element
+                        vecDescriptors.clear( );
+                        vecDescriptors.push_back( cDescriptorReference );
+                    }
+                }
             }
         }
     }
@@ -109,15 +136,15 @@ public:
 
     //ds rep
     const uint64_t uDepth;
-    const std::vector< CDescriptorBRIEF > vecDescriptors;
+    std::vector< CDescriptorBRIEF > vecDescriptors;
     int32_t uIndexSplitBit = -1;
     uint32_t uOnesTotal    = 0;
     bool bHasLeaves        = false;
-    float fOnesFraction    = 1.0;
+    float fPartitioning    = 1.0;
 
     //ds peer: each node has two potential children
-    CBRIEFNode* pLeafOnes  = 0;
-    CBRIEFNode* pLeafZeros = 0;
+    const CBRIEFNode* pLeafOnes  = 0;
+    const CBRIEFNode* pLeafZeros = 0;
 
 //ds helpers
 private:

@@ -152,7 +152,7 @@ public:
 
     inline static const uint32_t getDistanceHamming( const CDescriptorBRIEF& p_vecDescriptorQuery, const CDescriptorBRIEF& p_vecDescriptorReference )
     {
-        //ds simple absolute subtraction
+        //ds count set bits
         return ( p_vecDescriptorQuery-p_vecDescriptorReference ).count( );
     }
 

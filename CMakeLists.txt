@@ -141,6 +141,12 @@ add_executable(create_cloud src/runnable/create_cloud.cpp src/utility/CLogger.cp
 #add_executable(match_clouds_custom src/runnable/match_clouds_custom.cpp src/utility/CLogger.cpp)
 add_executable(match_clouds src/runnable/match_clouds.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
 target_link_libraries(match_clouds ${OpenCV_LIBRARIES})
+add_executable(compute_descriptors src/runnable/compute_descriptors.cpp)
+target_link_libraries(compute_descriptors ${OpenCV_LIBRARIES})
+add_executable(compute_descriptors_holidays src/runnable/compute_descriptors_holidays.cpp)
+target_link_libraries(compute_descriptors_holidays ${OpenCV_LIBRARIES})
+#add_executable(match_clouds_holidays src/runnable/match_clouds_holidays.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
+#target_link_libraries(match_clouds_holidays ${OpenCV_LIBRARIES})
 
 #ds list binaries UGLY GULY
 message("stereo_fps")

@@ -6,6 +6,9 @@
 #include <Eigen/Geometry>
 #include <memory>
 #include <cassert>
+#include <vector>
+
+
 
 enum EPlaybackMode
 {
@@ -56,5 +59,6 @@ typedef cv::Mat CDescriptors;
 
 
 typedef Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 1 > CDescriptorBRIEF;
+typedef std::vector< CDescriptorBRIEF > CCloudDescriptorBRIEF;
 
 #endif //TYPEDEFS_H

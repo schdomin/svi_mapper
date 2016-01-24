@@ -1,4 +1,4 @@
-#include "../types/CBRIEFNode.h"
+#include "../types/CBTree.h"
 #include "../types/CKeyFrame.h"
 #include "../utility/CLogger.h"
 #include "../utility/CTimer.h"
@@ -7,8 +7,8 @@
 
 
 #define MAXIMUM_DISTANCE_HAMMING 25
-#define MAXIMUM_DEPTH_TREE 20
-#define NUMBER_OF_SAMPLES 10
+#define MAXIMUM_DEPTH_TREE 100
+#define NUMBER_OF_SAMPLES 1
 
 
 
@@ -23,6 +23,9 @@ int32_t main( int32_t argc, char **argv )
         std::fflush( stdout);
         return 0;
     }
+
+    //ds log file
+    //std::FILE* ofResults = std::fopen( "/home/dom/Documents/binary_tree/benchmark_dense.txt", "w" );
 
     //ds box import
     CLogger::openBox( );
@@ -52,6 +55,7 @@ int32_t main( int32_t argc, char **argv )
     }
 
     std::printf( "(main) successfully loaded %lu clouds\n", vecClouds.size( ) );
+    std::printf( "(main) reference cloud set as: '%s'\n", argv[argc-1] );
 
     //ds buffer reference cloud (last element)
     const CKeyFrame* pCloudReference = vecClouds.back( );
@@ -59,77 +63,46 @@ int32_t main( int32_t argc, char **argv )
 
 
 
-    //ds reference tree
-    std::printf( "(main) loading tree [%u|%u]\n", MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS );
-    const CBRIEFNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >* pRootReference = new CBRIEFNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >( 0, pCloudReference->vecDescriptorPool );
-    std::printf( "(main) tree successfully loaded\n" );
+    //ds grow reference tree
+    const CBTree< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS > cBTree( pCloudReference->vecDescriptorPool );
 
     //ds allocate a flann based matchers
+    cv::setNumThreads( 0 );
     cv::FlannBasedMatcher cMatcher0( new cv::flann::LshIndexParams( 1, 20, 0 ) );
     cv::FlannBasedMatcher cMatcher1( new cv::flann::LshIndexParams( 1, 20, 1 ) );
     CLogger::closeBox( );
 
 
     CLogger::openBox( );
+    //std::fprintf( ofResults, "#cloud #btree le #btree #flann lsh1 #flann lsh0 #bruteforce\n" );
     std::printf( "(main) starting sampling [%u]\n", NUMBER_OF_SAMPLES );
     for( const CKeyFrame* pCloudQuery: vecClouds )
     {
         //ds sampling setup
         uint64_t uTotalMatchesBINARY = 0;
+        uint64_t uTotalMatchesBINARYLE = 0;
         uint64_t uTotalMatchesFLANN  = 0;
         uint64_t uTotalMatchesFLANN1 = 0;
-        uint64_t uTotalMatchesBRUTE  = 0;
+        //uint64_t uTotalMatchesBRUTE  = 0;
         std::vector< double > vecDurationSecondsBINARY( NUMBER_OF_SAMPLES, 0.0 );
+        std::vector< double > vecDurationSecondsBINARYLE( NUMBER_OF_SAMPLES, 0.0 );
         std::vector< double > vecDurationSecondsFLANN( NUMBER_OF_SAMPLES, 0.0 );
         std::vector< double > vecDurationSecondsFLANN1( NUMBER_OF_SAMPLES, 0.0 );
-        std::vector< double > vecDurationSecondsBRUTE( NUMBER_OF_SAMPLES, 0.0 );
+        //std::vector< double > vecDurationSecondsBRUTE( NUMBER_OF_SAMPLES, 0.0 );
 
         //ds do samples
         for( uint32_t uSample = 0; uSample < NUMBER_OF_SAMPLES; ++ uSample )
         {
-            //ds----------------------------------------------------------------------------- BINARY TREE
-            //ds reset current sample
-            uTotalMatchesBINARY = 0;
+            //ds binary tree sample
             const double dTimeStartSecondsBINARY = CLogger::getTimeSeconds( );
-
-            //ds for each descriptor
-            for( const CDescriptorBRIEF& cDescriptorQuery: pCloudQuery->vecDescriptorPool )
-            {
-                //ds traverse tree to find this descriptor
-                const CBRIEFNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >* pNodeCurrent = pRootReference;
-                while( pNodeCurrent )
-                {
-                    //ds if this node has leaves (is splittable)
-                    if( pNodeCurrent->bHasLeaves )
-                    {
-                        //ds check the split bit and go deeper if set
-                        if( cDescriptorQuery[pNodeCurrent->uIndexSplitBit] )
-                        {
-                            pNodeCurrent = pNodeCurrent->pLeafOnes;
-                        }
-                        else
-                        {
-                            pNodeCurrent = pNodeCurrent->pLeafZeros;
-                        }
-                    }
-                    else
-                    {
-                        //ds check current descriptors in this node and exit
-                        for( const CDescriptorBRIEF& cDescriptorReference: pNodeCurrent->vecDescriptors )
-                        {
-                            if( MAXIMUM_DISTANCE_HAMMING > CWrapperOpenCV::getDistanceHamming( cDescriptorQuery, cDescriptorReference ) )
-                            {
-                                ++uTotalMatchesBINARY;
-                                break;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
+            uTotalMatchesBINARY = cBTree.getNumberOfMatches( pCloudQuery->vecDescriptorPool, MAXIMUM_DISTANCE_HAMMING );
             vecDurationSecondsBINARY[uSample] = CTimer::getTimeSeconds( )-dTimeStartSecondsBINARY;
-            //ds-----------------------------------------------------------------------------
 
+            //ds binary tree lazy evaluation
+            uTotalMatchesBINARYLE = 0;
+            const double dTimeStartSecondsBINARYLE = CLogger::getTimeSeconds( );
+            uTotalMatchesBINARYLE = cBTree.getNumberOfMatchesFirst( pCloudQuery->vecDescriptorPool, MAXIMUM_DISTANCE_HAMMING );
+            vecDurationSecondsBINARYLE[uSample] = CTimer::getTimeSeconds( )-dTimeStartSecondsBINARYLE;
 
 
 
@@ -179,7 +152,7 @@ int32_t main( int32_t argc, char **argv )
 
 
 
-            //ds----------------------------------------------------------------------------- BRUTEFORCE
+            /*ds----------------------------------------------------------------------------- BRUTEFORCE
             //ds reset current sample
             uTotalMatchesBRUTE = 0;
             const double dTimeStartSecondsBRUTE = CLogger::getTimeSeconds( );
@@ -197,24 +170,35 @@ int32_t main( int32_t argc, char **argv )
                 }
             }
             vecDurationSecondsBRUTE[uSample] = CTimer::getTimeSeconds( )-dTimeStartSecondsBRUTE;
-            //ds-----------------------------------------------------------------------------
+            //ds-----------------------------------------------------------------------------*/
         }
 
         const double dRelativeMatchesBINARY = static_cast< double >( uTotalMatchesBINARY )/pCloudQuery->vecDescriptorPool.size( );
         const double dDurationSecondsBINARY = ( std::accumulate( vecDurationSecondsBINARY.begin( ), vecDurationSecondsBINARY.end( ), 0.0 ) )/vecDurationSecondsBINARY.size( );
+        const double dRelativeMatchesBINARYLE = static_cast< double >( uTotalMatchesBINARYLE )/pCloudQuery->vecDescriptorPool.size( );
+        const double dDurationSecondsBINARYLE = ( std::accumulate( vecDurationSecondsBINARYLE.begin( ), vecDurationSecondsBINARYLE.end( ), 0.0 ) )/vecDurationSecondsBINARYLE.size( );
         const double dRelativeMatchesFLANN  = static_cast< double >( uTotalMatchesFLANN )/pCloudQuery->vecDescriptorPool.size( );
         const double dDurationSecondsFLANN  = ( std::accumulate( vecDurationSecondsFLANN.begin( ), vecDurationSecondsFLANN.end( ), 0.0 ) )/vecDurationSecondsFLANN.size( );
         const double dRelativeMatchesFLANN1  = static_cast< double >( uTotalMatchesFLANN1 )/pCloudQuery->vecDescriptorPool.size( );
         const double dDurationSecondsFLANN1  = ( std::accumulate( vecDurationSecondsFLANN1.begin( ), vecDurationSecondsFLANN1.end( ), 0.0 ) )/vecDurationSecondsFLANN1.size( );
-        const double dRelativeMatchesBRUTE  = static_cast< double >( uTotalMatchesBRUTE )/pCloudQuery->vecDescriptorPool.size( );
-        const double dDurationSecondsBRUTE  = ( std::accumulate( vecDurationSecondsBRUTE.begin( ), vecDurationSecondsBRUTE.end( ), 0.0 ) )/vecDurationSecondsBRUTE.size( );
+        //const double dRelativeMatchesBRUTE  = static_cast< double >( uTotalMatchesBRUTE )/pCloudQuery->vecDescriptorPool.size( );
+        //const double dDurationSecondsBRUTE  = ( std::accumulate( vecDurationSecondsBRUTE.begin( ), vecDurationSecondsBRUTE.end( ), 0.0 ) )/vecDurationSecondsBRUTE.size( );
 
-        std::printf( "(main) completed matching for clouds %06lu > %06lu [BB TREE   ] matches: %4.2f duration: %f ratio: %f\n", pCloudQuery->uID, pCloudReference->uID, dRelativeMatchesBINARY, dDurationSecondsBINARY, dRelativeMatchesBINARY/dDurationSecondsBINARY );
-        std::printf( "(main)                                               [FLANN LSH0] matches: %4.2f duration: %f ratio: %f\n", dRelativeMatchesFLANN, dDurationSecondsFLANN, dRelativeMatchesFLANN/dDurationSecondsFLANN );
-        std::printf( "(main)                                               [FLANN LSH1] matches: %4.2f duration: %f ratio: %f\n", dRelativeMatchesFLANN1, dDurationSecondsFLANN1, dRelativeMatchesFLANN1/dDurationSecondsFLANN1 );
-        std::printf( "(main)                                               [BRUTEFORCE] matches: %4.2f duration: %f ratio: %f\n", dRelativeMatchesBRUTE, dDurationSecondsBRUTE, dRelativeMatchesBRUTE/dDurationSecondsBRUTE );
+        std::printf( "(main) completed matching for clouds %06lu > %06lu [  BTREE LE] matches: %4.2f duration: %f score: %f\n", pCloudQuery->uID, pCloudReference->uID, dRelativeMatchesBINARYLE, dDurationSecondsBINARYLE, dRelativeMatchesBINARYLE/dDurationSecondsBINARYLE );
+        std::printf( "(main)                                               [     BTREE] matches: %4.2f duration: %f score: %f\n", dRelativeMatchesBINARY, dDurationSecondsBINARY, dRelativeMatchesBINARY/dDurationSecondsBINARY );
+        std::printf( "(main)                                               [FLANN LSH0] matches: %4.2f duration: %f score: %f\n", dRelativeMatchesFLANN, dDurationSecondsFLANN, dRelativeMatchesFLANN/dDurationSecondsFLANN );
+        std::printf( "(main)                                               [FLANN LSH1] matches: %4.2f duration: %f score: %f\n", dRelativeMatchesFLANN1, dDurationSecondsFLANN1, dRelativeMatchesFLANN1/dDurationSecondsFLANN1 );
+        //std::printf( "(main)                                               [BRUTEFORCE] matches: %4.2f duration: %f score: %f\n", dRelativeMatchesBRUTE, dDurationSecondsBRUTE, dRelativeMatchesBRUTE/dDurationSecondsBRUTE );
+
+        /*ds write to file stream
+        std::fprintf( ofResults, "%03lu %f %f %f %f %f\n", pCloudQuery->uID, dRelativeMatchesBINARYLE/dDurationSecondsBINARYLE,
+                                                                             dRelativeMatchesBINARY/dDurationSecondsBINARY,
+                                                                             dRelativeMatchesFLANN/dDurationSecondsFLANN,
+                                                                             dRelativeMatchesFLANN1/dDurationSecondsFLANN1,
+                                                                             dRelativeMatchesBRUTE/dDurationSecondsBRUTE );*/
     }
-    delete pRootReference;
+    //delete pRootReference;
+    //std::fclose( ofResults );
     CLogger::closeBox( );
 
 
