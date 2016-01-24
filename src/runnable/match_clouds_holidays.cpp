@@ -1,4 +1,4 @@
-#include "../types/CBRIEFNode.h"
+#include "../types/CBNode.h"
 #include "../types/CKeyFrame.h"
 #include "../utility/CLogger.h"
 #include "../utility/CTimer.h"
@@ -131,7 +131,7 @@ int32_t main( int32_t argc, char **argv )
         const double dTimeStartSeconds = CLogger::getTimeSeconds( );
 
         //ds build tree on query cloud
-        const CBRIEFNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >* pRootReference = new CBRIEFNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >( prCloudReference.second );
+        const CBNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >* pRootReference = new CBNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >( prCloudReference.second );
 
         //ds results (ID, relative matching)
         std::vector< std::pair< uint64_t, double > > vecMatches( uNumberOfCloudsTotalFinal );
@@ -146,7 +146,7 @@ int32_t main( int32_t argc, char **argv )
             for( const CDescriptorBRIEF& cDescriptorQuery: vecCloudsTotal[u].second )
             {
                 //ds traverse tree to find this descriptor
-                const CBRIEFNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >* pNodeCurrent = pRootReference;
+                const CBNode< MAXIMUM_DEPTH_TREE, DESCRIPTOR_SIZE_BITS >* pNodeCurrent = pRootReference;
                 while( pNodeCurrent )
                 {
                     //ds if this node has leaves (is splittable)

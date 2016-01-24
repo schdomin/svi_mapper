@@ -1,5 +1,5 @@
-#ifndef CBRIEFNODE_H
-#define CBRIEFNODE_H
+#ifndef CBNODE_H
+#define CBNODE_H
 
 #include "Typedefs.h"
 #include "../utility/CWrapperOpenCV.h"
@@ -7,7 +7,7 @@
 
 
 template< uint64_t uMaximumDepth, uint32_t uDescriptorSize >
-class CBRIEFNode
+class CBNode
 {
 
 //ds eigen memory alignment
@@ -19,7 +19,7 @@ public:
 public:
 
     //ds access only through this constructor
-    CBRIEFNode( const std::vector< CDescriptorBRIEF >& p_vecDescriptors ): CBRIEFNode< uMaximumDepth, uDescriptorSize >( 0, p_vecDescriptors, CDescriptorBRIEF::Ones( ) )
+    CBNode( const std::vector< CDescriptorBRIEF >& p_vecDescriptors ): CBNode< uMaximumDepth, uDescriptorSize >( 0, p_vecDescriptors, CDescriptorBRIEF::Ones( ) )
     {
         //ds wrapped
     }
@@ -27,7 +27,7 @@ public:
 private:
 
     //ds only internally called
-    CBRIEFNode( const uint64_t& p_uDepth,
+    CBNode( const uint64_t& p_uDepth,
                 const std::vector< CDescriptorBRIEF >& p_vecDescriptors,
                 CDescriptorBRIEF p_cMask ): uDepth( p_uDepth ), vecDescriptors( p_vecDescriptors )
     {
@@ -94,10 +94,10 @@ private:
 
                 //ds if there are elements for leaves
                 assert( 0 < vecDescriptorsLeafOnes.size( ) );
-                pLeafOnes = new CBRIEFNode< uMaximumDepth, uDescriptorSize >( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
+                pLeafOnes = new CBNode< uMaximumDepth, uDescriptorSize >( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
 
                 assert( 0 < vecDescriptorsLeafZeros.size( ) );
-                pLeafZeros = new CBRIEFNode< uMaximumDepth, uDescriptorSize >( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
+                pLeafZeros = new CBNode< uMaximumDepth, uDescriptorSize >( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
             }
             else
             {
@@ -126,7 +126,7 @@ private:
 
 public:
 
-    virtual ~CBRIEFNode( )
+    virtual ~CBNode( )
     {
 
     }
@@ -143,8 +143,8 @@ public:
     float fPartitioning    = 1.0;
 
     //ds peer: each node has two potential children
-    const CBRIEFNode* pLeafOnes  = 0;
-    const CBRIEFNode* pLeafZeros = 0;
+    const CBNode* pLeafOnes  = 0;
+    const CBNode* pLeafZeros = 0;
 
 //ds helpers
 private:
@@ -192,4 +192,4 @@ private:
 
 };
 
-#endif //CBRIEFNODE_H
+#endif //CBNODE_H

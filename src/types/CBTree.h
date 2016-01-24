@@ -3,7 +3,7 @@
 
 
 
-#include "CBRIEFNode.h"
+#include "CBNode.h"
 
 
 
@@ -19,7 +19,7 @@ public:
 //ds ctor/dtor
 public:
 
-    CBTree( const std::vector< CDescriptorBRIEF >& p_vecDescriptors ): m_pRoot( new CBRIEFNode< uMaximumDepth, uDescriptorSize >( p_vecDescriptors ) )
+    CBTree( const std::vector< CDescriptorBRIEF >& p_vecDescriptors ): m_pRoot( new CBNode< uMaximumDepth, uDescriptorSize >( p_vecDescriptors ) )
     {
         assert( 0 != m_pRoot );
         std::printf( "(CBTree) allocated tree with descriptors: %lu (%ubit)\n", p_vecDescriptors.size( ), uDescriptorSize );
@@ -30,13 +30,13 @@ public:
         assert( 0 != m_pRoot );
 
         //ds nodes holder
-        std::vector< const CBRIEFNode< uMaximumDepth, uDescriptorSize >* > vecNodes;
+        std::vector< const CBNode< uMaximumDepth, uDescriptorSize >* > vecNodes;
 
         //ds set vector
         _setNodesRecursive( m_pRoot, vecNodes );
 
         //ds free nodes
-        for( const CBRIEFNode< uMaximumDepth, uDescriptorSize >* pNode: vecNodes )
+        for( const CBNode< uMaximumDepth, uDescriptorSize >* pNode: vecNodes )
         {
             delete pNode;
         }
@@ -54,7 +54,7 @@ public:
 //ds control fields
 private:
 
-    const CBRIEFNode< uMaximumDepth, uDescriptorSize >* m_pRoot;
+    const CBNode< uMaximumDepth, uDescriptorSize >* m_pRoot;
 
 //ds access
 public:
@@ -68,7 +68,7 @@ public:
         for( const CDescriptorBRIEF& cDescriptorQuery: p_vecDescriptorsQuery )
         {
             //ds traverse tree to find this descriptor
-            const CBRIEFNode< uMaximumDepth, uDescriptorSize >* pNodeCurrent = m_pRoot;
+            const CBNode< uMaximumDepth, uDescriptorSize >* pNodeCurrent = m_pRoot;
             while( pNodeCurrent )
             {
                 //ds if this node has leaves (is splittable)
@@ -112,7 +112,7 @@ public:
         for( const CDescriptorBRIEF& cDescriptorQuery: p_vecDescriptorsQuery )
         {
             //ds traverse tree to find this descriptor
-            const CBRIEFNode< uMaximumDepth, uDescriptorSize >* pNodeCurrent = m_pRoot;
+            const CBNode< uMaximumDepth, uDescriptorSize >* pNodeCurrent = m_pRoot;
             while( pNodeCurrent )
             {
                 //ds if this node has leaves (is splittable)
@@ -147,7 +147,7 @@ public:
 //ds helpers
 private:
 
-    const void _setNodesRecursive( const CBRIEFNode< uMaximumDepth, uDescriptorSize >* p_pNode, std::vector< const CBRIEFNode< uMaximumDepth, uDescriptorSize >* >& p_vecNodes )
+    const void _setNodesRecursive( const CBNode< uMaximumDepth, uDescriptorSize >* p_pNode, std::vector< const CBNode< uMaximumDepth, uDescriptorSize >* >& p_vecNodes )
     {
         //ds add the current node
         p_vecNodes.push_back( p_pNode );
