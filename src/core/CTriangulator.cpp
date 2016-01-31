@@ -17,7 +17,9 @@ CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCa
                                                                                             m_dPu( m_pCameraLEFT->m_matProjection(0,2) ),
                                                                                             m_dPv( m_pCameraLEFT->m_matProjection(1,2) ),
                                                                                             m_dDuR( m_pCameraRIGHT->m_matProjection(0,3) ),
-                                                                                            m_dDuRFlipped( -m_dDuR )
+                                                                                            m_dDuRFlipped( -m_dDuR ),
+                                                                                            dDepthMinimumMeters( m_dDuRFlipped/m_pCameraSTEREO->m_uPixelWidth ),
+                                                                                            dDepthMaximumMeters( m_dDuRFlipped/CTriangulator::dMinimumDisparityPixels )
 {
     //ds validate epipolar, rectified projection matrices
     assert( m_pCameraLEFT->m_matProjection(0,0) == m_pCameraRIGHT->m_matProjection(0,0) );
@@ -37,8 +39,8 @@ CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCa
     std::printf( "<CTriangulator>(CTriangulator) dPu: %fp\n", m_dPu );
     std::printf( "<CTriangulator>(CTriangulator) dPv: %fp\n", m_dPv );
     std::printf( "<CTriangulator>(CTriangulator) DuR: %fp\n", m_dDuR );
-    std::printf( "<CTriangulator>(CTriangulator) minimum depth: %fm (%up)\n", m_dDuRFlipped/m_pCameraSTEREO->m_uPixelWidth, m_pCameraSTEREO->m_uPixelWidth );
-    std::printf( "<CTriangulator>(CTriangulator) maximum depth: %fm (%fp)\n", m_dDuRFlipped/CTriangulator::dMinimumDisparityPixels, CTriangulator::dMinimumDisparityPixels );
+    std::printf( "<CTriangulator>(CTriangulator) minimum depth: %fm (%up)\n", dDepthMinimumMeters, m_pCameraSTEREO->m_uPixelWidth );
+    std::printf( "<CTriangulator>(CTriangulator) maximum depth: %fm (%fp)\n", dDepthMaximumMeters, CTriangulator::dMinimumDisparityPixels );
     std::printf( "<CTriangulator>(CTriangulator) instance allocated\n" );
     CLogger::closeBox( );
 }
@@ -338,6 +340,10 @@ const CPoint3DCAMERA CTriangulator::getPointInLEFT( const cv::Point2f& p_ptUVLEF
 
     //ds first compute depth (z in camera)
     const double dZ = m_dDuRFlipped/( p_ptUVLEFT.x-p_ptUVRIGHT.x );
+
+    //ds must be within limits
+    assert( dDepthMinimumMeters <= dZ );
+    assert( dDepthMaximumMeters >= dZ );
 
     //ds set 3d point
     const CPoint3DCAMERA vecPointLEFT( m_dFInverse*dZ*( p_ptUVLEFT.x-m_dPu ),

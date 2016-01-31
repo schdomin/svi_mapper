@@ -56,8 +56,8 @@ message(" ")
 
 
 #ds add c++11 support, no optimization, all warnings
-#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread)
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread)
+#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
 
 
 
@@ -133,18 +133,18 @@ add_executable(validate_dataset src/runnable/validate_dataset.cpp)
 target_link_libraries(validate_dataset ${TXT_IO_LIBRARY})
 
 #ds utilities
-add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
-add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
-add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)
-target_link_libraries(triangulation_sampling ${OpenCV_LIBRARIES})
-add_executable(create_cloud src/runnable/create_cloud.cpp src/utility/CLogger.cpp)
+#add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
+#add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
+#add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)
+#target_link_libraries(triangulation_sampling ${OpenCV_LIBRARIES})
+#add_executable(create_cloud src/runnable/create_cloud.cpp src/utility/CLogger.cpp)
 #add_executable(match_clouds_custom src/runnable/match_clouds_custom.cpp src/utility/CLogger.cpp)
-add_executable(match_clouds src/runnable/match_clouds.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
-target_link_libraries(match_clouds ${OpenCV_LIBRARIES})
-add_executable(compute_descriptors src/runnable/compute_descriptors.cpp)
-target_link_libraries(compute_descriptors ${OpenCV_LIBRARIES})
-add_executable(compute_descriptors_holidays src/runnable/compute_descriptors_holidays.cpp)
-target_link_libraries(compute_descriptors_holidays ${OpenCV_LIBRARIES})
+#add_executable(match_clouds src/runnable/match_clouds.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
+#target_link_libraries(match_clouds ${OpenCV_LIBRARIES})
+#add_executable(compute_descriptors src/runnable/compute_descriptors.cpp)
+#target_link_libraries(compute_descriptors ${OpenCV_LIBRARIES})
+#add_executable(compute_descriptors_holidays src/runnable/compute_descriptors_holidays.cpp)
+#target_link_libraries(compute_descriptors_holidays ${OpenCV_LIBRARIES})
 #add_executable(match_clouds_holidays src/runnable/match_clouds_holidays.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
 #target_link_libraries(match_clouds_holidays ${OpenCV_LIBRARIES})
 
@@ -152,9 +152,9 @@ target_link_libraries(compute_descriptors_holidays ${OpenCV_LIBRARIES})
 message("stereo_fps")
 message("test_cloud_matching")
 message("validate_dataset")
-message("interpolate_trajectory")
-message("compute_rotation_icp")
-message("triangulation_sampling")
+#message("interpolate_trajectory")
+#message("compute_rotation_icp")
+#message("triangulation_sampling")
 message(" ")
 message("-------------------------------------------------------------------------------")
 

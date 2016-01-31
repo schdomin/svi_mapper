@@ -24,8 +24,6 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                     const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
-                    std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                    std::shared_ptr< CHandleMapping > p_hMappingThread,
                     const EPlaybackMode& p_eMode,
                     const uint32_t& p_uWaitKeyTimeoutMS = 1 );
     ~CTrackerStereo( );
@@ -39,9 +37,9 @@ private:
     const std::shared_ptr< CPinholeCamera > m_pCameraRIGHT;
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
-    //ds thread handles
-    std::shared_ptr< CHandleLandmarks > m_hLandmarks;
-    std::shared_ptr< CHandleMapping > m_hMapper;
+    //ds map structures
+    const std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
+    const std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
 
     //ds reference information
     UIDFrame m_uFrameCount = 0;
@@ -68,16 +66,16 @@ private:
     const double m_dMatchingDistanceCutoffTriangulation;
     const double m_dMatchingDistanceCutoffPoseOptimization;
     const double m_dMatchingDistanceCutoffEpipolar;
-
-    const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
     const uint8_t m_uVisibleLandmarksMinimum;
-    const double m_dMinimumDepthMeters = 0.05;
-    const double m_dMaximumDepthMeters = 1000.0;
-    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 20; //1e6; //20;
-    UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
+    //ds modules
     std::shared_ptr< CTriangulator > m_pTriangulator;
     CFundamentalMatcher m_cMatcher;
+
+    //ds tracking
+    const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
+    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 20; //1e6; //20;
+    UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
     std::vector< CLandmark* >::size_type m_uAvailableLandmarkID = 0;
@@ -87,10 +85,24 @@ private:
     uint32_t m_uCountInstability                        = 0;
     std::vector< Eigen::Vector3d > m_vecRotations;
 
+
+
     //ds g2o optimization
-    std::vector< CKeyFrame* >::size_type m_uNumberOfKeyFrames                 = 0;
-    const std::vector< CLandmark* >::size_type m_uMinimumLandmarksForKeyFrame = 50;
-    const uint8_t m_uLandmarkOptimizationEveryNFrames                         = 10;
+    const std::vector< CLandmark* >::size_type m_uMinimumLandmarksForKeyFrame    = 50;
+    const uint8_t m_uLandmarkOptimizationEveryNFrames                            = 10;
+    std::vector< CKeyFrame* >::size_type m_uIDProcessedKeyFrameLAST              = 0;
+    const std::vector< CKeyFrame* >::size_type m_uIDDeltaKeyFrameForOptimization = 20; //10
+
+    //ds loop closing
+    const std::vector< CKeyFrame* >::size_type m_uMinimumLoopClosingKeyFrameDistance = 20; //20
+    const std::vector< CMatchCloud >::size_type m_uMinimumNumberOfMatchesLoopClosure = 50; //25
+    const std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFrameWaitingQueue    = 1;
+    std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFramesInQueue              = 0;
+    std::vector< CKeyFrame* >::size_type m_uIDLoopClosureOptimizedLAST               = 0;
+    const double m_dLoopClosingRadiusSquaredMeters                                   = 1000.0;
+    const std::vector< CKeyFrame* >::size_type m_uMaximumNumberOfLoopClosuresPerKF   = 3;
+
+
 
     //ds robocentric world frame refreshing
     const std::shared_ptr< CIMUInterpolator > m_pIMU;

@@ -7,18 +7,18 @@
 #include "exceptions/CExceptionPoseOptimization.h"
 #include "exceptions/CExceptionNoMatchFound.h"
 
+
+
 CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                                 const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
-                                std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                                std::shared_ptr< CHandleMapping > p_hMappingThread,
                                 const EPlaybackMode& p_eMode,
                                 const uint32_t& p_uWaitKeyTimeoutMS ): m_uWaitKeyTimeoutMS( p_uWaitKeyTimeoutMS ),
                                                                            m_pCameraLEFT( p_pCameraSTEREO->m_pCameraLEFT ),
                                                                            m_pCameraRIGHT( p_pCameraSTEREO->m_pCameraRIGHT ),
                                                                            m_pCameraSTEREO( p_pCameraSTEREO ),
 
-                                                                           m_hLandmarks( p_hLandmarks ),
-                                                                           m_hMapper( p_hMappingThread ),
+                                                                           m_vecLandmarks( std::make_shared< std::vector< CLandmark* > >( ) ),
+                                                                           m_vecKeyFrames( std::make_shared< std::vector< CKeyFrame* > >( ) ),
 
                                                                            m_matTransformationWORLDtoLEFTLAST( p_pIMUInterpolator->getTransformationWORLDtoCAMERA( m_pCameraLEFT->m_matRotationIMUtoCAMERA ) ),
                                                                            m_matTransformationLEFTLASTtoLEFTNOW( Eigen::Matrix4d::Identity( ) ),
@@ -40,19 +40,21 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCamera
                                                                            m_uVisibleLandmarksMinimum( 100 ),
 
                                                                            m_pTriangulator( std::make_shared< CTriangulator >( m_pCameraSTEREO, m_pExtractor, m_pMatcher, m_dMatchingDistanceCutoffTriangulation ) ),
-                                                                           m_cMatcher( m_pTriangulator, m_hLandmarks, m_pDetector, m_dMinimumDepthMeters, m_dMaximumDepthMeters, m_dMatchingDistanceCutoffPoseOptimization, m_dMatchingDistanceCutoffEpipolar, m_uMaximumFailedSubsequentTrackingsPerLandmark ),
+                                                                           m_cMatcher( m_pTriangulator, m_vecLandmarks, m_pDetector, m_dMatchingDistanceCutoffPoseOptimization, m_dMatchingDistanceCutoffEpipolar, m_uMaximumFailedSubsequentTrackingsPerLandmark ),
 
                                                                            m_pIMU( p_pIMUInterpolator ),
 
                                                                            m_eMode( p_eMode )
 {
+    m_vecLandmarks->clear( );
+    m_vecKeyFrames->clear( );
     m_vecRotations.clear( );
 
     //ds windows
     _initializeTranslationWindow( );
 
-    //ds set opencv parallelization threads (0: disabled)
-    cv::setNumThreads( 0 );
+    //ds set opencv parallelization threads: completely serial)
+    cv::setNumThreads( 2 );
 
     //ds initialize reference frames with black images
     m_matDisplayLowerReference = cv::Mat::zeros( m_pCameraSTEREO->m_uPixelHeight, 2*m_pCameraSTEREO->m_uPixelWidth, CV_8UC3 );
@@ -90,6 +92,40 @@ CTrackerStereo::~CTrackerStereo( )
     CLogger::CLogTrajectory::close( );
     CLogger::CLogIMUInput::close( );*/
 
+    //ds total data structure size
+    uint64_t uSizeBytesLandmarks = 0;
+
+    //ds free all landmarks
+    for( const CLandmark* pLandmark: *m_vecLandmarks )
+    {
+        //ds write final state to file before deleting
+        //CLogger::CLogLandmarkFinal::addEntry( pLandmark );
+
+        //ds save optimized landmarks to separate file
+        if( pLandmark->bIsOptimal && 1 < pLandmark->uNumberOfKeyFramePresences )
+        {
+            //CLogger::CLogLandmarkFinalOptimized::addEntry( pLandmark );
+        }
+
+        //ds accumulate size information
+        uSizeBytesLandmarks += pLandmark->getSizeBytes( );
+
+        assert( 0 != pLandmark );
+        delete pLandmark;
+    }
+    std::printf( "[0][%06lu]<CTrackerStereo>(~CTrackerStereo) deallocated landmarks: %lu (%.0fMB)\n", m_uFrameCount, m_vecLandmarks->size( ), uSizeBytesLandmarks/1e6 );
+
+    //ds total data structure size
+    uint64_t uSizeBytesKeyFrames = 0;
+
+    //ds free keyframes
+    for( const CKeyFrame* pKeyFrame: *m_vecKeyFrames )
+    {
+        uSizeBytesKeyFrames += pKeyFrame->getSizeBytes( );
+        assert( 0 != pKeyFrame );
+        delete pKeyFrame;
+    }
+    std::printf( "[0][%06lu]<CTrackerStereo>(~CTrackerStereo) deallocated key frames: %lu (%.0fMB)\n", m_uFrameCount, m_vecKeyFrames->size( ), uSizeBytesKeyFrames/1e6 );
     std::printf( "[0][%06lu]<CTrackerStereo>(~CTrackerStereo) instance deallocated\n", m_uFrameCount );
 }
 
@@ -171,7 +207,7 @@ void CTrackerStereo::receivevDataVI( const std::shared_ptr< txt_io::PinholeImage
 void CTrackerStereo::updateMap( const CMapUpdate& p_cMapUpdate )
 {
     //ds info
-    std::printf( "[1][%06lu]<CTrackerStereo>(updateMap) received map update - [key frame delta: %lu][landmark delta: %lu]\n", m_uFrameCount, m_uNumberOfKeyFrames-p_cMapUpdate.uIDKeyFrame-1, m_hLandmarks->vecLandmarks->size( )-p_cMapUpdate.uIDLandmark-1 );
+    std::printf( "[1][%06lu]<CTrackerStereo>(updateMap) received map update - [key frame delta: %lu][landmark delta: %lu]\n", m_uFrameCount, m_vecKeyFrames->size( )-p_cMapUpdate.uIDKeyFrame-1, m_vecLandmarks->size( )-p_cMapUpdate.uIDLandmark-1 );
 
     //ds buffer previous value
     const Eigen::Isometry3d m_matTransformationWORLDtoLEFTLASTBeforeOptimization( m_matTransformationWORLDtoLEFTLAST );
@@ -190,10 +226,10 @@ void CTrackerStereo::updateMap( const CMapUpdate& p_cMapUpdate )
     const MatrixProjection matProjectionWORLDtoRIGHT( m_pCameraRIGHT->m_matProjection*m_matTransformationWORLDtoLEFTLAST.matrix( ) );
 
     //ds transform landmarks which were not in the optimization
-    for( std::vector< CLandmark* >::size_type uID = p_cMapUpdate.uIDLandmark+1; uID < m_hLandmarks->vecLandmarks->size( ); ++uID )
+    for( std::vector< CLandmark* >::size_type uID = p_cMapUpdate.uIDLandmark+1; uID < m_vecLandmarks->size( ); ++uID )
     {
         //ds buffer landmark
-        CLandmark* pLandmark = m_hLandmarks->vecLandmarks->at( uID );
+        CLandmark* pLandmark = m_vecLandmarks->at( uID );
 
         //ds update position
         pLandmark->vecPointXYZOptimized = matTransformationFromOptimization*pLandmark->vecPointXYZOptimized;
@@ -250,9 +286,6 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
 
     //ds compute motion scaling (capped)
     const double dMotionScaling = std::min( 1.0+100*( p_vecRotationTotal.squaredNorm( )+p_vecTranslationTotal.squaredNorm( ) ), 2.0 );
-
-    //ds get landmark lock mutex (locks at construction)
-    std::unique_lock< std::mutex > cLockLandmarks( m_hLandmarks->cMutex );
 
     //ds refresh landmark states
     m_cMatcher.resetVisibilityActiveLandmarks( );
@@ -327,9 +360,6 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                               matDisplayRIGHT );
     int32_t uNumberOfVisibleLandmarks = m_cMatcher.getNumberOfVisibleLandmarks( );
 
-    //ds unlock landmarks
-    cLockLandmarks.unlock( );
-
     //ds compute landmark lost since last (negative if we see more landmarks than before)
     const double iLandmarksLost = m_uNumberofVisibleLandmarksLAST-uNumberOfVisibleLandmarks;
 
@@ -367,16 +397,14 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
     m_uNumberofVisibleLandmarksLAST = uNumberOfVisibleLandmarks;
 
     //ds display measurements (blocks)
-    cLockLandmarks.lock( );
     m_cMatcher.drawVisibleLandmarks( matDisplayLEFT, matDisplayRIGHT, matTransformationWORLDtoLEFT );
 
-    //ds optimize landmarks periodically
+    //ds optimize landmarks periodically (not internally triggered by themselves)
     if( 0 == m_uFrameCount%m_uLandmarkOptimizationEveryNFrames )
     {
         //ds blocks
         m_cMatcher.optimizeActiveLandmarks( m_uFrameCount );
     }
-    cLockLandmarks.unlock( );
 
     //ds update scene in viewer
     m_prFrameLEFTtoWORLD = std::pair< bool, Eigen::Isometry3d >( false, matTransformationLEFTtoWORLD );
@@ -405,7 +433,6 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
         m_uFrameDifferenceForKeyFrame < m_uFrameCount-m_uFrameKeyFrameLAST                   )
     {
         //ds compute cloud for current keyframe (also optimizes landmarks!)
-        cLockLandmarks.lock( );
         const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > vecCloud = m_cMatcher.getCloudForVisibleOptimizedLandmarks( m_uFrameCount );
 
         //ds if the number of points in the cloud is sufficient
@@ -414,20 +441,39 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             //ds register keyframing to matcher
             m_cMatcher.setKeyFrameToVisibleLandmarks( );
 
+            //ds add the new key frame to our stack
+            m_vecKeyFrames->push_back( new CKeyFrame( m_vecKeyFrames->size( ),
+                                                      m_uFrameCount,
+                                                      matTransformationLEFTtoWORLD,
+                                                      p_vecLinearAcceleration.normalized( ),
+                                                      m_cMatcher.getMeasurementsForVisibleLandmarks( ),
+                                                      vecCloud,
+                                                      m_uCountInstability,
+                                                      dMotionScaling ) );
+
+            //ds check if we are not in a critical situation before triggering an optimization
+            if( m_dMaximumMotionScalingForOptimization > ( dMotionScaling+m_dMotionScalingLAST )/2.0 && 0 == m_uCountInstability )
             {
-                //ds signal thread with new key frame and go on
-                std::lock_guard< std::mutex > cLockGuardMapper( m_hMapper->cMutex );
-                m_hMapper->vecKeyFramesToAdd.push_back( new CKeyFrame( m_uNumberOfKeyFrames,
-                                                                              m_uFrameCount,
-                                                                              matTransformationLEFTtoWORLD,
-                                                                              p_vecLinearAcceleration.normalized( ),
-                                                                              m_cMatcher.getMeasurementsForVisibleLandmarks( ),
-                                                                              vecCloud,
-                                                                              m_uCountInstability,
-                                                                              dMotionScaling ) );
+                //ds current key frame id
+                const std::vector< CLandmark* >::size_type uIDKeyFrameCurrent = m_vecKeyFrames->back( )->uID;
+
+                //ds check if optimization is required (based on key frame id or loop closing) TODO beautify this case
+                if( m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDProcessedKeyFrameLAST                                                                              ||
+                   ( m_uLoopClosingKeyFrameWaitingQueue < m_uLoopClosingKeyFramesInQueue && m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDLoopClosureOptimizedLAST ) )
+                {
+                    //ds compute landmark begin ID
+                    const std::vector< CLandmark* >::size_type uIDBeginLandmark = std::min( m_vecKeyFrames->at( m_uIDProcessedKeyFrameLAST )->vecMeasurements.front( )->uID, m_vecLandmarks->back( )->uID );
+
+                    //ds if loop closure triggered
+                    if( 0 < m_uLoopClosingKeyFramesInQueue )
+                    {
+                        m_uIDLoopClosureOptimizedLAST = uIDKeyFrameCurrent;
+                    }
+
+                    //ds update counters
+                    m_uLoopClosingKeyFramesInQueue = 0;
+                }
             }
-            m_hMapper->cConditionVariable.notify_one( );
-            ++m_uNumberOfKeyFrames;
 
             //ds update references
             m_vecPositionKeyFrameLAST         = m_vecPositionCurrent;
@@ -441,7 +487,6 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
         {
             std::printf( "[0][%06lu]<CTrackerStereo>(_trackLandmarks) not enough points to create key frame: %lu < %lu\n", m_uFrameCount, vecCloud->size( ), m_uMinimumLandmarksForKeyFrame );
         }
-        cLockLandmarks.unlock( );
     }
 
     //ds frame available for viewer
@@ -573,64 +618,54 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
         {
             //ds triangulate the point
             const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHTFull( p_matDisplaySTEREO, p_matImageRIGHT,
-                                                                                                 std::max( 0.0f, ptLandmarkLEFT.x-CTriangulator::fMinimumSearchRangePixels-4*cKeyPointLEFT.size ),
-                                                                                                 ptLandmarkLEFT.y-4*cKeyPointLEFT.size,
-                                                                                                 cKeyPointLEFT.size,
-                                                                                                 ptLandmarkLEFT,
-                                                                                                 matDescriptorLEFT ) );
+                                                                                                     std::max( 0.0f, ptLandmarkLEFT.x-CTriangulator::fMinimumSearchRangePixels-4*cKeyPointLEFT.size ),
+                                                                                                     ptLandmarkLEFT.y-4*cKeyPointLEFT.size,
+                                                                                                     cKeyPointLEFT.size,
+                                                                                                     ptLandmarkLEFT,
+                                                                                                     matDescriptorLEFT ) );
+
+            //ds buffer point
             const CPoint3DCAMERA vecPointTriangulatedLEFT( cMatchRIGHT.vecPointXYZCAMERA );
 
-            //ds check depth
-            const double dDepthMeters( vecPointTriangulatedLEFT.z( ) );
+            //ds landmark right
+            const cv::Point2f ptLandmarkRIGHT( cMatchRIGHT.ptUVCAMERA );
 
-            //ds check if point is in front of camera an not more than a defined distance away
-            if( m_dMinimumDepthMeters < dDepthMeters && m_dMaximumDepthMeters > dDepthMeters )
-            {
-                //ds landmark right
-                const cv::Point2f ptLandmarkRIGHT( cMatchRIGHT.ptUVCAMERA );
+            //ds allocate a new landmark and add the current position
+            CLandmark* pLandmark( new CLandmark( m_uAvailableLandmarkID,
+                                                 matDescriptorLEFT,
+                                                 cMatchRIGHT.matDescriptorCAMERA,
+                                                 cKeyPointLEFT.size,
+                                                 ptLandmarkLEFT,
+                                                 ptLandmarkRIGHT,
+                                                 vecPointTriangulatedLEFT,
+                                                 p_matTransformationLEFTtoWORLD,
+                                                 p_matTransformationWORLDtoLEFT,
+                                                 m_pCameraLEFT->m_matProjection,
+                                                 m_pCameraRIGHT->m_matProjection,
+                                                 matProjectionWORLDtoLEFT,
+                                                 matProjectionWORLDtoRIGHT,
+                                                 m_uFrameCount ) );
 
-                //ds allocate a new landmark and add the current position
-                CLandmark* pLandmark( new CLandmark( m_uAvailableLandmarkID,
-                                                     matDescriptorLEFT,
-                                                     cMatchRIGHT.matDescriptorCAMERA,
-                                                     cKeyPointLEFT.size,
-                                                     ptLandmarkLEFT,
-                                                     ptLandmarkRIGHT,
-                                                     vecPointTriangulatedLEFT,
-                                                     p_matTransformationLEFTtoWORLD,
-                                                     p_matTransformationWORLDtoLEFT,
-                                                     m_pCameraLEFT->m_matProjection,
-                                                     m_pCameraRIGHT->m_matProjection,
-                                                     matProjectionWORLDtoLEFT,
-                                                     matProjectionWORLDtoRIGHT,
-                                                     m_uFrameCount ) );
+            //ds log creation
+            //CLogger::CLogLandmarkCreation::addEntry( m_uFrameCount, pLandmark, dDepthMeters, ptLandmarkLEFT, ptLandmarkRIGHT );
 
-                //ds log creation
-                //CLogger::CLogLandmarkCreation::addEntry( m_uFrameCount, pLandmark, dDepthMeters, ptLandmarkLEFT, ptLandmarkRIGHT );
+            //ds add to newly detected
+            vecNewLandmarks->push_back( pLandmark );
 
-                //ds add to newly detected
-                vecNewLandmarks->push_back( pLandmark );
+            //ds next landmark id
+            ++m_uAvailableLandmarkID;
 
-                //ds next landmark id
-                ++m_uAvailableLandmarkID;
+            //ds draw detected point
+            //cv::line( p_matDisplaySTEREO, ptLandmarkLEFT, cv::Point2f( ptLandmarkLEFT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkLEFT.y ), CColorCodeBGR( 175, 175, 175 ) );
+            cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 2, CColorCodeBGR( 0, 255, 0 ), -1 );
 
-                //ds draw detected point
-                //cv::line( p_matDisplaySTEREO, ptLandmarkLEFT, cv::Point2f( ptLandmarkLEFT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkLEFT.y ), CColorCodeBGR( 175, 175, 175 ) );
-                cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 2, CColorCodeBGR( 0, 255, 0 ), -1 );
+            //ds draw acquisition information
+            char chBuffer[10];
+            std::snprintf( chBuffer, 10, "%lu|%.1f", pLandmark->uID, vecPointTriangulatedLEFT.z( ) );
+            cv::putText( p_matDisplaySTEREO, chBuffer , cv::Point2d( ptLandmarkLEFT.x+pLandmark->dKeyPointSize, ptLandmarkLEFT.y+pLandmark->dKeyPointSize ), cv::FONT_HERSHEY_PLAIN, 0.5, CColorCodeBGR( 0, 0, 255 ) );
 
-                //ds draw acquisition information
-                char chBuffer[10];
-                std::snprintf( chBuffer, 10, "%lu|%.1f", pLandmark->uID, dDepthMeters );
-                cv::putText( p_matDisplaySTEREO, chBuffer , cv::Point2d( ptLandmarkLEFT.x+pLandmark->dKeyPointSize, ptLandmarkLEFT.y+pLandmark->dKeyPointSize ), cv::FONT_HERSHEY_PLAIN, 0.5, CColorCodeBGR( 0, 0, 255 ) );
-
-                //ds draw reprojection of triangulation
-                cv::circle( p_matDisplaySTEREO, cv::Point2d( ptLandmarkRIGHT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkRIGHT.y ), 2, CColorCodeBGR( 255, 0, 0 ), -1 );
-            }
-            else
-            {
-                cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 3, CColorCodeBGR( 0, 255, 255 ), -1 );
-                std::printf( "[0][%06lu]<CTrackerStereo>(_addNewLandmarks) could not find match for keypoint (invalid depth: %f m)\n", m_uFrameCount, dDepthMeters );
-            }
+            //ds draw reprojection of triangulation
+            cv::circle( p_matDisplaySTEREO, cv::Point2d( ptLandmarkRIGHT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkRIGHT.y ), 2, CColorCodeBGR( 255, 0, 0 ), -1 );
         }
         catch( const CExceptionNoMatchFound& p_cException )
         {
@@ -649,16 +684,11 @@ void CTrackerStereo::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
         //ds all visible in this frame
         m_uNumberofVisibleLandmarksLAST += vecNewLandmarks->size( );
 
-        {
-            //ds lock - blocking - RAII
-            std::lock_guard< std::mutex > cLockGuard( m_hLandmarks->cMutex );
+        //ds add to permanent reference holder (this will copy the landmark references)
+        m_vecLandmarks->insert( m_vecLandmarks->end( ), vecNewLandmarks->begin( ), vecNewLandmarks->end( ) );
 
-            //ds add to permanent reference holder (this will copy the landmark references)
-            m_hLandmarks->vecLandmarks->insert( m_hLandmarks->vecLandmarks->end( ), vecNewLandmarks->begin( ), vecNewLandmarks->end( ) );
-
-            //ds add this measurement point to the epipolar matcher (which will remove references from its detection point -> does not affect the landmarks main vector)
-            m_cMatcher.addDetectionPoint( p_matTransformationLEFTtoWORLD, vecNewLandmarks );
-        }
+        //ds add this measurement point to the epipolar matcher (which will remove references from its detection point -> does not affect the landmarks main vector)
+        m_cMatcher.addDetectionPoint( p_matTransformationLEFTtoWORLD, vecNewLandmarks );
 
         //std::printf( "<CTrackerStereo>(_getNewLandmarks) added new landmarks: %lu/%lu\n", vecNewLandmarks->size( ), vecKeyPoints.size( ) );
     }
@@ -752,7 +782,7 @@ void CTrackerStereo::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotio
                            m_vecPositionCurrent.x( ), m_vecPositionCurrent.y( ), m_vecPositionCurrent.z( ), m_dTranslationDeltaSquaredNormCurrent, p_dMotionScaling,
                            m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_uAvailableLandmarkID,
                            m_cMatcher.getNumberOfDetectionPointsActive( ), m_cMatcher.getNumberOfDetectionPointsTotal( ),
-                           m_uNumberOfKeyFrames ); //m_cGraphOptimizer.getNumberOfOptimizations( )
+                           m_vecKeyFrames->size( ) ); //m_cGraphOptimizer.getNumberOfOptimizations( )
             break;
         }
         case ePlaybackBenchmark:
@@ -762,7 +792,7 @@ void CTrackerStereo::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotio
                            m_vecPositionCurrent.x( ), m_vecPositionCurrent.y( ), m_vecPositionCurrent.z( ), m_dTranslationDeltaSquaredNormCurrent, p_dMotionScaling,
                            m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_uAvailableLandmarkID,
                            m_cMatcher.getNumberOfDetectionPointsActive( ), m_cMatcher.getNumberOfDetectionPointsTotal( ),
-                           m_uNumberOfKeyFrames );
+                           m_vecKeyFrames->size( ) );
             break;
         }
         default:

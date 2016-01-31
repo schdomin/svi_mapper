@@ -43,6 +43,13 @@ private:
     const double m_dDuR;
     const double m_dDuRFlipped;
 
+//ds other
+public:
+
+    //ds other
+    const double dDepthMinimumMeters;
+    const double dDepthMaximumMeters;
+
 //ds api
 public:
 

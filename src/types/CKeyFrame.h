@@ -10,6 +10,11 @@
 class CKeyFrame
 {
 
+//ds eigen memory alignment
+public:
+
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 public:
 
     //ds keyframe loop closing

@@ -7,23 +7,23 @@
 #include "utility/CLogger.h"
 #include "exceptions/CExceptionEpipolarLine.h"
 
+
+
 CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
-                                    const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                                    const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle,
-                                    const double& p_dMinimumDepthMeters,
-                                    const double& p_dMaximumDepthMeters,
+                                    const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                                    const std::shared_ptr< cv::FeatureDetector > p_pDetector,
                                     const double& p_dMatchingDistanceCutoffPoseOptimization,
                                     const double& p_dMatchingDistanceCutoffEpipolar,
                                     const uint8_t& p_uMaximumFailedSubsequentTrackingsPerLandmark ): m_pTriangulator( p_pTriangulator ),
                                                                               m_pCameraLEFT( m_pTriangulator->m_pCameraSTEREO->m_pCameraLEFT ),
                                                                               m_pCameraRIGHT( m_pTriangulator->m_pCameraSTEREO->m_pCameraRIGHT ),
                                                                               m_pCameraSTEREO( m_pTriangulator->m_pCameraSTEREO ),
-                                                                              m_hLandmarks( p_hLandmarks ),
-                                                                              m_pDetector( p_pDetectorSingle ),
+                                                                              m_vecLandmarks( p_vecLandmarks ),
+                                                                              m_pDetector( p_pDetector ),
                                                                               m_pExtractor( m_pTriangulator->m_pExtractor ),
                                                                               m_pMatcher( m_pTriangulator->m_pMatcher ),
-                                                                              m_dMinimumDepthMeters( p_dMinimumDepthMeters ),
-                                                                              m_dMaximumDepthMeters( p_dMaximumDepthMeters ),
+                                                                              m_dMinimumDepthMeters( p_pTriangulator->dDepthMinimumMeters ),
+                                                                              m_dMaximumDepthMeters( p_pTriangulator->dDepthMaximumMeters ),
                                                                               m_dMatchingDistanceCutoffPoseOptimization( p_dMatchingDistanceCutoffPoseOptimization ),
                                                                               m_dMatchingDistanceCutoffTrackingStage1( 25.0 ),
                                                                               m_dMatchingDistanceCutoffTrackingStage2( 50.0 ),
@@ -41,7 +41,7 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) minimum depth cutoff: %f\n", m_dMinimumDepthMeters );
-    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) maximum depth cutoff: %f\n", m_dMinimumDepthMeters );
+    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) maximum depth cutoff: %f\n", m_dMaximumDepthMeters );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff (pose optimization): %f\n", m_dMatchingDistanceCutoffPoseOptimization );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff (fundamental line): %f\n", m_dMatchingDistanceCutoffTrackingStage3 );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) maximum number of non-detections before dropping landmark: %u\n", m_uMaximumFailedSubsequentTrackingsPerLandmark );
@@ -2071,7 +2071,7 @@ void CFundamentalMatcher::_addMeasurementToLandmarkSTEREO( const UIDFrame p_uFra
     assert( m_dMaximumDepthMeters > p_cMatchSTEREO.vecPointXYZLEFT.z( ) );
 
     //ds update landmark directly (NO EXCEPTIONS HERE)
-    CLandmark* pLandmark = m_hLandmarks->vecLandmarks->at( p_cMatchSTEREO.uIDLandmark );
+    CLandmark* pLandmark = m_vecLandmarks->at( p_cMatchSTEREO.uIDLandmark );
     assert( 0 != pLandmark );
     pLandmark->bIsCurrentlyVisible        = true;
     pLandmark->uFailedSubsequentTrackings = 0;

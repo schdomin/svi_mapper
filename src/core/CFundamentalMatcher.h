@@ -7,6 +7,8 @@
 #include "optimization/CSolverStereoPosit.h"
 #include "types/CTypesThreading.h"
 
+
+
 class CFundamentalMatcher
 {
 
@@ -42,10 +44,8 @@ private:
 public:
 
     CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
-                      const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                      const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle,
-                      const double& p_dMinimumDepthMeters,
-                      const double& p_dMaximumDepthMeters,
+                      const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                      const std::shared_ptr< cv::FeatureDetector > p_pDetector,
                       const double& p_dMatchingDistanceCutoffPoseOptimization,
                       const double& p_dMatchingDistanceCutoffEssential,
                       const uint8_t& p_uMaximumFailedSubsequentTrackingsPerLandmark );
@@ -62,8 +62,8 @@ private:
     const std::shared_ptr< CPinholeCamera > m_pCameraRIGHT;
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
-    //ds for landmark access sections
-    const std::shared_ptr< CHandleLandmarks > m_hLandmarks;
+    //ds for landmark access sections (needed as we only share ID's with the stereoposit optimizer)
+    const std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
 
     //ds matching
     const std::shared_ptr< cv::FeatureDetector > m_pDetector;
