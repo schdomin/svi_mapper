@@ -4,11 +4,9 @@
 //ds custom
 #include "txt_io/message_reader.h"
 #include "core/CTrackerStereo.h"
-#include "core/CMapper.h"
 #include "exceptions/CExceptionLogfileTree.h"
 #include "utility/CIMUInterpolator.h"
 #include "utility/CParameterBase.h"
-#include "optimization/Cg2oOptimizer.h"
 
 
 
@@ -83,6 +81,10 @@ int32_t main( int32_t argc, char **argv )
             return 0;
         }
     }
+
+    //ds set opencv optimization
+    cv::setNumThreads( 0 );
+    cv::setUseOptimized( false );
 
     //ds message loop
     txt_io::MessageReader cMessageReader;

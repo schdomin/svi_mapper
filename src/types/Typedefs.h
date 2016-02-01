@@ -35,7 +35,7 @@ typedef cv::Mat         CDescriptor;
 typedef uint64_t        UIDLandmark;
 typedef uint64_t        UIDDescriptor;
 typedef uint64_t        UIDDetectionPoint;
-typedef int64_t         UIDKeyFrame;
+typedef uint64_t        UIDKeyFrame;
 typedef uint64_t        UIDCloud;
 typedef uint64_t        UIDDescriptorPoint3D;
 typedef int64_t         UIDFrame;

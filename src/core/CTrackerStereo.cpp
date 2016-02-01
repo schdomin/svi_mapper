@@ -31,19 +31,19 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCamera
 
                                                                            //ds BRIEF (calibrated 2015-05-31)
                                                                            // m_uKeyPointSize( 7 ),
-                                                                           m_pDetector( std::make_shared< cv::GoodFeaturesToTrackDetector >( 200, 0.01, 7.0, 7, true ) ),
+                                                                           m_uVisibleLandmarksMinimum( 100 ),
+                                                                           m_pDetector( std::make_shared< cv::GoodFeaturesToTrackDetector >( m_uVisibleLandmarksMinimum, 0.01, 7.0, 7, true ) ),
                                                                            m_pExtractor( std::make_shared< cv::BriefDescriptorExtractor >( 32 ) ),
                                                                            m_pMatcher( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) ),
-                                                                           m_dMatchingDistanceCutoffTriangulation( 100.0 ),
-                                                                           m_dMatchingDistanceCutoffPoseOptimization( 50.0 ),
+                                                                           m_dMatchingDistanceCutoffTriangulation( 75.0 ),
                                                                            m_dMatchingDistanceCutoffEpipolar( 50.0 ),
-                                                                           m_uVisibleLandmarksMinimum( 100 ),
 
                                                                            m_pTriangulator( std::make_shared< CTriangulator >( m_pCameraSTEREO, m_pExtractor, m_pMatcher, m_dMatchingDistanceCutoffTriangulation ) ),
-                                                                           m_cMatcher( m_pTriangulator, m_vecLandmarks, m_pDetector, m_dMatchingDistanceCutoffPoseOptimization, m_dMatchingDistanceCutoffEpipolar, m_uMaximumFailedSubsequentTrackingsPerLandmark ),
+                                                                           m_cMatcher( m_pTriangulator, m_vecLandmarks, m_pDetector, m_dMatchingDistanceCutoffEpipolar, m_uMaximumFailedSubsequentTrackingsPerLandmark ),
+                                                                           m_cOptimizer( m_pCameraSTEREO, m_vecLandmarks, m_vecKeyFrames, m_matTransformationWORLDtoLEFTLAST.inverse( ) ),
 
                                                                            m_pIMU( p_pIMUInterpolator ),
-
+                                                                           m_vecTranslationToG2o( 0.0, 0.0, 0.0 ),
                                                                            m_eMode( p_eMode )
 {
     m_vecLandmarks->clear( );
@@ -52,9 +52,6 @@ CTrackerStereo::CTrackerStereo( const std::shared_ptr< CStereoCamera > p_pCamera
 
     //ds windows
     _initializeTranslationWindow( );
-
-    //ds set opencv parallelization threads: completely serial)
-    cv::setNumThreads( 2 );
 
     //ds initialize reference frames with black images
     m_matDisplayLowerReference = cv::Mat::zeros( m_pCameraSTEREO->m_uPixelHeight, 2*m_pCameraSTEREO->m_uPixelWidth, CV_8UC3 );
@@ -406,9 +403,6 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
         m_cMatcher.optimizeActiveLandmarks( m_uFrameCount );
     }
 
-    //ds update scene in viewer
-    m_prFrameLEFTtoWORLD = std::pair< bool, Eigen::Isometry3d >( false, matTransformationLEFTtoWORLD );
-
     //ds accumulate orientation
     m_vecCameraOrientationAccumulated += p_vecRotationTotal;
 
@@ -458,11 +452,11 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                 const std::vector< CLandmark* >::size_type uIDKeyFrameCurrent = m_vecKeyFrames->back( )->uID;
 
                 //ds check if optimization is required (based on key frame id or loop closing) TODO beautify this case
-                if( m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDProcessedKeyFrameLAST                                                                              ||
+                if( m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDOptimizedKeyFrameLAST                                                                              ||
                    ( m_uLoopClosingKeyFrameWaitingQueue < m_uLoopClosingKeyFramesInQueue && m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDLoopClosureOptimizedLAST ) )
                 {
-                    //ds compute landmark begin ID
-                    const std::vector< CLandmark* >::size_type uIDBeginLandmark = std::min( m_vecKeyFrames->at( m_uIDProcessedKeyFrameLAST )->vecMeasurements.front( )->uID, m_vecLandmarks->back( )->uID );
+                    //ds trigger optimization
+                    m_cOptimizer.optimize( m_uFrameCount, m_uIDOptimizedKeyFrameLAST, m_uLoopClosingKeyFramesInQueue, m_vecTranslationToG2o );
 
                     //ds if loop closure triggered
                     if( 0 < m_uLoopClosingKeyFramesInQueue )
@@ -472,6 +466,12 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
 
                     //ds update counters
                     m_uLoopClosingKeyFramesInQueue = 0;
+                    m_uIDOptimizedKeyFrameLAST     = m_vecKeyFrames->back( )->uID+1;
+                    assert( m_vecKeyFrames->back( )->bIsOptimized );
+
+                    //ds integrate optimization
+                    matTransformationLEFTtoWORLD = m_vecKeyFrames->back( )->matTransformationLEFTtoWORLD;
+                    matTransformationWORLDtoLEFT = matTransformationLEFTtoWORLD.inverse( );
                 }
             }
 
@@ -479,18 +479,12 @@ void CTrackerStereo::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             m_vecPositionKeyFrameLAST         = m_vecPositionCurrent;
             m_vecCameraOrientationAccumulated = Eigen::Vector3d::Zero( );
             m_uFrameKeyFrameLAST              = m_uFrameCount;
-
-            //ds update scene in viewer with keyframe transformation
-            m_prFrameLEFTtoWORLD = std::pair< bool, Eigen::Isometry3d >( true, matTransformationLEFTtoWORLD );
         }
         else
         {
             std::printf( "[0][%06lu]<CTrackerStereo>(_trackLandmarks) not enough points to create key frame: %lu < %lu\n", m_uFrameCount, vecCloud->size( ), m_uMinimumLandmarksForKeyFrame );
         }
     }
-
-    //ds frame available for viewer
-    m_bIsFrameAvailable = true;
 
     //ds check if we have to detect new landmarks
     if( m_uVisibleLandmarksMinimum > m_uNumberofVisibleLandmarksLAST || m_uMaximumNumberOfFramesWithoutDetection < m_uNumberOfFramesWithoutDetection )

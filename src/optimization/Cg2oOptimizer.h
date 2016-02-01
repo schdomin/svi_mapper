@@ -61,25 +61,19 @@ class Cg2oOptimizer
 public:
 
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                   const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                   const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
-                   const std::shared_ptr< CHandleMapping > p_hMapper,
-                   const std::shared_ptr< CHandleTracking > p_hTracker,
+                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                   const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                   const std::shared_ptr< CHandleLandmarks > p_hLandmarks,
-                   const std::shared_ptr< CHandleKeyFrames > p_hKeyFrames,
-                   const std::shared_ptr< CHandleMapping > p_hMapper,
-                   const std::shared_ptr< CHandleTracking > p_hTracker );
+                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                   const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames );
     ~Cg2oOptimizer( );
 
 private:
 
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
-    const std::shared_ptr< CHandleLandmarks > m_hLandmarks;
-    const std::shared_ptr< CHandleKeyFrames > m_hKeyFrames;
-    const std::shared_ptr< CHandleMapping > m_hMapper;
-    const std::shared_ptr< CHandleTracking > m_hTracker;
+    const std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
+    const std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
 
     g2o::SparseOptimizer m_cOptimizerSparse;
     g2o::SparseOptimizer m_cOptimizerSparseTrajectoryOnly;
@@ -130,16 +124,19 @@ private:
 public:
 
     //ds copying intended
-    void optimize( const COptimizationRequest p_cRequest );
+    void optimize( const UIDFrame& p_uFrame,
+                   const UIDKeyFrame& p_uIDBeginKeyFrame,
+                   const UIDKeyFrame& p_uNumberOfLoopClosures,
+                   const Eigen::Vector3d& p_vecTranslationToG2o );
 
     const uint32_t getNumberOfOptimizations( ) const { return m_uOptimizations; }
 
     //ds clears g2o files in logging directory
-    void clearFiles( ) const;
+    void clearFilesUNIX( ) const;
 
     //ds manual loop closing
-    void updateLoopClosuresFromKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uIDBeginKeyFrame,
-                                 const std::vector< CKeyFrame* >::size_type& p_uIDEndKeyFrame,
+    void updateLoopClosuresFromKeyFrame( const UIDKeyFrame& p_uIDBeginKeyFrame,
+                                 const UIDKeyFrame& p_uIDEndKeyFrame,
                                  const Eigen::Vector3d& p_vecTranslationToG2o );
 
     const double getTotalOptimizationDurationSeconds( ) const { return m_dTotalOptimizationDurationSeconds; }
@@ -216,8 +213,8 @@ private:
                                                             const double& p_dInformationFactor ) const;
     g2o::EdgeSE3* _getEdgeLoopClosure( g2o::VertexSE3* p_pVertexPoseCurrent, const CKeyFrame* pKeyFrameCurrent, const CKeyFrame::CMatchICP* p_pClosure );
 
-    void _loadLandmarksToGraph( const std::vector< CLandmark* >::size_type& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
-    g2o::VertexSE3* _setAndgetPose( std::vector< CKeyFrame* >::size_type& p_uIDKeyFrameFrom, CKeyFrame* pKeyFrameCurrent, const Eigen::Vector3d& p_vecTranslationToG2o );
+    void _loadLandmarksToGraph( const UIDLandmark& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
+    g2o::VertexSE3* _setAndgetPose( const UIDKeyFrame& p_uIDKeyFrameFrom, CKeyFrame* pKeyFrameCurrent, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _setLoopClosure( g2o::VertexSE3* p_pVertexPoseCurrent, const CKeyFrame* pKeyFrameCurrent, const CKeyFrame::CMatchICP* p_pClosure, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _setLandmarkMeasurementsWORLD( g2o::VertexSE3* p_pVertexPoseCurrent,
                            const CKeyFrame* pKeyFrameCurrent,
@@ -225,7 +222,7 @@ private:
                            std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredUVDepth,
                            std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredUVDisparity );
 
-    void _applyOptimizationToLandmarks( const UIDFrame& p_uFrame, const std::vector< CLandmark* >::size_type& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
+    void _applyOptimizationToLandmarks( const UIDFrame& p_uFrame, const UIDLandmark& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _applyOptimizationToKeyFrames( const UIDFrame& p_uFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
 
     //ds used for loop closure edges

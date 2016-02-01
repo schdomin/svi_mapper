@@ -9,7 +9,7 @@
 #include "CTriangulator.h"
 #include "CFundamentalMatcher.h"
 #include "types/CKeyFrame.h"
-//#include "optimization/Cg2oOptimizer.h"
+#include "optimization/Cg2oOptimizer.h"
 #include "utility/CIMUInterpolator.h"
 #include "types/CTypesThreading.h"
 
@@ -60,21 +60,21 @@ private:
 
     //ds feature related
     //const uint32_t m_uKeyPointSize;
+    const uint32_t m_uVisibleLandmarksMinimum;
     const std::shared_ptr< cv::FeatureDetector > m_pDetector;
     const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
     const std::shared_ptr< cv::DescriptorMatcher > m_pMatcher;
     const double m_dMatchingDistanceCutoffTriangulation;
-    const double m_dMatchingDistanceCutoffPoseOptimization;
     const double m_dMatchingDistanceCutoffEpipolar;
-    const uint8_t m_uVisibleLandmarksMinimum;
 
     //ds modules
     std::shared_ptr< CTriangulator > m_pTriangulator;
     CFundamentalMatcher m_cMatcher;
+    Cg2oOptimizer m_cOptimizer;
 
     //ds tracking
     const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
-    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 20; //1e6; //20;
+    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 1e6; //20;
     UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
@@ -90,7 +90,7 @@ private:
     //ds g2o optimization
     const std::vector< CLandmark* >::size_type m_uMinimumLandmarksForKeyFrame    = 50;
     const uint8_t m_uLandmarkOptimizationEveryNFrames                            = 10;
-    std::vector< CKeyFrame* >::size_type m_uIDProcessedKeyFrameLAST              = 0;
+    std::vector< CKeyFrame* >::size_type m_uIDOptimizedKeyFrameLAST              = 0;
     const std::vector< CKeyFrame* >::size_type m_uIDDeltaKeyFrameForOptimization = 20; //10
 
     //ds loop closing
@@ -109,6 +109,7 @@ private:
     std::vector< Eigen::Vector3d > m_vecTranslationDeltas;
     const std::vector< Eigen::Vector3d >::size_type m_uIMULogbackSize = 200;
     Eigen::Vector3d m_vecGradientXYZ;
+    Eigen::Vector3d m_vecTranslationToG2o;
 
     //ds control
     EPlaybackMode m_eMode = ePlaybackStepwise;
@@ -116,8 +117,6 @@ private:
 
     //ds info display
     cv::Mat m_matDisplayLowerReference;
-    bool m_bIsFrameAvailable = false;
-    std::pair< bool, Eigen::Isometry3d > m_prFrameLEFTtoWORLD;
     uint32_t m_uFramesCurrentCycle = 0;
     double m_dPreviousFrameRate    = 0.0;
     double m_dPreviousFrameTime    = 0.0;
@@ -133,10 +132,8 @@ public:
 
     const UIDFrame getFrameCount( ) const { return m_uFrameCount; }
     const bool isShutdownRequested( ) const { return m_bIsShutdownRequested; }
-    const bool isFrameAvailable( ) const { return m_bIsFrameAvailable; }
-    const std::pair< bool, Eigen::Isometry3d > getFrameLEFTtoWORLD( ){ m_bIsFrameAvailable = false; return m_prFrameLEFTtoWORLD; }
     void finalize( );
-    void sanitizeFiletree( ){ /*m_cGraphOptimizer.clearFiles( );*/ }
+    void sanitizeFiletree( ){ m_cOptimizer.clearFilesUNIX( ); }
     const double getDistanceTraveled( ) const { return m_dDistanceTraveledMeters; }
     const double getTotalDurationOptimizationSeconds( ) const { return 0; /*m_cGraphOptimizer.getTotalOptimizationDurationSeconds( );*/ }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cMatcher.getDurationTotalSecondsStereoPosit( ); }

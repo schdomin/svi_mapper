@@ -12,7 +12,6 @@
 CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
                                     const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                                     const std::shared_ptr< cv::FeatureDetector > p_pDetector,
-                                    const double& p_dMatchingDistanceCutoffPoseOptimization,
                                     const double& p_dMatchingDistanceCutoffEpipolar,
                                     const uint8_t& p_uMaximumFailedSubsequentTrackingsPerLandmark ): m_pTriangulator( p_pTriangulator ),
                                                                               m_pCameraLEFT( m_pTriangulator->m_pCameraSTEREO->m_pCameraLEFT ),
@@ -24,9 +23,8 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
                                                                               m_pMatcher( m_pTriangulator->m_pMatcher ),
                                                                               m_dMinimumDepthMeters( p_pTriangulator->dDepthMinimumMeters ),
                                                                               m_dMaximumDepthMeters( p_pTriangulator->dDepthMaximumMeters ),
-                                                                              m_dMatchingDistanceCutoffPoseOptimization( p_dMatchingDistanceCutoffPoseOptimization ),
                                                                               m_dMatchingDistanceCutoffTrackingStage1( 25.0 ),
-                                                                              m_dMatchingDistanceCutoffTrackingStage2( 50.0 ),
+                                                                              m_dMatchingDistanceCutoffTrackingStage2( 40.0 ),
                                                                               m_dMatchingDistanceCutoffTrackingStage3( p_dMatchingDistanceCutoffEpipolar ),
                                                                               m_dMatchingDistanceCutoffOriginal( 2*m_dMatchingDistanceCutoffTrackingStage3 ),
                                                                               m_uAvailableDetectionPointID( 0 ),
@@ -42,8 +40,9 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) minimum depth cutoff: %f\n", m_dMinimumDepthMeters );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) maximum depth cutoff: %f\n", m_dMaximumDepthMeters );
-    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff (pose optimization): %f\n", m_dMatchingDistanceCutoffPoseOptimization );
-    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff (fundamental line): %f\n", m_dMatchingDistanceCutoffTrackingStage3 );
+    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 1 (local position): %f\n", m_dMatchingDistanceCutoffTrackingStage1 );
+    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 2 (local detection): %f\n", m_dMatchingDistanceCutoffTrackingStage2 );
+    std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 3 (fundamental line): %f\n", m_dMatchingDistanceCutoffTrackingStage3 );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) maximum number of non-detections before dropping landmark: %u\n", m_uMaximumFailedSubsequentTrackingsPerLandmark );
     std::printf( "<CFundamentalMatcher>(CFundamentalMatcher) instance allocated\n" );
     CLogger::closeBox( );
@@ -2073,6 +2072,7 @@ void CFundamentalMatcher::_addMeasurementToLandmarkSTEREO( const UIDFrame p_uFra
     //ds update landmark directly (NO EXCEPTIONS HERE)
     CLandmark* pLandmark = m_vecLandmarks->at( p_cMatchSTEREO.uIDLandmark );
     assert( 0 != pLandmark );
+    assert( p_cMatchSTEREO.uIDLandmark == pLandmark->uID );
     pLandmark->bIsCurrentlyVisible        = true;
     pLandmark->uFailedSubsequentTrackings = 0;
     pLandmark->addMeasurement( p_uFrame,

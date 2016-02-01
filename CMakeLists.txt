@@ -8,9 +8,9 @@ project(svi_mapper)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules" ${CMAKE_MODULE_PATH})
 message("CMake module path: ${CMAKE_MODULE_PATH}")
 
-#ds default build type RELEASE
+#ds default build type Release
 if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RELEASE)
+  set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
 
 message("build type: ${CMAKE_BUILD_TYPE}")
@@ -56,7 +56,7 @@ message(" ")
 
 
 #ds add c++11 support, no optimization, all warnings
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
 #add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
 
 
@@ -84,7 +84,6 @@ src/utility/CIMUInterpolator.cpp
 src/vision/CMiniVisionToolbox.cpp
 src/core/CTriangulator.cpp
 src/core/CFundamentalMatcher.cpp
-src/core/CMapper.cpp
 src/optimization/Cg2oOptimizer.cpp
 src/optimization/edge_se3_linear_acceleration.cpp
 src/optimization/closure_buffer.cpp
@@ -133,6 +132,8 @@ add_executable(validate_dataset src/runnable/validate_dataset.cpp)
 target_link_libraries(validate_dataset ${TXT_IO_LIBRARY})
 
 #ds utilities
+add_executable(republisher_kitti src/runnable/republisher_kitti.cpp)
+target_link_libraries(republisher_kitti ${TXT_IO_LIBRARY} ${OpenCV_LIBRARIES})
 #add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
 #add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
 #add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)

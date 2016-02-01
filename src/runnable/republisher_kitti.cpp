@@ -24,7 +24,7 @@ uint64_t g_uFrameIDCameraLEFT  = 0;
 //ds message buffer
 std::ofstream g_strOutfile;
 
-//ds camera projection matrices - constant for KITTI (2015-10-19)
+/*ds camera projection matrices - constant for KITTI (2015-10-19)
 const double arrProjectionLEFT[12]  = { 7.188560000000e+02,
                                         0.000000000000e+00,
                                         6.071928000000e+02,
@@ -52,7 +52,7 @@ const double arrProjectionRIGHT[12] = { 7.188560000000e+02,
 
 const Eigen::Vector3d vecTranslationToRIGHT( -0.54, 0, 0 );
 const MatrixProjection matProjectionLEFT( Eigen::Matrix< double, 4, 3 >( arrProjectionLEFT ).transpose( ) );
-const MatrixProjection matProjectionRIGHT( Eigen::Matrix< double, 4, 3 >( arrProjectionRIGHT ).transpose( ) );
+const MatrixProjection matProjectionRIGHT( Eigen::Matrix< double, 4, 3 >( arrProjectionRIGHT ).transpose( ) );*/
 
 inline void readNextMessageFromFile( const double& p_dTimestampSeconds,
                                      const std::string& p_strImageFolderLEFT,
@@ -65,9 +65,9 @@ int32_t main( int32_t argc, char **argv )
     //ds pwd info
     std::printf( "(main) launched: %s\n", argv[0] );
 
-    if( 2 != argc )
+    if( 3 != argc )
     {
-        std::printf( "(main) please specify the outfile\n" );
+        std::printf( "(main) <KITTI sequence path> <outfile path>\n" );
         std::printf( "(main) terminated: %s\n", argv[0] );
         std::fflush( stdout );
         return 1;
@@ -87,10 +87,10 @@ int32_t main( int32_t argc, char **argv )
     }*/
 
     //ds default files
-    std::string strInfileTimestamps = "/media/n551jw/data/n551jw/Downloads/dataset/sequences/21/times.txt";
-    std::string strImageFolderLEFT  = "/media/n551jw/data/n551jw/Downloads/dataset/sequences/21/image_0/";
-    std::string strImageFolderRIGHT = "/media/n551jw/data/n551jw/Downloads/dataset/sequences/21/image_1/";
-    std::string strOutfile          = argv[1];
+    std::string strInfileTimestamps = argv[1]; strInfileTimestamps += "times.txt";
+    std::string strImageFolderLEFT  = argv[1]; strImageFolderLEFT += "image_0/";
+    std::string strImageFolderRIGHT = argv[1]; strImageFolderRIGHT += "image_1/";
+    std::string strOutfile          = argv[2];
 
     //ds open outfile
     g_strOutfile.open( strOutfile, std::ofstream::out );

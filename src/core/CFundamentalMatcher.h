@@ -46,7 +46,6 @@ public:
     CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
                       const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                       const std::shared_ptr< cv::FeatureDetector > p_pDetector,
-                      const double& p_dMatchingDistanceCutoffPoseOptimization,
                       const double& p_dMatchingDistanceCutoffEssential,
                       const uint8_t& p_uMaximumFailedSubsequentTrackingsPerLandmark );
     ~CFundamentalMatcher( );
@@ -71,7 +70,6 @@ private:
     const std::shared_ptr< cv::DescriptorMatcher > m_pMatcher;
     const double m_dMinimumDepthMeters;
     const double m_dMaximumDepthMeters;
-    const double m_dMatchingDistanceCutoffPoseOptimization;
     const double m_dMatchingDistanceCutoffTrackingStage1;
     const double m_dMatchingDistanceCutoffTrackingStage2;
     const double m_dMatchingDistanceCutoffTrackingStage3;
