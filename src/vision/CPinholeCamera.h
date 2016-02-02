@@ -13,90 +13,6 @@ class CPinholeCamera
 
 public:
 
-    CPinholeCamera( const std::string& p_strCameraLabel,
-                    const double p_matIntrinsic[9],
-                    const double p_vecDistortionCoefficients[4],
-                    const double p_matRectification[9],
-                    const double p_matProjection[12],
-                    const double p_matQuaternionToIMU[4],
-                    const double p_vecTranslationToIMU[3],
-                    const double p_matRotationIntrinsicCAMERAtoIMU[9],
-                    const uint32_t& p_uWidthPixel,
-                    const uint32_t& p_uHeightPixel,
-                    const double& p_dFocalLengthMeters ): m_strCameraLabel( p_strCameraLabel ),
-                                                      m_uWidthPixel( p_uWidthPixel ),
-                                                      m_uHeightPixel( p_uHeightPixel ),
-                                                      m_matProjection( Eigen::Matrix< double, 4, 3 >( p_matProjection ).transpose( ) ),
-                                                      m_matIntrinsic( Eigen::Matrix3d( p_matIntrinsic ).transpose( ) ),
-                                                      m_matIntrinsicP( m_matProjection.block< 3, 3 >( 0, 0 ) ),
-                                                      m_matIntrinsicInverse( m_matIntrinsic.inverse( ) ),
-                                                      m_matIntrinsicPInverse( m_matIntrinsicP.inverse( ) ),
-                                                      m_matIntrinsicInverseTransposed( m_matIntrinsicInverse.transpose( ) ),
-                                                      m_matIntrinsicPInverseTransposed( m_matIntrinsicPInverse.transpose( ) ),
-                                                      m_matIntrinsicTransposed( m_matIntrinsic.transpose( ) ),
-                                                      m_matIntrinsicPTransposed( m_matIntrinsicP.transpose( ) ),
-                                                      m_dFx( m_matIntrinsic(0,0) ),
-                                                      m_dFy( m_matIntrinsic(1,1) ),
-                                                      m_dFxP( m_matIntrinsicP(0,0) ),
-                                                      m_dFyP( m_matIntrinsicP(1,1) ),
-                                                      m_dFxNormalized( m_dFx/p_uWidthPixel ),
-                                                      m_dFyNormalized( m_dFy/p_uHeightPixel ),
-                                                      m_dCx( m_matIntrinsic(0,2) ),
-                                                      m_dCy( m_matIntrinsic(1,2) ),
-                                                      m_dCxP( m_matIntrinsicP(0,2) ),
-                                                      m_dCyP( m_matIntrinsicP(1,2) ),
-                                                      m_dCxNormalized( m_dCx/p_uWidthPixel ),
-                                                      m_dCyNormalized( m_dCy/p_uHeightPixel ),
-                                                      m_dFocalLengthMeters( p_dFocalLengthMeters ),
-                                                      m_vecDistortionCoefficients( p_vecDistortionCoefficients ),
-                                                      m_matRectification( Eigen::Matrix3d( p_matRectification ).transpose( ) ),
-                                                      m_vecPrincipalPoint( Eigen::Vector2d( m_dCx, m_dCy ) ),
-                                                      m_vecPrincipalPointNormalized( Eigen::Vector3d( m_dCxNormalized, m_dCyNormalized, 1.0 ) ),
-                                                      m_vecRotationToIMUInitial( p_matQuaternionToIMU ),
-                                                      m_matRotationToIMUInitial( m_vecRotationToIMUInitial.toRotationMatrix( ) ),
-                                                      m_vecTranslationToIMUInitial( p_vecTranslationToIMU ),
-                                                      m_matRotationCorrectionCAMERAtoIMU( p_matRotationIntrinsicCAMERAtoIMU ),
-                                                      m_matRotationCAMERAtoIMU( m_matRotationCorrectionCAMERAtoIMU*m_matRotationToIMUInitial ),
-                                                      m_matRotationIMUtoCAMERA( m_matRotationCAMERAtoIMU.inverse( ) ),
-                                                      m_matTransformationCAMERAtoIMU( Eigen::Matrix4d::Identity( ) ),
-                                                      m_matTransformationIMUtoCAMERA( Eigen::Matrix4d::Identity( ) ),
-                                                      m_iWidthPixel( m_uWidthPixel ),
-                                                      m_iHeightPixel( m_uHeightPixel ),
-                                                      m_dWidthPixels( m_uWidthPixel ),
-                                                      m_dHeightPixels( m_uHeightPixel ),
-                                                      m_fWidthPixels( m_uWidthPixel ),
-                                                      m_fHeightPixels( m_uHeightPixel ),
-                                                      m_prRangeWidthNormalized( std::pair< double, double >( getNormalizedX( 0 ), getNormalizedX( p_uWidthPixel ) ) ),
-                                                      m_prRangeHeightNormalized( std::pair< double, double >( getNormalizedY( 0 ), getNormalizedY( p_uHeightPixel ) ) ),
-                                                      m_cFieldOfView( 28, 28, m_uWidthPixel-56, m_uHeightPixel-56 )
-    {
-        //ds compute the rotated transformation
-        m_matTransformationCAMERAtoIMU.linear( )      = m_matRotationCAMERAtoIMU;
-        m_matTransformationCAMERAtoIMU.translation( ) = m_vecTranslationToIMUInitial;
-
-        //ds precompute inverse
-        m_matTransformationIMUtoCAMERA = m_matTransformationCAMERAtoIMU.inverse( );
-
-        //ds buffer rotation matrix for check
-        const Eigen::Matrix3d matRotationCheck( m_matTransformationIMUtoCAMERA.linear( ) );
-
-        //ds coefficients difference
-        double dDifferenceCoefficients = 0;
-
-        //ds check configuration
-        for( uint8_t u = 0; u < 3; ++u )
-        {
-            for( uint8_t v = 0; v < 3; ++v )
-            {
-                dDifferenceCoefficients += std::fabs( static_cast< double >( m_matRotationIMUtoCAMERA(u,v)-matRotationCheck(u,v) ) );
-            }
-        }
-        assert( dDifferenceCoefficients < 1e-5 );
-
-        //ds log complete configuration
-        _logConfiguration( dDifferenceCoefficients );
-    }
-
     //ds construct from parameter vector
     CPinholeCamera( const std::string& p_strLabel,
                     const uint32_t& p_uWidthPixels,
@@ -105,10 +21,7 @@ public:
                     const Eigen::Matrix3d& p_matIntrinsic,
                     const double& p_dFocalLengthMeters,
                     const Eigen::Vector4d& p_vecDistortionCoefficients,
-                    const Eigen::Matrix3d& p_matRectification,
-                    const Eigen::Quaterniond& p_vecRotationToIMUInitial,
-                    const Eigen::Vector3d& p_vecTranslationToIMUInitial,
-                    const Eigen::Matrix3d& p_matRotationCorrectionCAMERAtoIMU ): m_strCameraLabel( p_strLabel ),
+                    const Eigen::Matrix3d& p_matRectification ): m_strCameraLabel( p_strLabel ),
                                                                                m_uWidthPixel( p_uWidthPixels ),
                                                                                m_uHeightPixel( p_uHeightPixels ),
                                                                                 m_matProjection( p_matProjection ),
@@ -137,14 +50,6 @@ public:
                                                                                 m_matRectification( p_matRectification ),
                                                                                 m_vecPrincipalPoint( Eigen::Vector2d( m_dCx, m_dCy ) ),
                                                                                 m_vecPrincipalPointNormalized( Eigen::Vector3d( m_dCxNormalized, m_dCyNormalized, 1.0 ) ),
-                                                                                m_vecRotationToIMUInitial( p_vecRotationToIMUInitial ),
-                                                                                m_matRotationToIMUInitial( m_vecRotationToIMUInitial.toRotationMatrix( ) ),
-                                                                                m_vecTranslationToIMUInitial( p_vecTranslationToIMUInitial ),
-                                                                                m_matRotationCorrectionCAMERAtoIMU( p_matRotationCorrectionCAMERAtoIMU ),
-                                                                                m_matRotationCAMERAtoIMU( m_matRotationCorrectionCAMERAtoIMU*m_matRotationToIMUInitial ),
-                                                                                m_matRotationIMUtoCAMERA( m_matRotationCAMERAtoIMU.inverse( ) ),
-                                                                                m_matTransformationCAMERAtoIMU( Eigen::Matrix4d::Identity( ) ),
-                                                                                m_matTransformationIMUtoCAMERA( Eigen::Matrix4d::Identity( ) ),
                                                                                 m_iWidthPixel( m_uWidthPixel ),
                                                                                 m_iHeightPixel( m_uHeightPixel ),
                                                                                 m_dWidthPixels( m_uWidthPixel ),
@@ -155,35 +60,12 @@ public:
                                                                                 m_prRangeHeightNormalized( std::pair< double, double >( getNormalizedY( 0 ), getNormalizedY( m_uHeightPixel ) ) ),
                                                                                 m_cFieldOfView( 28, 28, m_uWidthPixel-56, m_uHeightPixel-56 )
     {
-        //ds compute the rotated transformation
-        m_matTransformationCAMERAtoIMU.linear( )      = m_matRotationCAMERAtoIMU;
-        m_matTransformationCAMERAtoIMU.translation( ) = m_vecTranslationToIMUInitial;
-
-        //ds precompute inverse
-        m_matTransformationIMUtoCAMERA = m_matTransformationCAMERAtoIMU.inverse( );
-
-        //ds buffer rotation matrix for check
-        const Eigen::Matrix3d matRotationCheck( m_matTransformationIMUtoCAMERA.linear( ) );
-
-        //ds coefficients difference
-        double dDifferenceCoefficients = 0;
-
-        //ds check configuration
-        for( uint8_t u = 0; u < 3; ++u )
-        {
-            for( uint8_t v = 0; v < 3; ++v )
-            {
-                dDifferenceCoefficients += std::fabs( static_cast< double >( m_matRotationIMUtoCAMERA(u,v)-matRotationCheck(u,v) ) );
-            }
-        }
-        assert( dDifferenceCoefficients < 1e-5 );
-
         //ds log complete configuration
-        //_logConfiguration( dDifferenceCoefficients );
+        //_logConfiguration( 0.0 );
     }
 
     //ds no manual dynamic allocation
-    ~CPinholeCamera( ){ }
+    virtual ~CPinholeCamera( ){ }
 
 public:
 
@@ -218,16 +100,6 @@ public:
     const Eigen::Matrix3d m_matRectification;
     const Eigen::Vector2d m_vecPrincipalPoint;
     const Eigen::Vector3d m_vecPrincipalPointNormalized;
-
-    //ds extrinsics
-    const Eigen::Quaterniond m_vecRotationToIMUInitial;
-    const Eigen::Matrix3d m_matRotationToIMUInitial;
-    const Eigen::Vector3d m_vecTranslationToIMUInitial;
-    const Eigen::Matrix3d m_matRotationCorrectionCAMERAtoIMU;
-    const Eigen::Matrix3d m_matRotationCAMERAtoIMU;
-    const Eigen::Matrix3d m_matRotationIMUtoCAMERA;
-    Eigen::Isometry3d m_matTransformationCAMERAtoIMU;
-    Eigen::Isometry3d m_matTransformationIMUtoCAMERA;
 
     //ds misc
     const int32_t m_iWidthPixel;
@@ -357,9 +229,9 @@ public:
 //ds helpers
 private:
 
-    void _logConfiguration( const double& p_dImprecision ) const
+    virtual void _logConfiguration( const double& p_dImprecision ) const
     {
-        //ds log complete configuration
+        /*ds log complete configuration
         CLogger::openBox( );
         std::cout << "Configuration camera: " << m_strCameraLabel << "\n\n"
                   << "Configuration imprecision: " << p_dImprecision << "\n"
@@ -372,15 +244,10 @@ private:
                   << "\nRectification matrix (R):\n\n" << m_matRectification << "\n\n"
                   << "\nProjection matrix (P):\n\n" << m_matProjection << "\n\n"
                   << "Principal point: " << m_vecPrincipalPoint.transpose( ) << "\n"
-                  << "Initial quaternion x y z w (CAMERA to IMU): " << m_vecRotationToIMUInitial.x( ) << " " << m_vecRotationToIMUInitial.y( ) << " " << m_vecRotationToIMUInitial.z( ) << " " << m_vecRotationToIMUInitial.w( ) << "\n"
-                  << "Initial translation (CAMERA to IMU): " << m_vecTranslationToIMUInitial.transpose( ) << "\n"
-                  << "\nRotation matrix correction (CAMERA to IMU):\n" << m_matRotationCorrectionCAMERAtoIMU << "\n"
-                  << "\nTransformation matrix (CAMERA to IMU):\n\n" << m_matTransformationCAMERAtoIMU.matrix( ) << "\n\n"
-                  << "\nTransformation matrix (IMU to CAMERA):\n\n" << m_matTransformationIMUtoCAMERA.matrix( ) << "\n\n"
                   << "Resolution (w x h): " << m_uWidthPixel << " x " << m_uHeightPixel << "\n"
                   << "Normalized x range: [" << m_prRangeWidthNormalized.first << ", " << m_prRangeWidthNormalized.second << "]\n"
                   << "Normalized y range: [" << m_prRangeHeightNormalized.first << ", " << m_prRangeHeightNormalized.second << "]" << std::endl;
-        CLogger::closeBox( );
+        CLogger::closeBox( );*/
     }
 
 };

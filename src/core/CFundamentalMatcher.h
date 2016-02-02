@@ -5,7 +5,6 @@
 #include "types/CLandmark.h"
 #include "types/TypesCloud.h"
 #include "optimization/CSolverStereoPosit.h"
-#include "types/CTypesThreading.h"
 
 
 
@@ -44,10 +43,7 @@ private:
 public:
 
     CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
-                      const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
-                      const std::shared_ptr< cv::FeatureDetector > p_pDetector,
-                      const double& p_dMatchingDistanceCutoffEssential,
-                      const uint8_t& p_uMaximumFailedSubsequentTrackingsPerLandmark );
+                      const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle );
     ~CFundamentalMatcher( );
 
 //ds members
@@ -60,9 +56,6 @@ private:
     const std::shared_ptr< CPinholeCamera > m_pCameraLEFT;
     const std::shared_ptr< CPinholeCamera > m_pCameraRIGHT;
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
-
-    //ds for landmark access sections (needed as we only share ID's with the stereoposit optimizer)
-    const std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
 
     //ds matching
     const std::shared_ptr< cv::FeatureDetector > m_pDetector;
@@ -83,7 +76,7 @@ private:
     std::vector< const CMeasurementLandmark* > m_vecMeasurementsVisible;
 
     //ds internal
-    const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark;
+    const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
     const uint8_t m_uRecursionLimitEpipolarLines               = 2;
     const uint8_t m_uRecursionStepSize                         = 2;
     UIDLandmark m_uNumberOfFailedLandmarkOptimizationsTotal    = 0;

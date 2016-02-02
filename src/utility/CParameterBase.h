@@ -7,8 +7,8 @@
 #include <Eigen/Geometry>
 
 //ds custom
+#include "../vision/CStereoCameraIMU.h"
 #include "exceptions/CExceptionParameter.h"
-#include "vision/CStereoCamera.h"
 
 
 
@@ -183,10 +183,6 @@ public:
         const Eigen::Vector4d vecDistortionCoefficients( CParameterBase::getMatrixFromFile< 4, 1 >( vecParameters, "vecDistortionCoefficients" ) );
         const Eigen::Matrix3d matRectification( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRectification" ) );
 
-        const Eigen::Quaterniond vecRotationToIMUInitial( CParameterBase::getQuanternionFromFile( vecParameters, "vecQuaternionToIMU" ) );
-        const Eigen::Vector3d vecTranslationToIMUInitial( CParameterBase::getMatrixFromFile< 3, 1 >( vecParameters, "vecTranslationToIMU" ) );
-        const Eigen::Matrix3d matRotationCorrectionCAMERAtoIMU( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRotationIntrinsicCAMERAtoIMU" ) );
-
         //ds create camera instance
         pCameraLEFT = std::make_shared< CPinholeCamera >( strCameraLabel,
                                                           m_uWidthPixel,
@@ -195,10 +191,7 @@ public:
                                                           matIntrinsic,
                                                           dFocalLengthMeters,
                                                           vecDistortionCoefficients,
-                                                          matRectification,
-                                                          vecRotationToIMUInitial,
-                                                          vecTranslationToIMUInitial,
-                                                          matRotationCorrectionCAMERAtoIMU );
+                                                          matRectification );
         assert( 0 != pCameraLEFT );
     }
 
@@ -220,12 +213,79 @@ public:
         const Eigen::Vector4d vecDistortionCoefficients( CParameterBase::getMatrixFromFile< 4, 1 >( vecParameters, "vecDistortionCoefficients" ) );
         const Eigen::Matrix3d matRectification( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRectification" ) );
 
+        //ds create camera instance
+        pCameraRIGHT = std::make_shared< CPinholeCamera >( strCameraLabel,
+                                                          m_uWidthPixel,
+                                                          m_uHeightPixel,
+                                                          matProjection,
+                                                          matIntrinsic,
+                                                          dFocalLengthMeters,
+                                                          vecDistortionCoefficients,
+                                                          matRectification );
+        assert( 0 != pCameraRIGHT );
+    }
+
+    //ds THROWS: CExceptionParameter, std::invalid_argument, std::out_of_range
+    static void loadCameraLEFTwithIMU( const std::string& p_strCameraConfigurationFile )
+    {
+        //ds params
+        const std::vector< std::string > vecParameters( getParametersFromFile( p_strCameraConfigurationFile ) );
+
+        //ds parse core parameters
+        const std::string strCameraLabel( vecParameters.front( ) );
+        const uint32_t m_uWidthPixel  = CParameterBase::getIntegerFromFile( vecParameters, "uWidthPixels" );
+        const uint32_t m_uHeightPixel = CParameterBase::getIntegerFromFile( vecParameters, "uHeightPixels" );
+
+        const MatrixProjection matProjection( CParameterBase::getMatrixFromFile< 3, 4 >( vecParameters, "matProjection" ) );
+        const Eigen::Matrix3d matIntrinsic( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matIntrinsic" ) );
+
+        const double dFocalLengthMeters = CParameterBase::getDoubleFromFile( vecParameters, "dFocalLengthMeters" );
+        const Eigen::Vector4d vecDistortionCoefficients( CParameterBase::getMatrixFromFile< 4, 1 >( vecParameters, "vecDistortionCoefficients" ) );
+        const Eigen::Matrix3d matRectification( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRectification" ) );
+
         const Eigen::Quaterniond vecRotationToIMUInitial( CParameterBase::getQuanternionFromFile( vecParameters, "vecQuaternionToIMU" ) );
         const Eigen::Vector3d vecTranslationToIMUInitial( CParameterBase::getMatrixFromFile< 3, 1 >( vecParameters, "vecTranslationToIMU" ) );
         const Eigen::Matrix3d matRotationCorrectionCAMERAtoIMU( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRotationIntrinsicCAMERAtoIMU" ) );
 
         //ds create camera instance
-        pCameraRIGHT = std::make_shared< CPinholeCamera >( strCameraLabel,
+        pCameraLEFTwithIMU = std::make_shared< CPinholeCameraIMU >( strCameraLabel,
+                                                          m_uWidthPixel,
+                                                          m_uHeightPixel,
+                                                          matProjection,
+                                                          matIntrinsic,
+                                                          dFocalLengthMeters,
+                                                          vecDistortionCoefficients,
+                                                          matRectification,
+                                                          vecRotationToIMUInitial,
+                                                          vecTranslationToIMUInitial,
+                                                          matRotationCorrectionCAMERAtoIMU );
+        assert( 0 != pCameraLEFTwithIMU );
+    }
+
+    //ds THROWS: CExceptionParameter, std::invalid_argument, std::out_of_range
+    static void loadCameraRIGHTwithIMU( const std::string& p_strCameraConfigurationFile )
+    {
+        //ds params
+        const std::vector< std::string > vecParameters( getParametersFromFile( p_strCameraConfigurationFile ) );
+
+        //ds parse core parameters
+        const std::string strCameraLabel( vecParameters.front( ) );
+        const uint32_t m_uWidthPixel  = CParameterBase::getIntegerFromFile( vecParameters, "uWidthPixels" );
+        const uint32_t m_uHeightPixel = CParameterBase::getIntegerFromFile( vecParameters, "uHeightPixels" );
+
+        const MatrixProjection matProjection( CParameterBase::getMatrixFromFile< 3, 4 >( vecParameters, "matProjection" ) );
+        const Eigen::Matrix3d matIntrinsic( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matIntrinsic" ) );
+
+        const double dFocalLengthMeters = CParameterBase::getDoubleFromFile( vecParameters, "dFocalLengthMeters" );
+        const Eigen::Vector4d vecDistortionCoefficients( CParameterBase::getMatrixFromFile< 4, 1 >( vecParameters, "vecDistortionCoefficients" ) );
+        const Eigen::Matrix3d matRectification( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRectification" ) );
+
+        const Eigen::Quaterniond vecRotationToIMUInitial( CParameterBase::getQuanternionFromFile( vecParameters, "vecQuaternionToIMU" ) );
+        const Eigen::Vector3d vecTranslationToIMUInitial( CParameterBase::getMatrixFromFile< 3, 1 >( vecParameters, "vecTranslationToIMU" ) );
+        const Eigen::Matrix3d matRotationCorrectionCAMERAtoIMU( CParameterBase::getMatrixFromFile< 3, 3 >( vecParameters, "matRotationIntrinsicCAMERAtoIMU" ) );
+
+        //ds create camera instance
+        pCameraRIGHTwithIMU = std::make_shared< CPinholeCameraIMU >( strCameraLabel,
                                                            m_uWidthPixel,
                                                            m_uHeightPixel,
                                                            matProjection,
@@ -236,21 +296,33 @@ public:
                                                            vecRotationToIMUInitial,
                                                            vecTranslationToIMUInitial,
                                                            matRotationCorrectionCAMERAtoIMU );
-        assert( 0 != pCameraRIGHT );
+        assert( 0 != pCameraRIGHTwithIMU );
     }
 
     //ds construct stereo camera (does not throw)
-    static void constructCameraSTEREO( )
+    static void constructCameraSTEREOwithIMU( )
+    {
+        assert( 0 != pCameraLEFTwithIMU );
+        assert( 0 != pCameraRIGHTwithIMU );
+        pCameraSTEREOwithIMU = std::make_shared< CStereoCameraIMU >( pCameraLEFTwithIMU, pCameraRIGHTwithIMU );
+        assert( 0 != pCameraSTEREOwithIMU );
+    }
+
+    //ds simple stereo camera with 3d offsets
+    static void constructCameraSTEREO( const Eigen::Vector3d& p_vecTranslationToRIGHT )
     {
         assert( 0 != pCameraLEFT );
         assert( 0 != pCameraRIGHT );
-        pCameraSTEREO = std::make_shared< CStereoCamera >( pCameraLEFT, pCameraRIGHT );
+        pCameraSTEREO = std::make_shared< CStereoCamera >( pCameraLEFT, pCameraRIGHT, p_vecTranslationToRIGHT );
         assert( 0 != pCameraSTEREO );
     }
 
 //ds buffered parameters
 public:
 
+    static std::shared_ptr< CPinholeCameraIMU > pCameraLEFTwithIMU;
+    static std::shared_ptr< CPinholeCameraIMU > pCameraRIGHTwithIMU;
+    static std::shared_ptr< CStereoCameraIMU > pCameraSTEREOwithIMU;
     static std::shared_ptr< CPinholeCamera > pCameraLEFT;
     static std::shared_ptr< CPinholeCamera > pCameraRIGHT;
     static std::shared_ptr< CStereoCamera > pCameraSTEREO;
@@ -258,6 +330,9 @@ public:
 };
 
 //ds allow only single instantiation of parameter base entities (usually in main) LET THIS BE!
+std::shared_ptr< CPinholeCameraIMU > CParameterBase::pCameraLEFTwithIMU  = 0;
+std::shared_ptr< CPinholeCameraIMU > CParameterBase::pCameraRIGHTwithIMU = 0;
+std::shared_ptr< CStereoCameraIMU > CParameterBase::pCameraSTEREOwithIMU = 0;
 std::shared_ptr< CPinholeCamera > CParameterBase::pCameraLEFT  = 0;
 std::shared_ptr< CPinholeCamera > CParameterBase::pCameraRIGHT = 0;
 std::shared_ptr< CStereoCamera > CParameterBase::pCameraSTEREO = 0;

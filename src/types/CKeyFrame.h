@@ -10,11 +10,6 @@
 class CKeyFrame
 {
 
-//ds eigen memory alignment
-public:
-
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
 public:
 
     //ds keyframe loop closing
@@ -86,7 +81,7 @@ private:
 public:
 
     void saveCloudToFile( ) const;
-    std::shared_ptr< const std::vector< CMatchCloud > > getMatches( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloudQuery ) const;
+    std::shared_ptr< const std::vector< CMatchCloud > > getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloudQuery ) const;
 
     //ds offline loading
     std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > getCloudFromFile( const std::string& p_strFile );

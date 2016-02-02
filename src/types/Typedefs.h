@@ -38,7 +38,7 @@ typedef uint64_t        UIDDetectionPoint;
 typedef uint64_t        UIDKeyFrame;
 typedef uint64_t        UIDCloud;
 typedef uint64_t        UIDDescriptorPoint3D;
-typedef int64_t         UIDFrame;
+typedef uint64_t        UIDFrame;
 typedef Eigen::Matrix< double, 3, 4 > MatrixProjection;
 typedef Eigen::Matrix< double, 1, 3 > Vector3dT;
 typedef Eigen::Vector3d CLinearAccelerationIMU;

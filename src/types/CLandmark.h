@@ -1,9 +1,7 @@
 #ifndef CLANDMARK_H
 #define CLANDMARK_H
 
-#include "Types.h"
-
-
+#include "types/Types.h"
 
 class CLandmark
 {

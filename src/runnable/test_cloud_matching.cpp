@@ -61,7 +61,7 @@ int main( int argc, char** argv )
     for( const CKeyFrame* pCloudReference: vecClouds )
     {
         //ds get matches
-        const std::shared_ptr< const std::vector< CMatchCloud > > vecMatches( pCloudReference->getMatches( pCloudQuery->vecCloud ) );
+        const std::shared_ptr< const std::vector< CMatchCloud > > vecMatches( pCloudReference->getMatchesVisualSpatial( pCloudQuery->vecCloud ) );
         const uint32_t uMinimumInliers = 15;
 
         std::printf( "(main) clouds [%06lu] > [%06lu] matches: %3lu | ", pCloudQuery->uID, pCloudReference->uID, vecMatches->size( ) );

@@ -18,7 +18,7 @@ public:
 
     struct CMatch
     {
-        const std::vector< CLandmark* >::size_type uIDLandmark;
+        CLandmark* pLandmark;
         const CPoint3DWORLD vecPointXYZWORLD;
         const CPoint3DCAMERA vecPointXYZLEFT;
         const cv::Point2f ptUVLEFT;
@@ -26,13 +26,13 @@ public:
         const CDescriptor matDescriptorLEFT;
         const CDescriptor matDescriptorRIGHT;
 
-        CMatch( const std::vector< CLandmark* >::size_type& p_uIDLandmark,
+        CMatch( CLandmark* p_pLandmark,
                 const CPoint3DCAMERA& p_vecPointXYZWORLD,
                 const CPoint3DCAMERA& p_vecPointXYZLEFT,
                 const cv::Point2f& p_ptUVLEFT,
                 const cv::Point2f& p_ptUVRIGHT,
                 const CDescriptor& p_matDescriptorLEFT,
-                const CDescriptor& p_matDescriptorRIGHT ): uIDLandmark( p_uIDLandmark ),
+                const CDescriptor& p_matDescriptorRIGHT ): pLandmark( p_pLandmark ),
                                                            vecPointXYZWORLD( p_vecPointXYZWORLD ),
                                                            vecPointXYZLEFT( p_vecPointXYZLEFT ),
                                                            ptUVLEFT( p_ptUVLEFT ),

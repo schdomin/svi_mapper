@@ -150,7 +150,7 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
                 else
                 {
                     m_dDurationTotalSeconds += CTimer::getTimeSeconds( )-dTimeStartSeconds;
-                    throw CExceptionPoseOptimization( "insufficient accuracy" );
+                    throw CExceptionPoseOptimization( "insufficient accuracy (inliers: " + std::to_string( uInliersCurrent ) + " RISK: " + std::to_string( dOptimizationRISK ) + ")" );
                 }
             }
             else

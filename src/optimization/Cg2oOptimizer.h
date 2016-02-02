@@ -3,12 +3,12 @@
 
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/types/slam3d/types_slam3d.h"
+
+#include "../vision/CStereoCameraIMU.h"
 #include "edge_se3_linear_acceleration.h"
 
-#include "vision/CStereoCamera.h"
 #include "types/CLandmark.h"
 #include "types/CKeyFrame.h"
-#include "types/CTypesThreading.h"
 
 #include "closure_buffer.h"
 #include "closure_checker.h"
@@ -67,6 +67,13 @@ public:
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                    const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                    const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames );
+    Cg2oOptimizer( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
+                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                   const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
+                   const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
+    Cg2oOptimizer( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
+                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                   const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames );
     ~Cg2oOptimizer( );
 
 private:
@@ -79,8 +86,7 @@ private:
     g2o::SparseOptimizer m_cOptimizerSparseTrajectoryOnly;
     const int64_t m_uIDShift       = 1000000; //ds required to navigate between landmarks and poses
     //g2o::VertexSE3* m_pVertexPoseLAST  = 0;
-    const uint32_t m_uIterations       = 100; //1000;
-    uint32_t m_uOptimizations          = 0;
+    uint64_t m_uOptimizations          = 0;
     std::vector< CKeyFrame* >::size_type m_uIDKeyFrameFrom = 0;
 
     const double m_dMaximumReliableDepthForPointXYZ    = 2.5;
@@ -105,7 +111,7 @@ private:
     std::map< std::vector< CKeyFrame* >::size_type, std::pair< g2o::EdgeSE3*, g2o::EdgeSE3* > > m_mapEdgeIDs;
 
     //ds total time spent in optimization
-    double m_dTotalOptimizationDurationSeconds = 0.0;
+    double m_dDurationTotalSecondsOptimization = 0.0;
 
 //ds information matrices ground structures
 private:
@@ -129,7 +135,7 @@ public:
                    const UIDKeyFrame& p_uNumberOfLoopClosures,
                    const Eigen::Vector3d& p_vecTranslationToG2o );
 
-    const uint32_t getNumberOfOptimizations( ) const { return m_uOptimizations; }
+    const uint64_t getNumberOfOptimizations( ) const { return m_uOptimizations; }
 
     //ds clears g2o files in logging directory
     void clearFilesUNIX( ) const;
@@ -139,7 +145,7 @@ public:
                                  const UIDKeyFrame& p_uIDEndKeyFrame,
                                  const Eigen::Vector3d& p_vecTranslationToG2o );
 
-    const double getTotalOptimizationDurationSeconds( ) const { return m_dTotalOptimizationDurationSeconds; }
+    const double getDurationTotalSecondsOptimization( ) const { return m_dDurationTotalSecondsOptimization; }
 
     /*ds manual trajectory locking
     void lockTrajectory( const std::vector< CKeyFrame* >::size_type& p_uIDBeginKeyFrame,
@@ -191,7 +197,6 @@ public:
 
 private:
 
-    uint64_t _optimizeLimited( g2o::SparseOptimizer& p_cOptimizer );
     uint64_t _optimizeUnLimited( g2o::SparseOptimizer& p_cOptimizer );
 
     g2o::EdgeSE3LinearAcceleration* _getEdgeLinearAcceleration( g2o::VertexSE3* p_pVertexPose,

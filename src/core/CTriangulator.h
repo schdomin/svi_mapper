@@ -3,6 +3,8 @@
 
 #include "vision/CStereoCamera.h"
 
+
+
 class CTriangulator
 {
 
@@ -10,9 +12,7 @@ class CTriangulator
 public:
 
     CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCamera,
-                   const std::shared_ptr< cv::DescriptorExtractor > p_pExtractor,
-                   const std::shared_ptr< cv::DescriptorMatcher > p_pMatcher,
-                   const float& p_fMatchingDistanceCutoff );
+                   const std::shared_ptr< cv::DescriptorExtractor > p_pExtractor );
     ~CTriangulator( );
 
 //ds defines
@@ -43,10 +43,8 @@ private:
     const double m_dDuR;
     const double m_dDuRFlipped;
 
-//ds other
 public:
 
-    //ds other
     const double dDepthMinimumMeters;
     const double dDepthMaximumMeters;
 

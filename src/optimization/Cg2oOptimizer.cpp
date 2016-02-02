@@ -12,6 +12,8 @@
 #include "g2o/solvers/cholmod/linear_solver_cholmod.h"
 #include "exceptions/CExceptionLogfileTree.h"
 
+
+
 //ds register custom g2o types
 namespace g2o
 {
@@ -51,7 +53,7 @@ Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraST
 
     //ds set to graph
     m_cOptimizerSparse.addVertex( m_pVertexPoseFIRSTNOTINGRAPH );
-    m_cOptimizerSparse.addEdge( _getEdgeLinearAcceleration( m_pVertexPoseFIRSTNOTINGRAPH, Eigen::Vector3d( 0.0, -1.0, 0.0 ) ) );
+    m_cOptimizerSparse.addEdge( _getEdgeLinearAcceleration( m_pVertexPoseFIRSTNOTINGRAPH, Eigen::Vector3d( 0.0, 0.0, 0.0 ) ) );
 
     //ds get a copy
     m_pVertexPoseFIRSTNOTINGRAPH = new g2o::VertexSE3( );
@@ -112,16 +114,115 @@ Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraST
     pCameraParametersRIGHT->setId( EG2OParameterID::eCAMERA_RIGHT );
     m_cOptimizerSparse.addParameter( pCameraParametersRIGHT );
 
-    //ds imu offset (as IMU to LEFT)
+    //ds imu offset (as IMU to LEFT) EMPTY FUNCTIONALITY FOR CAMERAS WITHOUT IMU
     g2o::ParameterSE3Offset* pOffsetIMUtoLEFT = new g2o::ParameterSE3Offset( );
-    pOffsetIMUtoLEFT->setOffset( m_pCameraSTEREO->m_pCameraLEFT->m_matTransformationIMUtoCAMERA );
+    pOffsetIMUtoLEFT->setOffset( Eigen::Isometry3d( Eigen::Matrix4d::Identity( ) ) );
     pOffsetIMUtoLEFT->setId( EG2OParameterID::eOFFSET_IMUtoLEFT );
     m_cOptimizerSparse.addParameter( pOffsetIMUtoLEFT );
 
     CLogger::openBox( );
     //std::printf( "<Cg2oOptimizer>(Cg2oOptimizer) configuration: gn_var_cholmod\n" );
     std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) configuration: lm_var_cholmod\n" );
-    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) iterations: %u\n", m_uIterations );
+    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) maximum reliable depth for measurement PointXYZ: %f\n", m_dMaximumReliableDepthForPointXYZ );
+    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) maximum reliable depth for measurement UVDepth: %f\n", m_dMaximumReliableDepthForUVDepth );
+    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) instance allocated\n" );
+    CLogger::closeBox( );
+}
+
+//ds CONTINOUS CONSTRUCTOR
+Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
+                              const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                              const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
+                              const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial ): Cg2oOptimizer( p_pCameraSTEREO, p_vecLandmarks, p_vecKeyFrames )
+{
+    CLogger::openBox( );
+    m_uIDKeyFrameFrom = -1;
+
+    //ds trajectory only
+    m_pVertexPoseFIRSTNOTINGRAPH = new g2o::VertexSE3( );
+    m_pVertexPoseFIRSTNOTINGRAPH->setEstimate( p_matTransformationLEFTtoWORLDInitial );
+    m_pVertexPoseFIRSTNOTINGRAPH->setId( m_uIDKeyFrameFrom+1 );
+    m_pVertexPoseFIRSTNOTINGRAPH->setFixed( true );
+    m_cOptimizerSparseTrajectoryOnly.addVertex( m_pVertexPoseFIRSTNOTINGRAPH );
+
+    //ds add the first pose separately
+    m_pVertexPoseFIRSTNOTINGRAPH = new g2o::VertexSE3( );
+    m_pVertexPoseFIRSTNOTINGRAPH->setEstimate( p_matTransformationLEFTtoWORLDInitial );
+    m_pVertexPoseFIRSTNOTINGRAPH->setId( m_uIDKeyFrameFrom+m_uIDShift );
+    m_pVertexPoseFIRSTNOTINGRAPH->setFixed( true );
+
+    //ds set to graph
+    m_cOptimizerSparse.addVertex( m_pVertexPoseFIRSTNOTINGRAPH );
+    m_cOptimizerSparse.addEdge( _getEdgeLinearAcceleration( m_pVertexPoseFIRSTNOTINGRAPH, Eigen::Vector3d( 0.0, -1.0, 0.0 ) ) );
+
+    //ds get a copy
+    m_pVertexPoseFIRSTNOTINGRAPH = new g2o::VertexSE3( );
+    m_pVertexPoseFIRSTNOTINGRAPH->setEstimate( p_matTransformationLEFTtoWORLDInitial );
+    m_pVertexPoseFIRSTNOTINGRAPH->setId( m_uIDKeyFrameFrom+m_uIDShift );
+    m_pVertexPoseFIRSTNOTINGRAPH->setFixed( true );
+
+    //std::printf( "<Cg2oOptimizer>(Cg2oOptimizer) configuration: gn_var_cholmod\n" );
+    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) instance allocated\n" );
+    CLogger::closeBox( );
+}
+
+//ds TAILWISE CONSTRUCTOR
+Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
+                              const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
+                              const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames ): m_pCameraSTEREO( p_pCameraSTEREO ),
+                                                                                        m_vecLandmarks( p_vecLandmarks ),
+                                                                                        m_vecKeyFrames( p_vecKeyFrames ),
+                                                                                        m_matInformationPose( 100000*Eigen::Matrix< double, 6, 6 >::Identity( ) ),
+                                                                                        m_matInformationLoopClosure( _getInformationNoZ( static_cast< Eigen::Matrix< double, 6, 6 > >( 10*m_matInformationPose ) ) ),
+                                                                                        m_matInformationLandmarkClosure( 1000*Eigen::Matrix< double, 3, 3 >::Identity( ) )
+{
+    m_vecLandmarksInGraph.clear( );
+    m_vecKeyFramesInGraph.clear( );
+    m_vecPoseEdges.clear( );
+    m_mapEdgeIDs.clear( );
+
+    //ds configure the solver (var_cholmod)
+    //m_cOptimizerSparse.setVerbose( true );
+    g2o::BlockSolverX::LinearSolverType* pLinearSolver( new g2o::LinearSolverCholmod< g2o::BlockSolverX::PoseMatrixType >( ) );
+    g2o::BlockSolverX* pSolver( new g2o::BlockSolverX( pLinearSolver ) );
+    //g2o::BlockSolver_6_3::LinearSolverType* pLinearSolver( new g2o::LinearSolverCholmod< g2o::BlockSolver_6_3::PoseMatrixType >( ) );
+    //g2o::BlockSolver_6_3* pSolver( new g2o::BlockSolver_6_3( pLinearSolver ) );
+    //g2o::OptimizationAlgorithmGaussNewton* pAlgorithm( new g2o::OptimizationAlgorithmGaussNewton( pSolver ) );
+    g2o::OptimizationAlgorithmLevenberg* pAlgorithm( new g2o::OptimizationAlgorithmLevenberg( pSolver ) );
+    m_cOptimizerSparse.setAlgorithm( pAlgorithm );
+
+    //ds trajectory only
+    g2o::BlockSolver_6_3::LinearSolverType* pLinearSolverTrajectoryOnly( new g2o::LinearSolverCholmod< g2o::BlockSolver_6_3::PoseMatrixType >( ) );
+    g2o::BlockSolver_6_3* pSolverTrajectoryOnly( new g2o::BlockSolver_6_3( pLinearSolverTrajectoryOnly ) );
+    g2o::OptimizationAlgorithmGaussNewton* pAlgorithmTrajectoryOnly( new g2o::OptimizationAlgorithmGaussNewton( pSolverTrajectoryOnly ) );
+    //g2o::OptimizationAlgorithmLevenberg* pAlgorithmTrajectoryOnly( new g2o::OptimizationAlgorithmLevenberg( pSolverTrajectoryOnly ) );
+    m_cOptimizerSparseTrajectoryOnly.setAlgorithm( pAlgorithmTrajectoryOnly );
+
+    //ds set world
+    g2o::ParameterSE3Offset* pOffsetWorld = new g2o::ParameterSE3Offset( );
+    pOffsetWorld->setOffset( Eigen::Isometry3d::Identity( ) );
+    pOffsetWorld->setId( EG2OParameterID::eWORLD );
+    m_cOptimizerSparse.addParameter( pOffsetWorld );
+
+    //ds set camera parameters
+    g2o::ParameterCamera* pCameraParametersLEFT = new g2o::ParameterCamera( );
+    pCameraParametersLEFT->setKcam( m_pCameraSTEREO->m_pCameraLEFT->m_dFxP, m_pCameraSTEREO->m_pCameraLEFT->m_dFyP, m_pCameraSTEREO->m_pCameraLEFT->m_dCxP, m_pCameraSTEREO->m_pCameraLEFT->m_dCyP );
+    pCameraParametersLEFT->setId( EG2OParameterID::eCAMERA_LEFT );
+    m_cOptimizerSparse.addParameter( pCameraParametersLEFT );
+    g2o::ParameterCamera* pCameraParametersRIGHT = new g2o::ParameterCamera( );
+    pCameraParametersRIGHT->setKcam( m_pCameraSTEREO->m_pCameraRIGHT->m_dFxP, m_pCameraSTEREO->m_pCameraRIGHT->m_dFyP, m_pCameraSTEREO->m_pCameraRIGHT->m_dCxP, m_pCameraSTEREO->m_pCameraRIGHT->m_dCyP );
+    pCameraParametersRIGHT->setId( EG2OParameterID::eCAMERA_RIGHT );
+    m_cOptimizerSparse.addParameter( pCameraParametersRIGHT );
+
+    //ds imu offset (as IMU to LEFT)
+    g2o::ParameterSE3Offset* pOffsetIMUtoLEFT = new g2o::ParameterSE3Offset( );
+    pOffsetIMUtoLEFT->setOffset( p_pCameraSTEREO->m_pCameraLEFT->m_matTransformationIMUtoCAMERA );
+    pOffsetIMUtoLEFT->setId( EG2OParameterID::eOFFSET_IMUtoLEFT );
+    m_cOptimizerSparse.addParameter( pOffsetIMUtoLEFT );
+
+    CLogger::openBox( );
+    //std::printf( "<Cg2oOptimizer>(Cg2oOptimizer) configuration: gn_var_cholmod\n" );
+    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) configuration: lm_var_cholmod\n" );
     std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) maximum reliable depth for measurement PointXYZ: %f\n", m_dMaximumReliableDepthForPointXYZ );
     std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) maximum reliable depth for measurement UVDepth: %f\n", m_dMaximumReliableDepthForUVDepth );
     std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) instance allocated\n" );
@@ -130,7 +231,7 @@ Cg2oOptimizer::Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraST
 
 Cg2oOptimizer::~Cg2oOptimizer( )
 {
-    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) total computation time: %fs\n", m_dTotalOptimizationDurationSeconds );
+    std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) total computation time: %fs\n", m_dDurationTotalSecondsOptimization );
     std::printf( "[0]<Cg2oOptimizer>(Cg2oOptimizer) instance deallocated\n" );
 }
 
@@ -420,7 +521,7 @@ void Cg2oOptimizer::optimize( const UIDFrame& p_uFrameCount,
     std::printf( "[0][%06lu]<Cg2oOptimizer>(optimizeContinuous) optimization complete (total duration: %.2fs | iterations: %lu)\n", p_uFrameCount, ( CLogger::getTimeSeconds( )-dTimeStartSeconds ), uIterations );
 
     //ds timing
-    m_dTotalOptimizationDurationSeconds += ( CLogger::getTimeSeconds( )-dTimeStartSeconds );
+    m_dDurationTotalSecondsOptimization += ( CLogger::getTimeSeconds( )-dTimeStartSeconds );
 
     //ds info
     ++m_uOptimizations;
@@ -572,37 +673,6 @@ void Cg2oOptimizer::updateLoopClosuresFromKeyFrame( const UIDKeyFrame& p_uIDBegi
     }
 }*/
 
-uint64_t Cg2oOptimizer::_optimizeLimited( g2o::SparseOptimizer& p_cOptimizer )
-{
-    //ds initialize optimization
-    p_cOptimizer.initializeOptimization( );
-
-    //ds initial optimization
-    p_cOptimizer.optimize( 1 );
-
-    //ds iterations count
-    uint64_t uIterations = 1;
-
-    //ds initial timestamp
-    const double dTimeStartSeconds = CLogger::getTimeSeconds( );
-
-    //ds start optimization
-    double dPreviousChi2 = p_cOptimizer.chi2( )+2.0;
-
-    //ds start cycle (maximum 100s)
-    while( ( 0.1 < dPreviousChi2-p_cOptimizer.chi2( ) ) && ( 100.0 > CLogger::getTimeSeconds( )-dTimeStartSeconds ) )
-    {
-        //ds update chi2
-        dPreviousChi2 = p_cOptimizer.chi2( );
-
-        //ds do ten iterations
-        p_cOptimizer.optimize( 10 );
-        uIterations += 10;
-    }
-
-    return uIterations;
-}
-
 uint64_t Cg2oOptimizer::_optimizeUnLimited( g2o::SparseOptimizer& p_cOptimizer )
 {
     //ds initialize optimization
@@ -615,10 +685,10 @@ uint64_t Cg2oOptimizer::_optimizeUnLimited( g2o::SparseOptimizer& p_cOptimizer )
     uint64_t uIterations = 1;
 
     //ds start optimization
-    double dPreviousChi2 = p_cOptimizer.chi2( )+1.0;
+    double dPreviousChi2 = 1.1*p_cOptimizer.chi2( );
 
-    //ds start cycle
-    while( ( 0.001 < dPreviousChi2-p_cOptimizer.chi2( ) ) )
+    //ds start cycle and check if we have at least 1% chi improvement
+    while( ( 0.99 > p_cOptimizer.chi2( )/dPreviousChi2 ) )
     {
         //ds update chi2
         dPreviousChi2 = p_cOptimizer.chi2( );

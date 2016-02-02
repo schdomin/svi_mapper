@@ -129,7 +129,7 @@ void CKeyFrame::saveCloudToFile( ) const
     ofCloud.close( );
 }
 
-std::shared_ptr< const std::vector< CMatchCloud > > CKeyFrame::getMatches( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloudQuery ) const
+std::shared_ptr< const std::vector< CMatchCloud > > CKeyFrame::getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloudQuery ) const
 {
     std::shared_ptr< std::vector< CMatchCloud > > vecMatches( std::make_shared< std::vector< CMatchCloud > >( ) );
 
@@ -308,7 +308,21 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
 
     //ds add dynamic sizes
     uSizeBytes += vecCloud->size( )*sizeof( CDescriptorVectorPoint3DWORLD );
+
+    for( const CDescriptorVectorPoint3DWORLD cPoint: *vecCloud )
+    {
+        uSizeBytes += cPoint.vecDescriptors.size( )*sizeof( CDescriptor );
+    }
+
     uSizeBytes += vecLoopClosures.size( )*sizeof( CMatchICP );
+
+    for( const CMatchICP* pMatch: vecLoopClosures )
+    {
+        uSizeBytes += pMatch->vecMatches->size( )*sizeof( CMatchCloud );
+    }
+
+    uSizeBytes += vecDescriptorPool.size( )*sizeof( CDescriptorBRIEF );
+    uSizeBytes += sizeof( CDescriptors );
 
     //ds done
     return uSizeBytes;

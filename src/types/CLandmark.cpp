@@ -2,8 +2,6 @@
 #include "utility/CWrapperOpenCV.h"
 #include "vision/CMiniVisionToolbox.h"
 
-
-
 CLandmark::CLandmark( const UIDLandmark& p_uID,
            const CDescriptor& p_matDescriptorLEFT,
            const CDescriptor& p_matDescriptorRIGHT,

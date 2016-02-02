@@ -3,15 +3,15 @@
 #include "exceptions/CExceptionNoMatchFound.h"
 #include "utility/CLogger.h"
 
+
+
 CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCamera,
-                              const std::shared_ptr< cv::DescriptorExtractor > p_pExtractor,
-                              const std::shared_ptr< cv::DescriptorMatcher > p_pMatcher,
-                              const float& p_fMatchingDistanceCutoff ): m_pCameraSTEREO( p_pStereoCamera ),
+                              const std::shared_ptr< cv::DescriptorExtractor > p_pExtractor ): m_pCameraSTEREO( p_pStereoCamera ),
                                                                           m_pCameraLEFT( p_pStereoCamera->m_pCameraLEFT ),
                                                                           m_pCameraRIGHT( p_pStereoCamera->m_pCameraRIGHT ),
                                                                                             m_pExtractor( p_pExtractor ),
-                                                                                            m_pMatcher( p_pMatcher ),
-                                                                                            m_fMatchingDistanceCutoff( p_fMatchingDistanceCutoff ),
+                                                                                            m_pMatcher( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) ),
+                                                                                            m_fMatchingDistanceCutoff( 100.0 ),
                                                                                             m_dF( m_pCameraLEFT->m_matProjection(0,0) ),
                                                                                             m_dFInverse( 1/m_dF ),
                                                                                             m_dPu( m_pCameraLEFT->m_matProjection(0,2) ),
@@ -32,22 +32,22 @@ CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCa
     assert( m_pCameraRIGHT->m_matProjection(1,3) == 0.0 );
 
     CLogger::openBox( );
-    std::printf( "<CTriangulator>(CTriangulator) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
-    std::printf( "<CTriangulator>(CTriangulator) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
-    std::printf( "<CTriangulator>(CTriangulator) matching distance cutoff: %f\n", m_fMatchingDistanceCutoff );
-    std::printf( "<CTriangulator>(CTriangulator) dF: %fp\n", m_dF );
-    std::printf( "<CTriangulator>(CTriangulator) dPu: %fp\n", m_dPu );
-    std::printf( "<CTriangulator>(CTriangulator) dPv: %fp\n", m_dPv );
-    std::printf( "<CTriangulator>(CTriangulator) DuR: %fp\n", m_dDuR );
-    std::printf( "<CTriangulator>(CTriangulator) minimum depth: %fm (%up)\n", dDepthMinimumMeters, m_pCameraSTEREO->m_uPixelWidth );
-    std::printf( "<CTriangulator>(CTriangulator) maximum depth: %fm (%fp)\n", dDepthMaximumMeters, CTriangulator::dMinimumDisparityPixels );
-    std::printf( "<CTriangulator>(CTriangulator) instance allocated\n" );
+    std::printf( "[0]<CTriangulator>(CTriangulator) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
+    std::printf( "[0]<CTriangulator>(CTriangulator) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
+    std::printf( "[0]<CTriangulator>(CTriangulator) matching distance cutoff: %f\n", m_fMatchingDistanceCutoff );
+    std::printf( "[0]<CTriangulator>(CTriangulator) dF: %fp\n", m_dF );
+    std::printf( "[0]<CTriangulator>(CTriangulator) dPu: %fp\n", m_dPu );
+    std::printf( "[0]<CTriangulator>(CTriangulator) dPv: %fp\n", m_dPv );
+    std::printf( "[0]<CTriangulator>(CTriangulator) DuR: %fp\n", m_dDuR );
+    std::printf( "[0]<CTriangulator>(CTriangulator) minimum depth: %fm (%up)\n", dDepthMinimumMeters, m_pCameraSTEREO->m_uPixelWidth );
+    std::printf( "[0]<CTriangulator>(CTriangulator) maximum depth: %fm (%fp)\n", dDepthMaximumMeters, CTriangulator::dMinimumDisparityPixels );
+    std::printf( "[0]<CTriangulator>(CTriangulator) instance allocated\n" );
     CLogger::closeBox( );
 }
 
 CTriangulator::~CTriangulator( )
 {
-    std::printf( "<CTriangulator>(~CTriangulator) instance deallocated\n" );
+    std::printf( "[0]<CTriangulator>(~CTriangulator) instance deallocated\n" );
 }
 
 const CMatchTriangulation CTriangulator::getPointTriangulatedInRIGHTFull( cv::Mat& p_matDisplaySTEREO, const cv::Mat& p_matImageRIGHT,
@@ -341,7 +341,6 @@ const CPoint3DCAMERA CTriangulator::getPointInLEFT( const cv::Point2f& p_ptUVLEF
     //ds first compute depth (z in camera)
     const double dZ = m_dDuRFlipped/( p_ptUVLEFT.x-p_ptUVRIGHT.x );
 
-    //ds must be within limits
     assert( dDepthMinimumMeters <= dZ );
     assert( dDepthMaximumMeters >= dZ );
 
