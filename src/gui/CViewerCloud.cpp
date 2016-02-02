@@ -39,8 +39,8 @@ void CViewerCloud::draw( )
         for( const CMatchCloud& cPoint: *m_vecMatches )
         {
             //ds reference camera point
-            const CPoint3DCAMERA vecREFERENCE( cPoint.cPointReference.vecPointXYZCAMERA );
-            const CPoint3DCAMERA vecQUERYInitial( m_matTransformationQUERYtoREFERENCEInitial*cPoint.cPointQuery.vecPointXYZCAMERA );
+            const CPoint3DCAMERA vecREFERENCE( cPoint.pPointReference->vecPointXYZCAMERA );
+            const CPoint3DCAMERA vecQUERYInitial( m_matTransformationQUERYtoREFERENCEInitial*cPoint.pPointQuery->vecPointXYZCAMERA );
 
             //ds draw the line
             glColor3f( 0.5, 0.5, 0.5 );
@@ -58,7 +58,7 @@ void CViewerCloud::draw( )
 
             if( m_bDrawOptimizedPoints )
             {
-                const CPoint3DCAMERA vecQUERYFinal( m_matTransformationQUERYtoREFERENCEFinal*cPoint.cPointQuery.vecPointXYZCAMERA );
+                const CPoint3DCAMERA vecQUERYFinal( m_matTransformationQUERYtoREFERENCEFinal*cPoint.pPointQuery->vecPointXYZCAMERA );
 
                 //ds draw the line
                 glColor3f( 1.0, 0.0, 0.0 );

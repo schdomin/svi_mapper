@@ -37,7 +37,7 @@ public:
                const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                const CLinearAccelerationIMU& p_vecLinearAcceleration,
                const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
-               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
+               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud,
                const uint32_t& p_uCountInstability,
                const double& p_dMotionScaling,
                const std::vector< const CMatchICP* > p_vecLoopClosures );
@@ -48,7 +48,7 @@ public:
                const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                const CLinearAccelerationIMU& p_vecLinearAcceleration,
                const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
-               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
+               const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud,
                const uint32_t& p_uCountInstability,
                const double& p_dMotionScaling );
 
@@ -65,7 +65,8 @@ public:
     const CLinearAccelerationIMU vecLinearAccelerationNormalized;
     const std::vector< const CMeasurementLandmark* > vecMeasurements;
     bool bIsOptimized = false;
-    const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > vecCloud;
+    const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud;
+    std::map< UIDDescriptor, const CDescriptorVectorPoint3DWORLD* > mapDescriptorToPoint;
     const std::vector< CDescriptorBRIEF > vecDescriptorPool;
     const CDescriptors vecDescriptorPoolCV;
     const uint32_t uCountInstability;
@@ -81,17 +82,17 @@ private:
 public:
 
     void saveCloudToFile( ) const;
-    std::shared_ptr< const std::vector< CMatchCloud > > getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloudQuery ) const;
+    std::shared_ptr< const std::vector< CMatchCloud > > getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloudQuery ) const;
 
     //ds offline loading
-    std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > getCloudFromFile( const std::string& p_strFile );
+    std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > getCloudFromFile( const std::string& p_strFile );
 
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
 
-    //ds full descriptor pool
-    const std::vector< CDescriptorBRIEF > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud );
-    const CDescriptors getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud );
+    //ds full descriptor pool (getDescriptorPool MUST be called before getDescriptorPoolCV to set up the descriptor-to-point map)
+    const std::vector< CDescriptorBRIEF > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    const CDescriptors getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 
 };
 

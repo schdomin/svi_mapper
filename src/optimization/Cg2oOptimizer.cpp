@@ -429,14 +429,14 @@ void Cg2oOptimizer::optimize( const UIDFrame& p_uFrameCount,
                     for( const CMatchCloud& cMatch: *pMatch->vecMatches )
                     {
                         //ds find the corresponding landmarks
-                        const g2o::HyperGraph::VertexIDMap::iterator itLandmarkQuery( m_cOptimizerSparse.vertices( ).find( cMatch.cPointQuery.uID ) );
-                        const g2o::HyperGraph::VertexIDMap::iterator itLandmarkReference( m_cOptimizerSparse.vertices( ).find( cMatch.cPointReference.uID ) );
+                        const g2o::HyperGraph::VertexIDMap::iterator itLandmarkQuery( m_cOptimizerSparse.vertices( ).find( cMatch.pPointQuery->uID ) );
+                        const g2o::HyperGraph::VertexIDMap::iterator itLandmarkReference( m_cOptimizerSparse.vertices( ).find( cMatch.pPointReference->uID ) );
 
                         //ds if query is in the graph
                         if( itLandmarkQuery != m_cOptimizerSparse.vertices( ).end( ) )
                         {
                             //ds consistency
-                            assert( cMatch.cPointReference.uID == m_vecLandmarks->at( cMatch.cPointReference.uID )->uID );
+                            assert( cMatch.pPointReference->uID == m_vecLandmarks->at( cMatch.pPointReference->uID )->uID );
 
                             //ds reference landmark
                             g2o::VertexPointXYZ* pVertexLandmarkReference = 0;

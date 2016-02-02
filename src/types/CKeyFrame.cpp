@@ -8,7 +8,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                       const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                       const CLinearAccelerationIMU& p_vecLinearAcceleration,
                       const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
-                      const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
+                      const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud,
                       const uint32_t& p_uCountInstability,
                       const double& p_dMotionScaling,
                       const std::vector< const CMatchICP* > p_vecLoopClosures ): uID( p_uID ),
@@ -34,7 +34,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                       const Eigen::Isometry3d p_matTransformationLEFTtoWORLD,
                       const CLinearAccelerationIMU& p_vecLinearAcceleration,
                       const std::vector< const CMeasurementLandmark* >& p_vecMeasurements,
-                      const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud,
+                      const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud,
                       const uint32_t& p_uCountInstability,
                       const double& p_dMotionScaling ): uID( p_uID ),
                                                         uFrameOfCreation( p_uFrame ),
@@ -77,6 +77,11 @@ CKeyFrame::~CKeyFrame( )
         {
             delete pClosure;
         }
+
+        for( CDescriptorVectorPoint3DWORLD* pPoint: *vecCloud )
+        {
+            delete pPoint;
+        }
     }
 }
 
@@ -99,27 +104,27 @@ void CKeyFrame::saveCloudToFile( ) const
     }
     CLogger::writeDatum( ofCloud, vecCloud->size( ) );
 
-    for( const CDescriptorVectorPoint3DWORLD& pPoint: *vecCloud )
+    for( const CDescriptorVectorPoint3DWORLD* pPoint: *vecCloud )
     {
         //ds dump position and descriptor number info
-        CLogger::writeDatum( ofCloud, pPoint.vecPointXYZWORLD.x( ) );
-        CLogger::writeDatum( ofCloud, pPoint.vecPointXYZWORLD.y( ) );
-        CLogger::writeDatum( ofCloud, pPoint.vecPointXYZWORLD.z( ) );
-        CLogger::writeDatum( ofCloud, pPoint.vecPointXYZCAMERA.x( ) );
-        CLogger::writeDatum( ofCloud, pPoint.vecPointXYZCAMERA.y( ) );
-        CLogger::writeDatum( ofCloud, pPoint.vecPointXYZCAMERA.z( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecPointXYZWORLD.x( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecPointXYZWORLD.y( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecPointXYZWORLD.z( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecPointXYZCAMERA.x( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecPointXYZCAMERA.y( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecPointXYZCAMERA.z( ) );
 
-        assert( pPoint.ptUVLEFT.y == pPoint.ptUVRIGHT.y );
+        assert( pPoint->ptUVLEFT.y == pPoint->ptUVRIGHT.y );
 
-        CLogger::writeDatum( ofCloud, pPoint.ptUVLEFT.x );
-        CLogger::writeDatum( ofCloud, pPoint.ptUVLEFT.y );
-        CLogger::writeDatum( ofCloud, pPoint.ptUVRIGHT.x );
-        CLogger::writeDatum( ofCloud, pPoint.ptUVRIGHT.y );
+        CLogger::writeDatum( ofCloud, pPoint->ptUVLEFT.x );
+        CLogger::writeDatum( ofCloud, pPoint->ptUVLEFT.y );
+        CLogger::writeDatum( ofCloud, pPoint->ptUVRIGHT.x );
+        CLogger::writeDatum( ofCloud, pPoint->ptUVRIGHT.y );
 
-        CLogger::writeDatum( ofCloud, pPoint.vecDescriptors.size( ) );
+        CLogger::writeDatum( ofCloud, pPoint->vecDescriptors.size( ) );
 
         //ds dump all descriptors found so far
-        for( const CDescriptor& pDescriptorLEFT: pPoint.vecDescriptors )
+        for( const CDescriptor& pDescriptorLEFT: pPoint->vecDescriptors )
         {
             //ds print the descriptor elements
             for( int32_t u = 0; u < pDescriptorLEFT.cols; ++u ){ CLogger::writeDatum( ofCloud, pDescriptorLEFT.data[u] ); }
@@ -129,11 +134,11 @@ void CKeyFrame::saveCloudToFile( ) const
     ofCloud.close( );
 }
 
-std::shared_ptr< const std::vector< CMatchCloud > > CKeyFrame::getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloudQuery ) const
+std::shared_ptr< const std::vector< CMatchCloud > > CKeyFrame::getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloudQuery ) const
 {
     std::shared_ptr< std::vector< CMatchCloud > > vecMatches( std::make_shared< std::vector< CMatchCloud > >( ) );
 
-    //ds treated points
+    /*ds treated points
     std::set< UIDLandmark > vecMatchedIDs;
 
     //ds try to match the query into the training
@@ -212,12 +217,12 @@ std::shared_ptr< const std::vector< CMatchCloud > > CKeyFrame::getMatchesVisualS
         }
 
         //std::printf( "(main) best match for query: %03lu -> train: %03lu (matching distance: %9.4f, descriptor matchings: %03lu)\n", cPointQuery.uID, uIDQueryBest, dMatchingDistanceBest, uDescriptorMatchingsBest );
-    }
+    }*/
 
     return vecMatches;
 }
 
-std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CKeyFrame::getCloudFromFile( const std::string& p_strFile )
+std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CKeyFrame::getCloudFromFile( const std::string& p_strFile )
 {
     //ds open the file
     std::ifstream ifMessages( p_strFile, std::ifstream::in );
@@ -246,7 +251,7 @@ std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CKeyFrame:
     CLogger::readDatum( ifMessages, uNumberOfPoints );
 
     //ds points in the cloud (preallocation ignored since const elements)
-    std::shared_ptr< std::vector< CDescriptorVectorPoint3DWORLD > > vecPoints( std::make_shared< std::vector< CDescriptorVectorPoint3DWORLD > >( ) );
+    std::shared_ptr< std::vector< CDescriptorVectorPoint3DWORLD* > > vecPoints( std::make_shared< std::vector< CDescriptorVectorPoint3DWORLD* > >( ) );
 
     //ds for all these points
     for( std::vector< CLandmark* >::size_type u = 0; u < uNumberOfPoints; ++u )
@@ -295,7 +300,7 @@ std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CKeyFrame:
         }
 
         //ds set vector
-        vecPoints->push_back( CDescriptorVectorPoint3DWORLD( u, vecPointXYZWORLD, vecPointXYZCAMERA, ptUVLEFT, ptUVRIGHT, vecDescriptors ) );
+        vecPoints->push_back( new CDescriptorVectorPoint3DWORLD( u, vecPointXYZWORLD, vecPointXYZCAMERA, ptUVLEFT, ptUVRIGHT, vecDescriptors ) );
     }
 
     return vecPoints;
@@ -309,9 +314,9 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
     //ds add dynamic sizes
     uSizeBytes += vecCloud->size( )*sizeof( CDescriptorVectorPoint3DWORLD );
 
-    for( const CDescriptorVectorPoint3DWORLD cPoint: *vecCloud )
+    for( const CDescriptorVectorPoint3DWORLD* pPoint: *vecCloud )
     {
-        uSizeBytes += cPoint.vecDescriptors.size( )*sizeof( CDescriptor );
+        uSizeBytes += pPoint->vecDescriptors.size( )*sizeof( CDescriptor );
     }
 
     uSizeBytes += vecLoopClosures.size( )*sizeof( CMatchICP );
@@ -328,16 +333,19 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
     return uSizeBytes;
 }
 
-const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud )
+const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
 {
+    mapDescriptorToPoint.clear( );
     std::vector< CDescriptorBRIEF > vecDescriptorPool( 0 );
 
     //ds fill the pool
-    for( const CDescriptorVectorPoint3DWORLD& vecDescriptors: *p_vecCloud )
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
     {
         //ds add up descriptors
-        for( const CDescriptor& cDescriptor: vecDescriptors.vecDescriptors )
+        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
         {
+            //ds map descriptor pool to points for later retrieval
+            mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
             vecDescriptorPool.push_back( CWrapperOpenCV::getDescriptorBRIEF( cDescriptor ) );
         }
     }
@@ -345,16 +353,20 @@ const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::s
     return vecDescriptorPool;
 }
 
-const CDescriptors CKeyFrame::getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > p_vecCloud )
+const CDescriptors CKeyFrame::getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
 {
     CDescriptors vecDescriptorPool( 0, DESCRIPTOR_SIZE_BYTES, CV_8U );
 
     //ds fill the pool
-    for( const CDescriptorVectorPoint3DWORLD& vecDescriptors: *p_vecCloud )
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
     {
         //ds add up descriptors row-wise
-        for( const CDescriptor& cDescriptor: vecDescriptors.vecDescriptors )
+        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
         {
+            //ds consistency check
+            assert( pPointWithDescriptors->uID == mapDescriptorToPoint.at( vecDescriptorPool.rows )->uID );
+
+            //ds increase pool
             vecDescriptorPool.push_back( cDescriptor );
         }
     }

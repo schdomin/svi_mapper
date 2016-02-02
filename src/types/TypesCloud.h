@@ -3,7 +3,7 @@
 
 #include "Types.h"
 
-struct CDescriptorPoint3DWORLD
+/*struct CDescriptorPoint3DWORLD
 {
     const UIDLandmark uID;
     const CPoint3DWORLD vecPointXYZWORLD;
@@ -15,7 +15,7 @@ struct CDescriptorPoint3DWORLD
     {
         //ds nothing to do
     }
-};
+};*/
 
 struct CDescriptorVectorPoint3DWORLD
 {
@@ -42,7 +42,7 @@ struct CDescriptorVectorPoint3DWORLD
     }
 };
 
-struct CDescriptorVectorPointCloud
+/*struct CDescriptorVectorPointCloud
 {
     const UIDCloud uID;
     const Eigen::Isometry3d matTransformationLEFTtoWORLD;
@@ -52,17 +52,17 @@ struct CDescriptorVectorPointCloud
     {
         //ds nothing to do
     }
-};
+};*/
 
 struct CMatchCloud
 {
-    const CDescriptorVectorPoint3DWORLD cPointQuery;
-    const CDescriptorVectorPoint3DWORLD cPointReference;
+    const CDescriptorVectorPoint3DWORLD* pPointQuery;
+    const CDescriptorVectorPoint3DWORLD* pPointReference;
     const double dMatchingDistance;
 
-    CMatchCloud( const CDescriptorVectorPoint3DWORLD& p_cPointQuery,
-                 const CDescriptorVectorPoint3DWORLD& p_cPointReference,
-                 const double& p_dMatchingDistance ): cPointQuery( p_cPointQuery ), cPointReference( p_cPointReference ), dMatchingDistance( p_dMatchingDistance )
+    CMatchCloud( const CDescriptorVectorPoint3DWORLD* p_pPointQuery,
+                 const CDescriptorVectorPoint3DWORLD* p_pPointReference,
+                 const double& p_dMatchingDistance ): pPointQuery( p_pPointQuery ), pPointReference( p_pPointReference ), dMatchingDistance( p_dMatchingDistance )
     {
         //ds nothing to do
     }

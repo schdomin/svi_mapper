@@ -115,7 +115,7 @@ public:
     const std::shared_ptr< const std::vector< CLandmark* > > getVisibleOptimizedLandmarks( ) const;
 
     //ds returns cloud version of currently visible landmarks
-    const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > getCloudForVisibleOptimizedLandmarks( const UIDFrame& p_uFrame ) const;
+    const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > getCloudForVisibleOptimizedLandmarks( const UIDFrame& p_uFrame ) const;
     const std::vector< const CMeasurementLandmark* > getMeasurementsForVisibleLandmarks( ) const { return m_vecMeasurementsVisible; }
 
     const Eigen::Isometry3d getPoseStereoPosit( const UIDFrame p_uFrame,

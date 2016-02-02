@@ -624,16 +624,16 @@ int main( int argc, char** argv )
                 for( const CMatchCloud& cMatch: *vecMatches )
                 {
                     //ds compute projection into closure
-                    const CPoint3DCAMERA vecPointXYZQuery( matTransformationToCLOSURE*cMatch.cPointQuery.vecPointXYZCAMERA );
+                    const CPoint3DCAMERA vecPointXYZQuery( matTransformationToCLOSURE*cMatch.pPointQuery->vecPointXYZCAMERA );
                     if( 0.0 < vecPointXYZQuery.z( ) )
                     {
-                        assert( 0.0 < cMatch.cPointReference.vecPointXYZCAMERA.z( ) );
+                        assert( 0.0 < cMatch.pPointReference->vecPointXYZCAMERA.z( ) );
 
                         //ds adjust omega to inverse depth value (the further away the point, the less weight)
-                        matOmega(2,2) = 1.0/( cMatch.cPointReference.vecPointXYZCAMERA.z( ) );
+                        matOmega(2,2) = 1.0/( cMatch.pPointReference->vecPointXYZCAMERA.z( ) );
 
                         //ds compute error
-                        const Eigen::Vector3d vecError( vecPointXYZQuery-cMatch.cPointReference.vecPointXYZCAMERA );
+                        const Eigen::Vector3d vecError( vecPointXYZQuery-cMatch.pPointReference->vecPointXYZCAMERA );
 
                         //ds update chi
                         const double dErrorSquared = vecError.transpose( )*matOmega*vecError;

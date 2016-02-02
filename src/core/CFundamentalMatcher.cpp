@@ -110,10 +110,10 @@ const std::shared_ptr< const std::vector< CLandmark* > > CFundamentalMatcher::ge
     return vecVisibleLandmarks;
 }
 
-const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CFundamentalMatcher::getCloudForVisibleOptimizedLandmarks( const UIDFrame& p_uFrame ) const
+const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CFundamentalMatcher::getCloudForVisibleOptimizedLandmarks( const UIDFrame& p_uFrame ) const
 {
     //ds return vector
-    std::shared_ptr< std::vector< CDescriptorVectorPoint3DWORLD > > vecCloud( std::make_shared< std::vector< CDescriptorVectorPoint3DWORLD > >( ) );
+    std::shared_ptr< std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud( std::make_shared< std::vector< CDescriptorVectorPoint3DWORLD* > >( ) );
 
     for( CLandmark* pLandmark: m_vecVisibleLandmarks )
     {
@@ -123,12 +123,12 @@ const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD > > CFun
         //ds check if optimal
         if( pLandmark->bIsOptimal )
         {
-            vecCloud->push_back( CDescriptorVectorPoint3DWORLD( pLandmark->uID,
-                                                                pLandmark->vecPointXYZOptimized,
-                                                                pLandmark->getLastPointXYZLEFT( ),
-                                                                pLandmark->getLastDetectionLEFT( ),
-                                                                pLandmark->getLastDetectionRIGHT( ),
-                                                                pLandmark->vecDescriptorsLEFT ) );
+            vecCloud->push_back( new CDescriptorVectorPoint3DWORLD( pLandmark->uID,
+                                                                    pLandmark->vecPointXYZOptimized,
+                                                                    pLandmark->getLastPointXYZLEFT( ),
+                                                                    pLandmark->getLastDetectionLEFT( ),
+                                                                    pLandmark->getLastDetectionRIGHT( ),
+                                                                    pLandmark->vecDescriptorsLEFT ) );
         }
     }
 
