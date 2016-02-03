@@ -71,6 +71,8 @@ include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLUT_INCLUDE_DIRS})
 include_directories(${QGLVIEWER_INCLUDE_DIR})
 include_directories(${TXT_IO_INCLUDE_DIR})
+include_directories(${DLIB_INCLUDE_DIR})
+include_directories(${DBOW2_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 
@@ -102,6 +104,8 @@ ${G2O_SOLVER_CHOLMOD}
 ${CHOLMOD_LIBRARY}
 ${G2O_STUFF_LIBRARY}
 ${TXT_IO_LIBRARY}
+${DLIB_LIBRARY}
+${DBOW2_LIBRARY}
 -fopenmp
 -pthread)
 

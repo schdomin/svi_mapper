@@ -39,7 +39,15 @@ build sequence EXAMPLE (shell in project root):
 
 mkdir build
 cd build
-cmake -D CMAKE_BUILD_TYPE=RELEASE -D OpenCV_DIR="/home/dom/libraries/cpp/opencv-2.4.11/release" -D G2O_ROOT="/home/dom/libraries/cpp/g2o" -D TXT_IO_INCLUDE_DIR="/home/dom/workspace_catkin/src/fps_mapper/src" -D TXT_IO_LIBRARY="/home/dom/workspace_catkin/devel/lib/libtxt_io_library.so" ..
+cmake -D OpenCV_DIR='/home/dom/libraries/cpp/opencv-2.4.11/release' \
+-D G2O_ROOT='/home/dom/libraries/cpp/g2o' \
+-D TXT_IO_INCLUDE_DIR='/home/dom/workspace_catkin/src/thin_drivers/thin_state_publisher/src' \
+-D TXT_IO_LIBRARY='/home/dom/workspace_catkin/devel/lib/libthin_txt_io_library.so' \
+-D DLIB_INCLUDE_DIR='/home/dom/libraries/cpp/DLib/include' \
+-D DBOW2_INCLUDE_DIR='/home/dom/libraries/cpp/DBoW2/include/DBoW2' \
+-D DLIB_LIBRARY='/home/dom/libraries/cpp/DLib/build/libDLib.so' \
+-D DBOW2_LIBRARY='/home/dom/libraries/cpp/DBoW2/build/libDBoW2.so' \
+-D CMAKE_BUILD_TYPE=Release ..
 make -j666
 
 

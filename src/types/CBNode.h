@@ -11,7 +11,7 @@ class CBNode
 {
 
     //ds readability
-    using CDescriptorVector = Eigen::Matrix< bool, uDescriptorSizeBits, 1 >;
+    using CDescriptorVector = std::bitset< uDescriptorSizeBits >; //Eigen::Matrix< bool, uDescriptorSizeBits, 1 >;
 
 //ds eigen memory alignment
 public:
@@ -22,7 +22,7 @@ public:
 public:
 
     //ds access only through this constructor
-    CBNode( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors ): CBNode< uMaximumDepth, uDescriptorSizeBits >( 0, p_vecDescriptors, CDescriptorVector::Ones( ) )
+    CBNode( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors ): CBNode< uMaximumDepth, uDescriptorSizeBits >( 0, p_vecDescriptors, _getMaskClean( ) )
     {
         //ds wrapped
     }
@@ -183,15 +183,13 @@ private:
         return cMaskCopy;
     }*/
 
-    /*CDescriptorBRIEF _getMaskClean( ) const
+    //ds returns a bitset with all bits set to true
+    CDescriptorVector _getMaskClean( ) const
     {
-        CDescriptorBRIEF cMask( 1, uDescriptorSize, CV_8U ); // = new CDescriptorBRIEFElement[uDescriptorSize];
-        for( uint32_t u = 0; u < uDescriptorSize; ++u )
-        {
-            cMask[u] = 1;
-        }
-        return cMask;
-    }*/
+        CDescriptorVector vecMask;
+        vecMask.set( );
+        return vecMask;
+    }
 
 //ds format
 public:
@@ -226,7 +224,7 @@ public:
                                                      const CDescriptorVector& p_vecDescriptorReference )
     {
         //ds count set bits
-        return ( p_vecDescriptorQuery-p_vecDescriptorReference ).count( );
+        return ( p_vecDescriptorQuery ^ p_vecDescriptorReference ).count( );
     }
 
 };

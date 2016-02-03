@@ -12,6 +12,11 @@
 #include "optimization/Cg2oOptimizer.h"
 #include "utility/CIMUInterpolator.h"
 
+#include "DBoW2.h" // defines Surf64Vocabulary and Surf64Database
+#include "DUtils/DUtils.h"
+#include "DUtilsCV/DUtilsCV.h" // defines macros CVXX
+#include "DVision/DVision.h"
+
 
 
 class CTrackerSVI
