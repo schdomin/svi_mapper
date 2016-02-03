@@ -3,6 +3,7 @@
 
 #include "CLandmark.h"
 #include "TypesCloud.h"
+#include "CDescriptorBRIEF.h"
 #include "../utility/CLogger.h"
 
 
@@ -67,7 +68,7 @@ public:
     bool bIsOptimized = false;
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud;
     std::map< UIDDescriptor, const CDescriptorVectorPoint3DWORLD* > mapDescriptorToPoint;
-    const std::vector< CDescriptorBRIEF > vecDescriptorPool;
+    const std::vector< CDescriptorBRIEF< > > vecDescriptorPool;
     const CDescriptors vecDescriptorPoolCV;
     const uint32_t uCountInstability;
     const double dMotionScaling;
@@ -91,7 +92,7 @@ public:
     const uint64_t getSizeBytes( ) const;
 
     //ds full descriptor pool (getDescriptorPool MUST be called before getDescriptorPoolCV to set up the descriptor-to-point map)
-    const std::vector< CDescriptorBRIEF > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    const std::vector< CDescriptorBRIEF< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
     const CDescriptors getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 
 };

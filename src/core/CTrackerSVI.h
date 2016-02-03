@@ -86,8 +86,8 @@ private:
     const std::vector< CKeyFrame* >::size_type m_uIDDeltaKeyFrameForOptimization = 20; //10
 
     //ds loop closing
-    const std::vector< CKeyFrame* >::size_type m_uMinimumLoopClosingKeyFrameDistance = 20; //20
-    const double m_dMinimumRelativeMatchesLoopClosure                                = 0.5;
+    const int64_t m_uMinimumLoopClosingKeyFrameDistance                              = 20; //20
+    const double m_dMinimumRelativeMatchesLoopClosure;
     const std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFrameWaitingQueue    = 1;
     std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFramesInQueue              = 0;
     std::vector< CKeyFrame* >::size_type m_uIDLoopClosureOptimizedLAST               = 0;
@@ -112,6 +112,7 @@ private:
     double m_dDistanceTraveledMeters = 0.0;
     const std::string m_strVersionInfo;
     double m_dDurationTotalSecondsLoopClosing = 0.0;
+    Eigen::MatrixXd m_matClosureMap;
 
 //ds accessors
 public:

@@ -58,7 +58,5 @@ using CDescriptors = cv::Matx< uchar, uRows, 64 >;*/
 typedef cv::Mat CDescriptors;
 
 
-typedef Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 1 > CDescriptorBRIEF;
-typedef std::vector< CDescriptorBRIEF > CCloudDescriptorBRIEF;
 
 #endif //TYPEDEFS_H

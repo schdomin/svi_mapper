@@ -1,5 +1,5 @@
 #include "CKeyFrame.h"
-#include "../utility/CWrapperOpenCV.h"
+#include "CBNode.h"
 
 
 
@@ -326,17 +326,17 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
         uSizeBytes += pMatch->vecMatches->size( )*sizeof( CMatchCloud );
     }
 
-    uSizeBytes += vecDescriptorPool.size( )*sizeof( CDescriptorBRIEF );
+    uSizeBytes += vecDescriptorPool.size( )*sizeof( CDescriptorBRIEF< > );
     uSizeBytes += sizeof( CDescriptors );
 
     //ds done
     return uSizeBytes;
 }
 
-const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
+const std::vector< CDescriptorBRIEF< > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
 {
     mapDescriptorToPoint.clear( );
-    std::vector< CDescriptorBRIEF > vecDescriptorPool( 0 );
+    std::vector< CDescriptorBRIEF< > > vecDescriptorPool;
 
     //ds fill the pool
     for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
@@ -346,7 +346,7 @@ const std::vector< CDescriptorBRIEF > CKeyFrame::getDescriptorPool( const std::s
         {
             //ds map descriptor pool to points for later retrieval
             mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
-            vecDescriptorPool.push_back( CWrapperOpenCV::getDescriptorBRIEF( cDescriptor ) );
+            vecDescriptorPool.push_back( CDescriptorBRIEF< >( vecDescriptorPool.size( ), CBNode< >::getDescriptorEigen( cDescriptor ) ) );
         }
     }
 
