@@ -1352,207 +1352,86 @@ void CFundamentalMatcher::trackEpipolar( const UIDFrame p_uFrame,
                         const cv::Point2f ptOffsetKeyPointHalf( fKeyPointSizePixelsHalf, fKeyPointSizePixelsHalf );
                         const float fSearchRange = fTriangulationScale*pLandmark->getLastDisparity( );
 
-                        //ds STAGE 2: check region on LEFT
-                        try
+                        //ds check if we are in tracking range
+                        if( m_pCameraLEFT->m_cFieldOfView.contains( ptUVEstimateLEFT ) && m_pCameraRIGHT->m_cFieldOfView.contains( ptUVEstimateRIGHT ) )
                         {
-                            //ds compute search ranges (no subpixel accuracy)
-                            const double dScaleSearchULEFT      = std::round( m_pCameraLEFT->getPrincipalWeightU( ptUVEstimateLEFT ) + p_dMotionScaling );
-                            const double dScaleSearchVLEFT      = std::round( m_pCameraLEFT->getPrincipalWeightV( ptUVEstimateLEFT ) + p_dMotionScaling );
-                            const double dSearchHalfWidthLEFT   = std::round( dScaleSearchULEFT*m_uSearchBlockSizePoseOptimization );
-                            const double dSearchHalfHeightLEFT  = std::round( dScaleSearchVLEFT*m_uSearchBlockSizePoseOptimization );
-
-                            //ds corners
-                            cv::Point2f ptUpperLeftLEFT( std::max( ptUVEstimateLEFT.x-dSearchHalfWidthLEFT, 0.0 ), std::max( ptUVEstimateLEFT.y-dSearchHalfHeightLEFT, 0.0 ) );
-                            cv::Point2f ptLowerRightLEFT( std::min( ptUVEstimateLEFT.x+dSearchHalfWidthLEFT, m_pCameraLEFT->m_dWidthPixels ), std::min( ptUVEstimateLEFT.y+dSearchHalfHeightLEFT, m_pCameraLEFT->m_dHeightPixels ) );
-
-                            //ds search rectangle
-                            const cv::Rect cSearchROILEFT( ptUpperLeftLEFT, ptLowerRightLEFT );
-
-                            //ds run detection on current frame
-                            std::vector< cv::KeyPoint > vecKeyPointsLEFT;
-                            m_pDetector->detect( p_matImageLEFT( cSearchROILEFT ), vecKeyPointsLEFT );
-
-                            //ds if we found some features in the LEFT frame
-                            if( 0 < vecKeyPointsLEFT.size( ) )
-                            {
-                                //ds compute descriptors in extended ROI
-                                const float fUpperLeftU  = std::max( ptUpperLeftLEFT.x-fKeyPointSizePixelsHalf, 0.0f );
-                                const float fUpperLeftV  = std::max( ptUpperLeftLEFT.y-fKeyPointSizePixelsHalf, 0.0f );
-                                const float fLowerRightU = std::min( ptLowerRightLEFT.x+fKeyPointSizePixelsHalf, m_pCameraLEFT->m_fWidthPixels );
-                                const float fLowerRightV = std::min( ptLowerRightLEFT.y+fKeyPointSizePixelsHalf, m_pCameraLEFT->m_fHeightPixels );
-                                cv::Mat matDescriptorsLEFT;
-
-                                //ds adjust keypoint offsets before computing descriptors
-                                std::for_each( vecKeyPointsLEFT.begin( ), vecKeyPointsLEFT.end( ), [ &ptOffsetKeyPointHalf ]( cv::KeyPoint& cKeyPoint ){ cKeyPoint.pt += ptOffsetKeyPointHalf; } );
-                                m_pExtractor->compute( p_matImageLEFT( cv::Rect( cv::Point2f( fUpperLeftU, fUpperLeftV ), cv::Point2f( fLowerRightU, fLowerRightV ) ) ), vecKeyPointsLEFT, matDescriptorsLEFT );
-
-                                //ds check descriptor matches for this landmark
-                                std::vector< cv::DMatch > vecMatchesLEFT;
-                                m_pMatcher->match( pLandmark->getLastDescriptorLEFT( ), matDescriptorsLEFT, vecMatchesLEFT );
-
-                                //ds if we got a match and the matching distance is within the range
-                                if( 0 < vecMatchesLEFT.size( ) )
-                                {
-                                    if( m_dMatchingDistanceCutoffTrackingStage2 > vecMatchesLEFT[0].distance )
-                                    {
-                                        const cv::Point2f ptBestMatchLEFT( vecKeyPointsLEFT[vecMatchesLEFT[0].trainIdx].pt );
-                                        const cv::Point2f ptBestMatchLEFTInCamera( ptUpperLeftLEFT+ptBestMatchLEFT-ptOffsetKeyPointHalf );
-                                        const CDescriptor matDescriptorLEFT( matDescriptorsLEFT.row(vecMatchesLEFT[0].trainIdx) );
-
-                                        //ds center V
-                                        const float fVReference = ptBestMatchLEFTInCamera.y-fKeyPointSizePixelsHalf;
-
-                                        //ds if in range triangulate the point directly
-                                        if( 0.0 <= fVReference )
-                                        {
-                                            const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
-                                                                                                                                 std::max( 0.0f, ptBestMatchLEFTInCamera.x-fSearchRange-fKeyPointSizePixelsHalf ),
-                                                                                                                                 fVReference,
-                                                                                                                                 fKeyPointSizePixels,
-                                                                                                                                 ptBestMatchLEFTInCamera,
-                                                                                                                                 matDescriptorLEFT ) );
-                                            const CDescriptor matDescriptorRIGHT( cMatchRIGHT.matDescriptorCAMERA );
-
-                                            //ds check depth
-                                            const double dDepthMeters = cMatchRIGHT.vecPointXYZCAMERA.z( );
-                                            if( m_dMinimumDepthMeters > dDepthMeters || m_dMaximumDepthMeters < dDepthMeters )
-                                            {
-                                                throw CExceptionNoMatchFound( "invalid depth" );
-                                            }
-
-                                            //ds check if the descriptor match is acceptable
-                                            if( m_dMatchingDistanceCutoffTrackingStage2 > cv::norm( pLandmark->getLastDescriptorRIGHT( ), matDescriptorRIGHT, cv::NORM_HAMMING ) )
-                                            {
-                                                //ds add measurement to landmark
-                                                _addMeasurementToLandmarkSTEREO( p_uFrame,
-                                                                                 pLandmark,
-                                                                                 ptBestMatchLEFTInCamera,
-                                                                                 cMatchRIGHT.ptUVCAMERA,
-                                                                                 cMatchRIGHT.vecPointXYZCAMERA,
-                                                                                 matDescriptorLEFT,
-                                                                                 matDescriptorRIGHT,
-                                                                                 p_matTransformationLEFTtoWORLD,
-                                                                                 p_matTransformationWORLDtoLEFT,
-                                                                                 matProjectionWORLDtoLEFT,
-                                                                                 matProjectionWORLDtoRIGHT );
-
-                                                //ds add measurement to matcher
-                                                m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
-
-                                                //ds info
-                                                cv::circle( p_matDisplayLEFT, ptBestMatchLEFTInCamera, 4, CColorCodeBGR( 255, 0, 0 ), 1 );
-                                                ++m_uNumberOfTracksStage2_2;
-                                            }
-                                            else
-                                            {
-                                                //ds try the RIGHT frame
-                                                throw CExceptionNoMatchFound( "triangulation descriptor mismatch" );
-                                            }
-                                        }
-                                        else
-                                        {
-                                            //ds try the RIGHT frame
-                                            throw CExceptionNoMatchFound( "out of tracking range" );
-                                        }
-                                    }
-                                    else
-                                    {
-                                        //ds try the RIGHT frame
-                                        throw CExceptionNoMatchFound( "descriptor mismatch" );
-                                    }
-                                }
-                                else
-                                {
-                                    //ds try the RIGHT frame
-                                    throw CExceptionNoMatchFound( "no matches found" );
-                                }
-                            }
-                            else
-                            {
-                                //ds try the RIGHT frame
-                                throw CExceptionNoMatchFound( "no features detected" );
-                            }
-                        }
-                        catch( const CExceptionNoMatchFound& p_cExceptionStage2LEFT )
-                        {
-                            //ds try to find the landmarks on RIGHT
+                            //ds STAGE 2: check region on LEFT
                             try
                             {
                                 //ds compute search ranges (no subpixel accuracy)
-                                const double dScaleSearchURIGHT      = std::round( m_pCameraRIGHT->getPrincipalWeightU( ptUVEstimateRIGHT ) + p_dMotionScaling );
-                                const double dScaleSearchVRIGHT      = std::round( m_pCameraRIGHT->getPrincipalWeightV( ptUVEstimateRIGHT ) + p_dMotionScaling );
-                                const double dSearchHalfWidthRIGHT   = std::round( dScaleSearchURIGHT*m_uSearchBlockSizePoseOptimization );
-                                const double dSearchHalfHeightRIGHT  = std::round( dScaleSearchVRIGHT*m_uSearchBlockSizePoseOptimization );
+                                const double dScaleSearchULEFT      = std::round( m_pCameraLEFT->getPrincipalWeightU( ptUVEstimateLEFT ) + p_dMotionScaling );
+                                const double dScaleSearchVLEFT      = std::round( m_pCameraLEFT->getPrincipalWeightV( ptUVEstimateLEFT ) + p_dMotionScaling );
+                                const double dSearchHalfWidthLEFT   = std::round( dScaleSearchULEFT*m_uSearchBlockSizePoseOptimization );
+                                const double dSearchHalfHeightLEFT  = std::round( dScaleSearchVLEFT*m_uSearchBlockSizePoseOptimization );
 
                                 //ds corners
-                                cv::Point2f ptUpperLeftRIGHT( std::max( ptUVEstimateRIGHT.x-dSearchHalfWidthRIGHT, 0.0 ), std::max( ptUVEstimateRIGHT.y-dSearchHalfHeightRIGHT, 0.0 ) );
-                                cv::Point2f ptLowerRightRIGHT( std::min( ptUVEstimateRIGHT.x+dSearchHalfWidthRIGHT, m_pCameraRIGHT->m_dWidthPixels ), std::min( ptUVEstimateRIGHT.y+dSearchHalfHeightRIGHT, m_pCameraRIGHT->m_dHeightPixels ) );
+                                cv::Point2f ptUpperLeftLEFT( std::max( ptUVEstimateLEFT.x-dSearchHalfWidthLEFT, 0.0 ), std::max( ptUVEstimateLEFT.y-dSearchHalfHeightLEFT, 0.0 ) );
+                                cv::Point2f ptLowerRightLEFT( std::min( ptUVEstimateLEFT.x+dSearchHalfWidthLEFT, m_pCameraLEFT->m_dWidthPixels ), std::min( ptUVEstimateLEFT.y+dSearchHalfHeightLEFT, m_pCameraLEFT->m_dHeightPixels ) );
 
                                 //ds search rectangle
-                                const cv::Rect cSearchROIRIGHT( ptUpperLeftRIGHT, ptLowerRightRIGHT );
+                                const cv::Rect cSearchROILEFT( ptUpperLeftLEFT, ptLowerRightLEFT );
 
                                 //ds run detection on current frame
-                                std::vector< cv::KeyPoint > vecKeyPointsRIGHT;
-                                m_pDetector->detect( p_matImageRIGHT( cSearchROIRIGHT ), vecKeyPointsRIGHT );
+                                std::vector< cv::KeyPoint > vecKeyPointsLEFT;
+                                m_pDetector->detect( p_matImageLEFT( cSearchROILEFT ), vecKeyPointsLEFT );
 
-                                //ds if we found some features in the RIGHT frame
-                                if( 0 < vecKeyPointsRIGHT.size( ) )
+                                //ds if we found some features in the LEFT frame
+                                if( 0 < vecKeyPointsLEFT.size( ) )
                                 {
                                     //ds compute descriptors in extended ROI
-                                    const float fUpperLeftU  = std::max( ptUpperLeftRIGHT.x-fKeyPointSizePixelsHalf, 0.0f );
-                                    const float fUpperLeftV  = std::max( ptUpperLeftRIGHT.y-fKeyPointSizePixelsHalf, 0.0f );
-                                    const float fLowerRightU = std::min( ptLowerRightRIGHT.x+fKeyPointSizePixelsHalf, m_pCameraRIGHT->m_fWidthPixels );
-                                    const float fLowerRightV = std::min( ptLowerRightRIGHT.y+fKeyPointSizePixelsHalf, m_pCameraRIGHT->m_fHeightPixels );
-                                    cv::Mat matDescriptorsRIGHT;
+                                    const float fUpperLeftU  = std::max( ptUpperLeftLEFT.x-fKeyPointSizePixelsHalf, 0.0f );
+                                    const float fUpperLeftV  = std::max( ptUpperLeftLEFT.y-fKeyPointSizePixelsHalf, 0.0f );
+                                    const float fLowerRightU = std::min( ptLowerRightLEFT.x+fKeyPointSizePixelsHalf, m_pCameraLEFT->m_fWidthPixels );
+                                    const float fLowerRightV = std::min( ptLowerRightLEFT.y+fKeyPointSizePixelsHalf, m_pCameraLEFT->m_fHeightPixels );
+                                    cv::Mat matDescriptorsLEFT;
 
                                     //ds adjust keypoint offsets before computing descriptors
-                                    std::for_each( vecKeyPointsRIGHT.begin( ), vecKeyPointsRIGHT.end( ), [ &ptOffsetKeyPointHalf ]( cv::KeyPoint& cKeyPoint ){ cKeyPoint.pt += ptOffsetKeyPointHalf; } );
-                                    m_pExtractor->compute( p_matImageRIGHT( cv::Rect( cv::Point2f( fUpperLeftU, fUpperLeftV ), cv::Point2f( fLowerRightU, fLowerRightV ) ) ), vecKeyPointsRIGHT, matDescriptorsRIGHT );
+                                    std::for_each( vecKeyPointsLEFT.begin( ), vecKeyPointsLEFT.end( ), [ &ptOffsetKeyPointHalf ]( cv::KeyPoint& cKeyPoint ){ cKeyPoint.pt += ptOffsetKeyPointHalf; } );
+                                    m_pExtractor->compute( p_matImageLEFT( cv::Rect( cv::Point2f( fUpperLeftU, fUpperLeftV ), cv::Point2f( fLowerRightU, fLowerRightV ) ) ), vecKeyPointsLEFT, matDescriptorsLEFT );
 
                                     //ds check descriptor matches for this landmark
-                                    std::vector< cv::DMatch > vecMatchesRIGHT;
-                                    m_pMatcher->match( pLandmark->getLastDescriptorRIGHT( ), matDescriptorsRIGHT, vecMatchesRIGHT );
+                                    std::vector< cv::DMatch > vecMatchesLEFT;
+                                    m_pMatcher->match( pLandmark->getLastDescriptorLEFT( ), matDescriptorsLEFT, vecMatchesLEFT );
 
                                     //ds if we got a match and the matching distance is within the range
-                                    if( 0 < vecMatchesRIGHT.size( ) )
+                                    if( 0 < vecMatchesLEFT.size( ) )
                                     {
-                                        if( m_dMatchingDistanceCutoffTrackingStage2 > vecMatchesRIGHT[0].distance )
+                                        if( m_dMatchingDistanceCutoffTrackingStage2 > vecMatchesLEFT[0].distance )
                                         {
-                                            const cv::Point2f ptBestMatchRIGHT( vecKeyPointsRIGHT[vecMatchesRIGHT[0].trainIdx].pt );
-                                            const cv::Point2f ptBestMatchRIGHTInCamera( ptUpperLeftRIGHT+ptBestMatchRIGHT-ptOffsetKeyPointHalf );
-                                            const CDescriptor matDescriptorRIGHT( matDescriptorsRIGHT.row(vecMatchesRIGHT[0].trainIdx) );
+                                            const cv::Point2f ptBestMatchLEFT( vecKeyPointsLEFT[vecMatchesLEFT[0].trainIdx].pt );
+                                            const cv::Point2f ptBestMatchLEFTInCamera( ptUpperLeftLEFT+ptBestMatchLEFT-ptOffsetKeyPointHalf );
+                                            const CDescriptor matDescriptorLEFT( matDescriptorsLEFT.row(vecMatchesLEFT[0].trainIdx) );
 
                                             //ds center V
-                                            const float fVReference = ptBestMatchRIGHTInCamera.y-fKeyPointSizePixelsHalf;
+                                            const float fVReference = ptBestMatchLEFTInCamera.y-fKeyPointSizePixelsHalf;
 
                                             //ds if in range triangulate the point directly
                                             if( 0.0 <= fVReference )
                                             {
-                                                const CMatchTriangulation cMatchLEFT( m_pTriangulator->getPointTriangulatedInLEFT( p_matImageLEFT,
-                                                                                                                                   fSearchRange,
-                                                                                                                                   std::max( 0.0f, ptBestMatchRIGHTInCamera.x-fKeyPointSizePixelsHalf ),
-                                                                                                                                   fVReference,
-                                                                                                                                   fKeyPointSizePixels,
-                                                                                                                                   ptBestMatchRIGHTInCamera,
-                                                                                                                                   matDescriptorRIGHT ) );
-                                                const CDescriptor matDescriptorLEFT( cMatchLEFT.matDescriptorCAMERA );
+                                                const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHT( p_matImageRIGHT,
+                                                                                                                                     std::max( 0.0f, ptBestMatchLEFTInCamera.x-fSearchRange-fKeyPointSizePixelsHalf ),
+                                                                                                                                     fVReference,
+                                                                                                                                     fKeyPointSizePixels,
+                                                                                                                                     ptBestMatchLEFTInCamera,
+                                                                                                                                     matDescriptorLEFT ) );
+                                                const CDescriptor matDescriptorRIGHT( cMatchRIGHT.matDescriptorCAMERA );
 
                                                 //ds check depth
-                                                const double dDepthMeters = cMatchLEFT.vecPointXYZCAMERA.z( );
+                                                const double dDepthMeters = cMatchRIGHT.vecPointXYZCAMERA.z( );
                                                 if( m_dMinimumDepthMeters > dDepthMeters || m_dMaximumDepthMeters < dDepthMeters )
                                                 {
                                                     throw CExceptionNoMatchFound( "invalid depth" );
                                                 }
 
                                                 //ds check if the descriptor match is acceptable
-                                                if( m_dMatchingDistanceCutoffTrackingStage2 > cv::norm( pLandmark->getLastDescriptorLEFT( ), matDescriptorLEFT, cv::NORM_HAMMING ) )
+                                                if( m_dMatchingDistanceCutoffTrackingStage2 > cv::norm( pLandmark->getLastDescriptorRIGHT( ), matDescriptorRIGHT, cv::NORM_HAMMING ) )
                                                 {
                                                     //ds add measurement to landmark
                                                     _addMeasurementToLandmarkSTEREO( p_uFrame,
                                                                                      pLandmark,
-                                                                                     cMatchLEFT.ptUVCAMERA,
-                                                                                     ptBestMatchRIGHTInCamera,
-                                                                                     cMatchLEFT.vecPointXYZCAMERA,
+                                                                                     ptBestMatchLEFTInCamera,
+                                                                                     cMatchRIGHT.ptUVCAMERA,
+                                                                                     cMatchRIGHT.vecPointXYZCAMERA,
                                                                                      matDescriptorLEFT,
                                                                                      matDescriptorRIGHT,
                                                                                      p_matTransformationLEFTtoWORLD,
@@ -1564,40 +1443,170 @@ void CFundamentalMatcher::trackEpipolar( const UIDFrame p_uFrame,
                                                     m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
 
                                                     //ds info
-                                                    cv::circle( p_matDisplayRIGHT, ptBestMatchRIGHTInCamera, 4, CColorCodeBGR( 255, 0, 0 ), 1 );
+                                                    cv::circle( p_matDisplayLEFT, ptBestMatchLEFTInCamera, 4, CColorCodeBGR( 255, 0, 0 ), 1 );
                                                     ++m_uNumberOfTracksStage2_2;
                                                 }
                                                 else
                                                 {
+                                                    //ds try the RIGHT frame
                                                     throw CExceptionNoMatchFound( "triangulation descriptor mismatch" );
                                                 }
                                             }
                                             else
                                             {
+                                                //ds try the RIGHT frame
                                                 throw CExceptionNoMatchFound( "out of tracking range" );
                                             }
                                         }
                                         else
                                         {
+                                            //ds try the RIGHT frame
                                             throw CExceptionNoMatchFound( "descriptor mismatch" );
                                         }
                                     }
                                     else
                                     {
+                                        //ds try the RIGHT frame
                                         throw CExceptionNoMatchFound( "no matches found" );
                                     }
                                 }
                                 else
                                 {
+                                    //ds try the RIGHT frame
                                     throw CExceptionNoMatchFound( "no features detected" );
                                 }
                             }
-                            catch( const CExceptionNoMatchFound& p_cExceptionStage2RIGHT )
+                            catch( const CExceptionNoMatchFound& p_cExceptionStage2LEFT )
                             {
-                                //std::printf( "<CFundamentalMatcher>(getMeasurementsEpipolar) landmark [%06lu] RIGHT failed: %s\n", pLandmark->uID, p_cException.what( ) );
-                                ++pLandmark->uFailedSubsequentTrackings;
-                                pLandmark->bIsCurrentlyVisible = false;
+                                //ds try to find the landmarks on RIGHT
+                                try
+                                {
+                                    //ds compute search ranges (no subpixel accuracy)
+                                    const double dScaleSearchURIGHT      = std::round( m_pCameraRIGHT->getPrincipalWeightU( ptUVEstimateRIGHT ) + p_dMotionScaling );
+                                    const double dScaleSearchVRIGHT      = std::round( m_pCameraRIGHT->getPrincipalWeightV( ptUVEstimateRIGHT ) + p_dMotionScaling );
+                                    const double dSearchHalfWidthRIGHT   = std::round( dScaleSearchURIGHT*m_uSearchBlockSizePoseOptimization );
+                                    const double dSearchHalfHeightRIGHT  = std::round( dScaleSearchVRIGHT*m_uSearchBlockSizePoseOptimization );
+
+                                    //ds corners
+                                    cv::Point2f ptUpperLeftRIGHT( std::max( ptUVEstimateRIGHT.x-dSearchHalfWidthRIGHT, 0.0 ), std::max( ptUVEstimateRIGHT.y-dSearchHalfHeightRIGHT, 0.0 ) );
+                                    cv::Point2f ptLowerRightRIGHT( std::min( ptUVEstimateRIGHT.x+dSearchHalfWidthRIGHT, m_pCameraRIGHT->m_dWidthPixels ), std::min( ptUVEstimateRIGHT.y+dSearchHalfHeightRIGHT, m_pCameraRIGHT->m_dHeightPixels ) );
+
+                                    //ds search rectangle
+                                    const cv::Rect cSearchROIRIGHT( ptUpperLeftRIGHT, ptLowerRightRIGHT );
+
+                                    //ds run detection on current frame
+                                    std::vector< cv::KeyPoint > vecKeyPointsRIGHT;
+                                    m_pDetector->detect( p_matImageRIGHT( cSearchROIRIGHT ), vecKeyPointsRIGHT );
+
+                                    //ds if we found some features in the RIGHT frame
+                                    if( 0 < vecKeyPointsRIGHT.size( ) )
+                                    {
+                                        //ds compute descriptors in extended ROI
+                                        const float fUpperLeftU  = std::max( ptUpperLeftRIGHT.x-fKeyPointSizePixelsHalf, 0.0f );
+                                        const float fUpperLeftV  = std::max( ptUpperLeftRIGHT.y-fKeyPointSizePixelsHalf, 0.0f );
+                                        const float fLowerRightU = std::min( ptLowerRightRIGHT.x+fKeyPointSizePixelsHalf, m_pCameraRIGHT->m_fWidthPixels );
+                                        const float fLowerRightV = std::min( ptLowerRightRIGHT.y+fKeyPointSizePixelsHalf, m_pCameraRIGHT->m_fHeightPixels );
+                                        cv::Mat matDescriptorsRIGHT;
+
+                                        //ds adjust keypoint offsets before computing descriptors
+                                        std::for_each( vecKeyPointsRIGHT.begin( ), vecKeyPointsRIGHT.end( ), [ &ptOffsetKeyPointHalf ]( cv::KeyPoint& cKeyPoint ){ cKeyPoint.pt += ptOffsetKeyPointHalf; } );
+                                        m_pExtractor->compute( p_matImageRIGHT( cv::Rect( cv::Point2f( fUpperLeftU, fUpperLeftV ), cv::Point2f( fLowerRightU, fLowerRightV ) ) ), vecKeyPointsRIGHT, matDescriptorsRIGHT );
+
+                                        //ds check descriptor matches for this landmark
+                                        std::vector< cv::DMatch > vecMatchesRIGHT;
+                                        m_pMatcher->match( pLandmark->getLastDescriptorRIGHT( ), matDescriptorsRIGHT, vecMatchesRIGHT );
+
+                                        //ds if we got a match and the matching distance is within the range
+                                        if( 0 < vecMatchesRIGHT.size( ) )
+                                        {
+                                            if( m_dMatchingDistanceCutoffTrackingStage2 > vecMatchesRIGHT[0].distance )
+                                            {
+                                                const cv::Point2f ptBestMatchRIGHT( vecKeyPointsRIGHT[vecMatchesRIGHT[0].trainIdx].pt );
+                                                const cv::Point2f ptBestMatchRIGHTInCamera( ptUpperLeftRIGHT+ptBestMatchRIGHT-ptOffsetKeyPointHalf );
+                                                const CDescriptor matDescriptorRIGHT( matDescriptorsRIGHT.row(vecMatchesRIGHT[0].trainIdx) );
+
+                                                //ds center V
+                                                const float fVReference = ptBestMatchRIGHTInCamera.y-fKeyPointSizePixelsHalf;
+
+                                                //ds if in range triangulate the point directly
+                                                if( 0.0 <= fVReference )
+                                                {
+                                                    const CMatchTriangulation cMatchLEFT( m_pTriangulator->getPointTriangulatedInLEFT( p_matImageLEFT,
+                                                                                                                                       fSearchRange,
+                                                                                                                                       std::max( 0.0f, ptBestMatchRIGHTInCamera.x-fKeyPointSizePixelsHalf ),
+                                                                                                                                       fVReference,
+                                                                                                                                       fKeyPointSizePixels,
+                                                                                                                                       ptBestMatchRIGHTInCamera,
+                                                                                                                                       matDescriptorRIGHT ) );
+                                                    const CDescriptor matDescriptorLEFT( cMatchLEFT.matDescriptorCAMERA );
+
+                                                    //ds check depth
+                                                    const double dDepthMeters = cMatchLEFT.vecPointXYZCAMERA.z( );
+                                                    if( m_dMinimumDepthMeters > dDepthMeters || m_dMaximumDepthMeters < dDepthMeters )
+                                                    {
+                                                        throw CExceptionNoMatchFound( "invalid depth" );
+                                                    }
+
+                                                    //ds check if the descriptor match is acceptable
+                                                    if( m_dMatchingDistanceCutoffTrackingStage2 > cv::norm( pLandmark->getLastDescriptorLEFT( ), matDescriptorLEFT, cv::NORM_HAMMING ) )
+                                                    {
+                                                        //ds add measurement to landmark
+                                                        _addMeasurementToLandmarkSTEREO( p_uFrame,
+                                                                                         pLandmark,
+                                                                                         cMatchLEFT.ptUVCAMERA,
+                                                                                         ptBestMatchRIGHTInCamera,
+                                                                                         cMatchLEFT.vecPointXYZCAMERA,
+                                                                                         matDescriptorLEFT,
+                                                                                         matDescriptorRIGHT,
+                                                                                         p_matTransformationLEFTtoWORLD,
+                                                                                         p_matTransformationWORLDtoLEFT,
+                                                                                         matProjectionWORLDtoLEFT,
+                                                                                         matProjectionWORLDtoRIGHT );
+
+                                                        //ds add measurement to matcher
+                                                        m_vecMeasurementsVisible.push_back( pLandmark->getLastMeasurement( ) );
+
+                                                        //ds info
+                                                        cv::circle( p_matDisplayRIGHT, ptBestMatchRIGHTInCamera, 4, CColorCodeBGR( 255, 0, 0 ), 1 );
+                                                        ++m_uNumberOfTracksStage2_2;
+                                                    }
+                                                    else
+                                                    {
+                                                        throw CExceptionNoMatchFound( "triangulation descriptor mismatch" );
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    throw CExceptionNoMatchFound( "out of tracking range" );
+                                                }
+                                            }
+                                            else
+                                            {
+                                                throw CExceptionNoMatchFound( "descriptor mismatch" );
+                                            }
+                                        }
+                                        else
+                                        {
+                                            throw CExceptionNoMatchFound( "no matches found" );
+                                        }
+                                    }
+                                    else
+                                    {
+                                        throw CExceptionNoMatchFound( "no features detected" );
+                                    }
+                                }
+                                catch( const CExceptionNoMatchFound& p_cExceptionStage2RIGHT )
+                                {
+                                    //std::printf( "<CFundamentalMatcher>(getMeasurementsEpipolar) landmark [%06lu] RIGHT failed: %s\n", pLandmark->uID, p_cException.what( ) );
+                                    ++pLandmark->uFailedSubsequentTrackings;
+                                    pLandmark->bIsCurrentlyVisible = false;
+                                }
                             }
+                        }
+                        else
+                        {
+                            ++pLandmark->uFailedSubsequentTrackings;
+                            pLandmark->bIsCurrentlyVisible = false;
                         }
                     }
 

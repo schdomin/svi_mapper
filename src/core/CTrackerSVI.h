@@ -49,9 +49,9 @@ private:
     double m_dTimestampLASTSeconds                              = 0.0;
     CPoint3DWORLD m_vecPositionKeyFrameLAST;
     Eigen::Vector3d m_vecCameraOrientationAccumulated   = {0.0, 0.0, 0.0};
-    const double m_dTranslationDeltaForKeyFrameMetersL2 = 0.25;
+    const double m_dTranslationDeltaForKeyFrameMetersL2 = 0.5; //5.0; //0.25;
     const double m_dAngleDeltaForKeyFrameRadiansL2      = 0.25;
-    const UIDFrame m_uFrameDifferenceForKeyFrame        = 100;
+    const UIDFrame m_uFrameDifferenceForKeyFrame        = 1e6; //100;
     UIDFrame m_uFrameKeyFrameLAST                       = 0;
     CPoint3DWORLD m_vecPositionCurrent;
     CPoint3DWORLD m_vecPositionLAST;
@@ -63,13 +63,13 @@ private:
     const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
 
     const uint8_t m_uVisibleLandmarksMinimum;
-    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 2; //1e6; //20;
+    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 1e6; //1e6; //20;
     UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
     std::shared_ptr< CTriangulator > m_pTriangulator;
     CFundamentalMatcher m_cMatcher;
     Cg2oOptimizer m_cOptimizer;
-    const std::shared_ptr< cv::DescriptorMatcher > m_pMatcherLoopClosing;
+    //const std::shared_ptr< cv::DescriptorMatcher > m_pMatcherLoopClosing;
 
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
     std::vector< CLandmark* >::size_type m_uAvailableLandmarkID = 0;
@@ -87,7 +87,7 @@ private:
 
     //ds loop closing
     const int64_t m_uMinimumLoopClosingKeyFrameDistance                              = 20; //20
-    const double m_dMinimumRelativeMatchesLoopClosure;
+    const double m_dMinimumRelativeMatchesLoopClosure                                = 0.5;
     const std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFrameWaitingQueue    = 1;
     std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFramesInQueue              = 0;
     std::vector< CKeyFrame* >::size_type m_uIDLoopClosureOptimizedLAST               = 0;
@@ -155,6 +155,8 @@ private:
     const std::vector< const CKeyFrame::CMatchICP* > _getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrameQUERY,
                                                                                   const double& p_dSearchRadiusMeters,
                                                                                   const double& p_dMinimumRelativeMatchesLoopClosure );
+
+    const CMatchCloud _getMatchNN( std::list< CMatchCloud >& p_lMatches ) const;
 
     //ds reference frame update TODO implement
     //void _updateWORLDFrame( const Eigen::Vector3d& p_vecTranslationWORLD );

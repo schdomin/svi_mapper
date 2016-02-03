@@ -3,8 +3,8 @@
 
 #include "CLandmark.h"
 #include "TypesCloud.h"
-#include "CDescriptorBRIEF.h"
 #include "../utility/CLogger.h"
+#include "CBTree.h"
 
 
 
@@ -68,11 +68,24 @@ public:
     bool bIsOptimized = false;
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud;
     std::map< UIDDescriptor, const CDescriptorVectorPoint3DWORLD* > mapDescriptorToPoint;
-    const std::vector< CDescriptorBRIEF< > > vecDescriptorPool;
+
+#ifdef USING_BTREE
+    const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
+#else
     const CDescriptors vecDescriptorPoolCV;
+#endif
+
     const uint32_t uCountInstability;
     const double dMotionScaling;
     std::vector< const CMatchICP* > vecLoopClosures;
+
+#ifdef USING_BTREE
+    const std::shared_ptr< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
+#elif defined USING_BF
+    const std::shared_ptr< cv::BFMatcher > m_pMatcherBF;
+#elif defined USING_LSH
+    const std::shared_ptr< cv::FlannBasedMatcher > m_pMatcherLSH;
+#endif
 
 private:
 
@@ -91,9 +104,11 @@ public:
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
 
-    //ds full descriptor pool (getDescriptorPool MUST be called before getDescriptorPoolCV to set up the descriptor-to-point map)
-    const std::vector< CDescriptorBRIEF< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#ifdef USING_BTREE
+    const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#else
     const CDescriptors getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#endif
 
 };
 

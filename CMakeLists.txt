@@ -56,8 +56,8 @@ message(" ")
 
 
 #ds add c++11 support, no optimization, all warnings
-#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
+#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
 
 
 

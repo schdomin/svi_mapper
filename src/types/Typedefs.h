@@ -18,8 +18,6 @@ enum EPlaybackMode
 };
 
 
-#define DESCRIPTOR_SIZE_BITS 256
-#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
 
 //typedef Eigen::Vector3d CPoint2DNormalized;
 typedef Eigen::Vector3d CPoint2DHomogenized;

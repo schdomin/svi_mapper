@@ -5,6 +5,19 @@
 
 
 
+//TODO templatify KeyFrame for maximum generics
+#define MAXIMUM_DISTANCE_HAMMING 25
+#define BTREE_MAXIMUM_DEPTH 50
+#define DESCRIPTOR_SIZE_BITS 256
+#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
+
+//#define USING_BTREE
+#define USING_BF
+//#define USING_LSH
+//#define USING_BOW
+
+
+
 template< uint32_t uMaximumDistanceHamming = 25, uint64_t uMaximumDepth = 50, uint32_t uDescriptorSizeBits = 256 >
 class CBTree
 {
@@ -27,13 +40,6 @@ public:
         //ds get nodes for information
         //_setEndNodesRecursive( m_pRoot, m_vecEndNodes );
         //std::printf( "(CBTree)                           with end nodes: %lu(%3.1f)\n", m_vecEndNodes.size( ), static_cast< double >( m_vecEndNodes.size( ) )/p_vecDescriptors.size( ) );
-    }
-
-    //ds construct tree later
-    CBTree( const uint64_t& p_uID ): uID( p_uID ), m_pRoot( 0 )
-    {
-        //m_vecEndNodes.clear( );
-        std::printf( "(CBTree) allocated empty tree [%06lu]\n", p_uID );
     }
 
     //ds free all nodes in the tree
@@ -182,6 +188,47 @@ public:
         }
     }
 
+    //ds direct matching function on this tree
+    void match( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptorsQUERY, std::vector< cv::DMatch >& p_vecMatches ) const
+    {
+        //ds for each descriptor
+        for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptorQUERY: p_vecDescriptorsQUERY )
+        {
+            //ds traverse tree to find this descriptor
+            const CBNode< uMaximumDepth, uDescriptorSizeBits >* pNodeCurrent = m_pRoot;
+            while( pNodeCurrent )
+            {
+                //ds if this node has leaves (is splittable)
+                if( pNodeCurrent->bHasLeaves )
+                {
+                    //ds check the split bit and go deeper
+                    if( cDescriptorQUERY.vecData[pNodeCurrent->uIndexSplitBit] )
+                    {
+                        pNodeCurrent = pNodeCurrent->pLeafOnes;
+                    }
+                    else
+                    {
+                        pNodeCurrent = pNodeCurrent->pLeafZeros;
+                    }
+                }
+                else
+                {
+                    //ds check current descriptors in this node and exit
+                    for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptorTRAIN: pNodeCurrent->vecDescriptors )
+                    {
+                        if( uMaximumDistanceHamming > CBNode< uMaximumDepth, uDescriptorSizeBits >::getDistanceHamming( cDescriptorQUERY.vecData, cDescriptorTRAIN.vecData ) )
+                        {
+                            //++pNodeCurrent->uLinkedPoints;
+                            p_vecMatches.push_back( cv::DMatch( cDescriptorQUERY.uID, cDescriptorTRAIN.uID, uMaximumDistanceHamming ) );
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     //ds grow the tree
     void plant( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors )
     {
@@ -205,11 +252,8 @@ public:
             delete pNode;
         }
 
-        //ds must be freed now
-        assert( 0 == m_pRoot );
-
         //ds free all nodes
-        std::printf( "(CBTree) deallocated nodes: %lu\n", vecNodes.size( ) );
+        //std::printf( "(CBTree) deallocated nodes: %lu\n", vecNodes.size( ) );
         vecNodes.clear( );
     }
 
