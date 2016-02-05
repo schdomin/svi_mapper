@@ -13,11 +13,6 @@ class CBNode
     //ds readability
     using CDescriptorVector = std::bitset< uDescriptorSizeBits >; //Eigen::Matrix< bool, uDescriptorSizeBits, 1 >;
 
-//ds eigen memory alignment
-public:
-
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
 //ds ctor/dtor
 public:
 
@@ -195,7 +190,7 @@ private:
 public:
 
     //ds converts descriptors from cv::Mat to Eigen::Matrix
-    inline static const CDescriptorVector getDescriptorEigen( const cv::Mat& p_cDescriptor )
+    inline static const CDescriptorVector getDescriptorVector( const cv::Mat& p_cDescriptor )
     {
         //ds return vector
         CDescriptorVector vecDescriptor;

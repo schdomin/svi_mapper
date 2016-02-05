@@ -44,6 +44,10 @@ CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTE
                                                                            m_eMode( p_eMode ),
                                                                            m_strVersionInfo( "CTrackerSVI [" + std::to_string( m_pCameraSTEREO->m_uPixelWidth )
                                                                                                              + "|" + std::to_string( m_pCameraSTEREO->m_uPixelHeight ) + "]" )
+#if defined USING_BOW
+                                                                          ,m_pBoWDatabase( std::make_shared< BriefDatabase >( BriefVocabulary( "vocabulary_BRIEF_75.yml.gz" ), true, 0 ) )
+                                                                          ,m_pBoWVocabulary( std::make_shared< BriefVocabulary >( "vocabulary_BRIEF_75.yml.gz" ) )
+#endif
 {
     m_vecLandmarks->clear( );
     m_vecKeyFrames->clear( );
@@ -206,6 +210,41 @@ void CTrackerSVI::process( const std::shared_ptr< txt_io::PinholeImageMessage > 
 
 void CTrackerSVI::finalize( )
 {
+
+/*#ifdef USING_BOW
+
+    //ds instantiate controller
+    BriefVocabulary cVoc( 9, 3, DBoW2::BINARY, DBoW2::L1_NORM );
+
+    //ds data structure containing key frames with descriptor info
+    std::vector< std::vector< boost::dynamic_bitset< > > > vecDescriptorsKeyFrames;
+    vecDescriptorsKeyFrames.reserve( m_vecKeyFrames->size( ) );
+
+    //ds for each
+    for( const CKeyFrame* pKeyFrame: *m_vecKeyFrames )
+    {
+        vecDescriptorsKeyFrames.push_back( pKeyFrame->vecDescriptorPool );
+    }
+
+    std::printf( "[0][%06lu]<CTrackerSVI>(finalize) creating vocabulary\n", m_uFrameCount );
+
+    //ds create the vocabulary
+    const double dTimeStartSeconds = CTimer::getTimeSeconds( );
+    cVoc.create( vecDescriptorsKeyFrames );
+    const double dDurationSeconds = CTimer::getTimeSeconds( )-dTimeStartSeconds;
+
+    std::printf( "[0][%06lu]<CTrackerSVI>(finalize) creation complete - duration: %fs\n", m_uFrameCount, dDurationSeconds );
+
+    //ds filename
+    const std::string strVocabularyName( "vocabulary_BRIEF_"+ std::to_string( vecDescriptorsKeyFrames.size( ) ) +".yml.gz" );
+
+    //ds save to disk
+    cVoc.save( strVocabularyName );
+
+    std::printf( "[0][%06lu]<CTrackerSVI>(finalize) saved DBoW2 vocabulary to: '%s'\n", m_uFrameCount, strVocabularyName.c_str( ) );
+
+#endif*/
+
     //ds if tracker GUI is still open - otherwise run the optimization right away
     if( !m_bIsShutdownRequested )
     {
@@ -415,6 +454,10 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                                                   m_uCountInstability,
                                                   dMotionScaling );
 
+#if defined USING_BOW
+            pKeyFrameNEW->setBoWVectors( m_pBoWDatabase );
+#endif
+
             //ds set loop closures
             pKeyFrameNEW->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrameNEW, m_dLoopClosingRadiusSquaredMetersL2, m_dMinimumRelativeMatchesLoopClosure );
 
@@ -555,11 +598,9 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
     //CLogger::CLogIMUInput::addEntry( m_uFrameCount, vecLinearAccelerationWORLD, vecLinearAccelerationWORLDFiltered, p_vecAngularVelocity, vecAngularVelocityFiltered );
     //CLogger::CLogTrajectory::addEntry( m_uFrameCount, m_vecPositionCurrent, Eigen::Quaterniond( matTransformationLEFTtoWORLD.linear( ) ) );
 
-    /*ds stop criterion
-    if( 2000 == m_uFrameCount )
+    /*if( 75 == m_vecKeyFrames->size( ) )
     {
-        _shutDown( );
-        return;
+        finalize( );
     }*/
 }
 
@@ -735,7 +776,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     const std::string strOutFileClosureMap( "logs/closure_map_bf.txt" );
 
     //ds query descriptors
-    const CDescriptors vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPoolCV;
+    const CDescriptors vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
 
     //ds loop over all past key frames (EXTREMELY COSTLY
     for( const CKeyFrame* pKeyFrameREFERENCE: *m_vecKeyFrames )
@@ -775,7 +816,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     const std::string strOutFileClosureMap( "logs/closure_map_lsh.txt" );
 
     //ds query descriptors
-    const CDescriptors vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPoolCV;
+    const CDescriptors vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
 
     //ds loop over all past key frames (EXTREMELY COSTLY
     for( const CKeyFrame* pKeyFrameREFERENCE: *m_vecKeyFrames )
@@ -808,6 +849,96 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             }
         }
     }
+
+#elif defined USING_BOW
+
+    const std::string strOutFileTiming( "logs/matching_time_closures_dbow2.txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_dbow2.txt" );
+
+    //ds query descriptors
+    const DBoW2::FeatureVector& vecDescriptorPoolFQUERY = p_pKeyFrameQUERY->vecDescriptorPoolF;
+
+    //ds results
+    DBoW2::QueryResults vecResultsQUERY;
+
+    //ds get the query results
+    const double dTimeStartMatchingSeconds = CTimer::getTimeSeconds( );
+    m_pBoWDatabase->query( p_pKeyFrameQUERY->vecDescriptorPoolB, vecResultsQUERY, m_vecKeyFrames->size( ), m_vecKeyFrames->size( ) );
+
+    //ds get actual matches from results
+    for( const DBoW2::Result& cResult: vecResultsQUERY )
+    {
+        const DBoW2::FeatureVector& vecDescriptorPoolFREFERENCE = m_pBoWDatabase->retrieveFeatures( cResult.Id );
+
+        std::cerr << vecDescriptorPoolFQUERY.size( ) << std::endl;
+        std::cerr << vecDescriptorPoolFREFERENCE.size( ) << std::endl;
+
+        std::vector<unsigned int> i_old, i_cur;
+
+        DBoW2::FeatureVector::const_iterator old_it, cur_it;
+        const DBoW2::FeatureVector::const_iterator old_end = vecDescriptorPoolFREFERENCE.end( );
+        const DBoW2::FeatureVector::const_iterator cur_end = vecDescriptorPoolFQUERY.end( );
+
+        old_it = vecDescriptorPoolFREFERENCE.begin();
+        cur_it = vecDescriptorPoolFQUERY.begin( );
+
+        while(old_it != old_end && cur_it != cur_end)
+        {
+        if(old_it->first == cur_it->first)
+        {
+        // compute matches between
+        // features old_it->second of m_image_keys[old_entry] and
+        // features cur_it->second of keys
+            std::vector<unsigned int> i_old_now, i_cur_now;
+
+        _getMatches_neighratio( m_vecKeyFrames->at( cResult.Id )->vecDescriptorPool, old_it->second, p_pKeyFrameQUERY->vecDescriptorPool, cur_it->second, i_old_now, i_cur_now);
+
+        i_old.insert(i_old.end(), i_old_now.begin(), i_old_now.end());
+        i_cur.insert(i_cur.end(), i_cur_now.begin(), i_cur_now.end());
+
+        // move old_it and cur_it forward
+        ++old_it;
+        ++cur_it;
+        }
+        else if(old_it->first < cur_it->first)
+        {
+        // move old_it forward
+        old_it = vecDescriptorPoolFREFERENCE.lower_bound(cur_it->first);
+        // old_it = (first element >= cur_it.id)
+        }
+        else
+        {
+        // move cur_it forward
+        cur_it = vecDescriptorPoolFQUERY.lower_bound(old_it->first);
+        // cur_it = (first element >= old_it.id)
+        }
+        }
+
+        std::cerr << "reference: " << i_old.size( ) << "/" << m_vecKeyFrames->at( cResult.Id )->vecDescriptorPool.size( ) << std::endl;
+        std::cerr << "query: " << i_cur.size( ) << "/" << p_pKeyFrameQUERY->vecDescriptorPool.size( ) << std::endl;
+
+    }
+    dDurationMatchingSeconds += CTimer::getTimeSeconds( )-dTimeStartMatchingSeconds;
+
+        /*ds evaluate all matches for this reference cloud
+        for( const cv::DMatch& cMatch: vecMatches )
+        {
+            //ds if distance is acceptable
+            if( MAXIMUM_DISTANCE_HAMMING > cMatch.distance )
+            {
+                //ds buffer query point
+                const CDescriptorVectorPoint3DWORLD* pPointQUERY = p_pKeyFrameQUERY->mapDescriptorToPoint.at( cMatch.queryIdx );
+
+                try
+                {
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].at( pPointQUERY->uID ).push_back( CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) );
+                }
+                catch( const std::out_of_range& p_cException )
+                {
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
+                }
+            }
+        }*/
 
 #endif
 
@@ -1077,6 +1208,10 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
     //ds update closure matcher with current key frame
     //m_pMatcherLoopClosing->add( std::vector< cv::Mat >( 1, vecDescriptorPoolCVQUERY ) );
+
+#if defined USING_BOW
+    m_pBoWDatabase->add( p_pKeyFrameQUERY->vecDescriptorPoolB, vecDescriptorPoolFQUERY );
+#endif
 
     //ds info
     m_dDurationTotalSecondsLoopClosing += CTimer::getTimeSeconds( )-dTimeStartSeconds;

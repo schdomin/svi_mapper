@@ -12,11 +12,6 @@
 #include "optimization/Cg2oOptimizer.h"
 #include "utility/CIMUInterpolator.h"
 
-#include "DBoW2.h" // defines Surf64Vocabulary and Surf64Database
-#include "DUtils/DUtils.h"
-#include "DUtilsCV/DUtilsCV.h" // defines macros CVXX
-#include "DVision/DVision.h"
-
 
 
 class CTrackerSVI
@@ -119,6 +114,11 @@ private:
     double m_dDurationTotalSecondsLoopClosing = 0.0;
     Eigen::MatrixXd m_matClosureMap;
 
+#if defined USING_BOW
+    std::shared_ptr< BriefDatabase > m_pBoWDatabase;
+    std::shared_ptr< BriefVocabulary > m_pBoWVocabulary;
+#endif
+
 //ds accessors
 public:
 
@@ -173,6 +173,68 @@ private:
     void _shutDown( );
     void _updateFrameRateForInfoBox( const uint32_t& p_uFrameProbeRange = 10 );
     void _drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionScaling ) const;
+
+#if defined USING_BOW
+    void _getMatches_neighratio(   const vector< boost::dynamic_bitset<>> &A, const vector<unsigned int> &i_A,
+            const vector<boost::dynamic_bitset<>> &B, const vector<unsigned int> &i_B,
+            vector<unsigned int> &i_match_A, vector<unsigned int> &i_match_B )
+    {
+        i_match_A.resize(0);
+        i_match_B.resize(0);
+        i_match_A.reserve( min(i_A.size(), i_B.size()) );
+        i_match_B.reserve( min(i_A.size(), i_B.size()) );
+
+        vector<unsigned int>::const_iterator ait, bit;
+        unsigned int i, j;
+        i = 0;
+        for(ait = i_A.begin(); ait != i_A.end(); ++ait, ++i)
+        {
+        int best_j_now = -1;
+        double best_dist_1 = 1e9;
+        double best_dist_2 = 1e9;
+
+        j = 0;
+        for(bit = i_B.begin(); bit != i_B.end(); ++bit, ++j)
+        {
+        double d = DBoW2::FBrief::distance(A[*ait], B[*bit]);
+
+        // in i
+        if(d < best_dist_1)
+        {
+        best_j_now = j;
+        best_dist_2 = best_dist_1;
+        best_dist_1 = d;
+        }
+        else if(d < best_dist_2)
+        {
+        best_dist_2 = d;
+        }
+        }
+
+        if(best_dist_1 / best_dist_2 <= 0.6)
+        {
+        unsigned int idx_B = i_B[best_j_now];
+        bit = find(i_match_B.begin(), i_match_B.end(), idx_B);
+
+        if(bit == i_match_B.end())
+        {
+        i_match_B.push_back(idx_B);
+        i_match_A.push_back(*ait);
+        }
+        else
+        {
+        unsigned int idx_A = i_match_A[ bit - i_match_B.begin() ];
+        double d = DBoW2::FBrief::distance(A[idx_A], B[idx_B]);
+        if(best_dist_1 < d)
+        {
+        i_match_A[ bit - i_match_B.begin() ] = *ait;
+        }
+        }
+
+        }
+        }
+    }
+#endif
 
 };
 

@@ -11,21 +11,16 @@
 #define DESCRIPTOR_SIZE_BITS 256
 #define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
 
-#define USING_BTREE
+//#define USING_BTREE
 //#define USING_BF
 //#define USING_LSH
-//#define USING_BOW
+#define USING_BOW
 
 
 
 template< uint32_t uMaximumDistanceHamming = 25, uint64_t uMaximumDepth = 50, uint32_t uDescriptorSizeBits = 256 >
 class CBTree
 {
-
-//ds eigen memory alignment
-public:
-
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 //ds ctor/dtor
 public:

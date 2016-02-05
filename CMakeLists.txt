@@ -130,17 +130,17 @@ add_executable(tracker_svi src/runnable/tracker_svi.cpp src/core/CTrackerSVI.cpp
 target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 
 #ds io
-add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)
-target_link_libraries(test_cloud_matching ${OpenCV_LIBRARIES} ${LIBRARIES_VISUALIZATION})
-add_executable(validate_dataset src/runnable/validate_dataset.cpp)
-target_link_libraries(validate_dataset ${TXT_IO_LIBRARY})
+#add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)
+#target_link_libraries(test_cloud_matching ${OpenCV_LIBRARIES} ${LIBRARIES_VISUALIZATION})
+#add_executable(validate_dataset src/runnable/validate_dataset.cpp)
+#target_link_libraries(validate_dataset ${TXT_IO_LIBRARY})
 
 #ds utilities
-add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
-add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
-add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)
-target_link_libraries(triangulation_sampling ${OpenCV_LIBRARIES})
-add_executable(create_cloud src/runnable/create_cloud.cpp src/utility/CLogger.cpp)
+#add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
+#add_executable(compute_rotation_icp src/runnable/compute_rotation_icp.cpp src/utility/CLogger.cpp)
+#add_executable(triangulation_sampling src/runnable/triangulation_sampling.cpp src/vision/CMiniVisionToolbox.cpp)
+#target_link_libraries(triangulation_sampling ${OpenCV_LIBRARIES})
+#add_executable(create_cloud src/runnable/create_cloud.cpp src/utility/CLogger.cpp)
 #add_executable(match_clouds_custom src/runnable/match_clouds_custom.cpp src/utility/CLogger.cpp)
 #add_executable(match_clouds src/runnable/match_clouds.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
 #target_link_libraries(match_clouds ${OpenCV_LIBRARIES})

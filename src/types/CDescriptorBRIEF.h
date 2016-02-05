@@ -1,7 +1,6 @@
 #ifndef CDESCRIPTORBRIEF_H
 #define CDESCRIPTORBRIEF_H
 
-//#include <Eigen/Core>
 #include <bitset>
 
 
@@ -10,10 +9,7 @@ template< uint32_t uDescriptorSizeBits = 256 >
 struct CDescriptorBRIEF
 {
     //ds readability
-    using CDescriptorVector = std::bitset< uDescriptorSizeBits >; //Eigen::Matrix< bool, uDescriptorSizeBits, 1 >;
-
-    //ds memory alignment
-    //EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    using CDescriptorVector = std::bitset< uDescriptorSizeBits >;
 
     CDescriptorBRIEF(  const uint64_t& p_uID, const CDescriptorVector& p_vecData ): uID( p_uID ), vecData( p_vecData )
     {

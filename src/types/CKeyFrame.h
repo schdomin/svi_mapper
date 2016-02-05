@@ -6,6 +6,13 @@
 #include "../utility/CLogger.h"
 #include "CBTree.h"
 
+#if defined USING_BOW
+#include "DBoW2.h" // defines Surf64Vocabulary and Surf64Database
+#include "DUtils/DUtils.h"
+#include "DUtilsCV/DUtilsCV.h" // defines macros CVXX
+#include "DVision/DVision.h"
+#endif
+
 
 
 class CKeyFrame
@@ -69,17 +76,21 @@ public:
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud;
     std::map< UIDDescriptor, const CDescriptorVectorPoint3DWORLD* > mapDescriptorToPoint;
 
-#ifdef USING_BTREE
+#if defined USING_BTREE
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
+#elif defined USING_BOW
+    const std::vector< boost::dynamic_bitset< > > vecDescriptorPool;
+    DBoW2::BowVector vecDescriptorPoolB;
+    DBoW2::FeatureVector vecDescriptorPoolF;
 #else
-    const CDescriptors vecDescriptorPoolCV;
+    const CDescriptors vecDescriptorPool;
 #endif
 
     const uint32_t uCountInstability;
     const double dMotionScaling;
     std::vector< const CMatchICP* > vecLoopClosures;
 
-#ifdef USING_BTREE
+#if defined USING_BTREE
     const std::shared_ptr< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
 #elif defined USING_BF
     const std::shared_ptr< cv::BFMatcher > m_pMatcherBF;
@@ -104,10 +115,18 @@ public:
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
 
-#ifdef USING_BTREE
+#if defined USING_BTREE
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#elif defined USING_BOW
+    const std::vector< boost::dynamic_bitset< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    void setBoWVectors( const std::shared_ptr< BriefDatabase > p_pBoWDatabase )
+    {
+        assert( 0 != p_pBoWDatabase );
+        assert( 0 < vecDescriptorPool.size( ) );
+        p_pBoWDatabase->getVocabulary( )->transform( vecDescriptorPool, vecDescriptorPoolB, vecDescriptorPoolF, 2 );
+    }
 #else
-    const CDescriptors getDescriptorPoolCV( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    const CDescriptors getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #endif
 
 };
