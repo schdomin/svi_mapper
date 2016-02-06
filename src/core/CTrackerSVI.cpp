@@ -45,8 +45,8 @@ CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTE
                                                                            m_strVersionInfo( "CTrackerSVI [" + std::to_string( m_pCameraSTEREO->m_uPixelWidth )
                                                                                                              + "|" + std::to_string( m_pCameraSTEREO->m_uPixelHeight ) + "]" )
 #if defined USING_BOW
-                                                                          ,m_pBoWDatabase( std::make_shared< BriefDatabase >( BriefVocabulary( "vocabulary_BRIEF_75.yml.gz" ), true, 0 ) )
-                                                                          ,m_pBoWVocabulary( std::make_shared< BriefVocabulary >( "vocabulary_BRIEF_75.yml.gz" ) )
+#define DBOW2_ID_LEVELS 2
+                                                                          ,m_pBoWDatabase( std::make_shared< BriefDatabase >( BriefVocabulary( "vocabulary_BRIEF_152_K10_L6.yml.gz" ), true, DBOW2_ID_LEVELS ) )
 #endif
 {
     m_vecLandmarks->clear( );
@@ -213,8 +213,11 @@ void CTrackerSVI::finalize( )
 
 /*#ifdef USING_BOW
 
+    const uint32_t uBranchingFactor = 10;
+    const uint32_t uDepthLevels = 6;
+
     //ds instantiate controller
-    BriefVocabulary cVoc( 9, 3, DBoW2::BINARY, DBoW2::L1_NORM );
+    BriefVocabulary cVoc( uBranchingFactor, uDepthLevels, DBoW2::BINARY );
 
     //ds data structure containing key frames with descriptor info
     std::vector< std::vector< boost::dynamic_bitset< > > > vecDescriptorsKeyFrames;
@@ -236,7 +239,7 @@ void CTrackerSVI::finalize( )
     std::printf( "[0][%06lu]<CTrackerSVI>(finalize) creation complete - duration: %fs\n", m_uFrameCount, dDurationSeconds );
 
     //ds filename
-    const std::string strVocabularyName( "vocabulary_BRIEF_"+ std::to_string( vecDescriptorsKeyFrames.size( ) ) +".yml.gz" );
+    const std::string strVocabularyName( "vocabulary_BRIEF_"+std::to_string( vecDescriptorsKeyFrames.size( ) )+"_K"+std::to_string( uBranchingFactor )+"_L"+std::to_string( uDepthLevels )+".yml.gz" );
 
     //ds save to disk
     cVoc.save( strVocabularyName );
@@ -455,7 +458,9 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                                                   dMotionScaling );
 
 #if defined USING_BOW
-            pKeyFrameNEW->setBoWVectors( m_pBoWDatabase );
+            assert( 0 != m_pBoWDatabase );
+            assert( 0 < pKeyFrameNEW->vecDescriptorPool.size( ) );
+            m_pBoWDatabase->getVocabulary( )->transform( pKeyFrameNEW->vecDescriptorPool, pKeyFrameNEW->vecDescriptorPoolB, pKeyFrameNEW->vecDescriptorPoolF, DBOW2_ID_LEVELS  );
 #endif
 
             //ds set loop closures
@@ -752,8 +757,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         //ds evaluate all matches for this reference cloud
         for( const cv::DMatch& cMatch: vecMatches )
         {
-            //ds if distance is acceptable (set for BTree, THIS IS REDUNDANT)
-            if( MAXIMUM_DISTANCE_HAMMING == cMatch.distance )
+            //ds if distance is acceptable (fixed for BTree)
             {
                 //ds buffer query point
                 const CDescriptorVectorPoint3DWORLD* pPointQUERY = p_pKeyFrameQUERY->mapDescriptorToPoint.at( cMatch.queryIdx );
@@ -862,83 +866,79 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     DBoW2::QueryResults vecResultsQUERY;
 
     //ds get the query results
-    const double dTimeStartMatchingSeconds = CTimer::getTimeSeconds( );
+    const double dTimeStartQuerySeconds = CTimer::getTimeSeconds( );
     m_pBoWDatabase->query( p_pKeyFrameQUERY->vecDescriptorPoolB, vecResultsQUERY, m_vecKeyFrames->size( ), m_vecKeyFrames->size( ) );
+    dDurationMatchingSeconds = CTimer::getTimeSeconds( )-dTimeStartQuerySeconds;
 
     //ds get actual matches from results
     for( const DBoW2::Result& cResult: vecResultsQUERY )
     {
+        const double dTimeStartGetMatches = CTimer::getTimeSeconds( );
+        const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
         const DBoW2::FeatureVector& vecDescriptorPoolFREFERENCE = m_pBoWDatabase->retrieveFeatures( cResult.Id );
-
-        std::cerr << vecDescriptorPoolFQUERY.size( ) << std::endl;
-        std::cerr << vecDescriptorPoolFREFERENCE.size( ) << std::endl;
 
         std::vector<unsigned int> i_old, i_cur;
 
-        DBoW2::FeatureVector::const_iterator old_it, cur_it;
+        DBoW2::FeatureVector::const_iterator old_it = vecDescriptorPoolFREFERENCE.begin();
+        DBoW2::FeatureVector::const_iterator cur_it = vecDescriptorPoolFQUERY.begin( );
         const DBoW2::FeatureVector::const_iterator old_end = vecDescriptorPoolFREFERENCE.end( );
         const DBoW2::FeatureVector::const_iterator cur_end = vecDescriptorPoolFQUERY.end( );
 
-        old_it = vecDescriptorPoolFREFERENCE.begin();
-        cur_it = vecDescriptorPoolFQUERY.begin( );
-
         while(old_it != old_end && cur_it != cur_end)
         {
-        if(old_it->first == cur_it->first)
-        {
-        // compute matches between
-        // features old_it->second of m_image_keys[old_entry] and
-        // features cur_it->second of keys
-            std::vector<unsigned int> i_old_now, i_cur_now;
+            if(old_it->first == cur_it->first)
+            {
+                // compute matches between
+                // features old_it->second of m_image_keys[old_entry] and
+                // features cur_it->second of keys
+                std::vector<unsigned int> i_old_now, i_cur_now;
 
-        _getMatches_neighratio( m_vecKeyFrames->at( cResult.Id )->vecDescriptorPool, old_it->second, p_pKeyFrameQUERY->vecDescriptorPool, cur_it->second, i_old_now, i_cur_now);
+                _getMatches_neighratio( pKeyFrameREFERENCE->vecDescriptorPool, old_it->second, p_pKeyFrameQUERY->vecDescriptorPool, cur_it->second, i_old_now, i_cur_now);
 
-        i_old.insert(i_old.end(), i_old_now.begin(), i_old_now.end());
-        i_cur.insert(i_cur.end(), i_cur_now.begin(), i_cur_now.end());
+                i_old.insert(i_old.end(), i_old_now.begin(), i_old_now.end());
+                i_cur.insert(i_cur.end(), i_cur_now.begin(), i_cur_now.end());
 
-        // move old_it and cur_it forward
-        ++old_it;
-        ++cur_it;
+                // move old_it and cur_it forward
+                ++old_it;
+                ++cur_it;
+            }
+            else if(old_it->first < cur_it->first)
+            {
+                // move old_it forward
+                old_it = vecDescriptorPoolFREFERENCE.lower_bound(cur_it->first);
+                // old_it = (first element >= cur_it.id)
+            }
+            else
+            {
+                // move cur_it forward
+                cur_it = vecDescriptorPoolFQUERY.lower_bound(old_it->first);
+                // cur_it = (first element >= old_it.id)
+            }
         }
-        else if(old_it->first < cur_it->first)
-        {
-        // move old_it forward
-        old_it = vecDescriptorPoolFREFERENCE.lower_bound(cur_it->first);
-        // old_it = (first element >= cur_it.id)
-        }
-        else
-        {
-        // move cur_it forward
-        cur_it = vecDescriptorPoolFQUERY.lower_bound(old_it->first);
-        // cur_it = (first element >= old_it.id)
-        }
-        }
 
-        std::cerr << "reference: " << i_old.size( ) << "/" << m_vecKeyFrames->at( cResult.Id )->vecDescriptorPool.size( ) << std::endl;
-        std::cerr << "query: " << i_cur.size( ) << "/" << p_pKeyFrameQUERY->vecDescriptorPool.size( ) << std::endl;
+        dDurationMatchingSeconds += CTimer::getTimeSeconds( )-dTimeStartGetMatches;
 
-    }
-    dDurationMatchingSeconds += CTimer::getTimeSeconds( )-dTimeStartMatchingSeconds;
+        assert( i_cur.size( ) == i_old.size( ) );
 
-        /*ds evaluate all matches for this reference cloud
-        for( const cv::DMatch& cMatch: vecMatches )
+        //ds evaluate all matches for this reference cloud
+        for( uint64_t u = 0; u < i_old.size( ); ++u )
         {
-            //ds if distance is acceptable
-            if( MAXIMUM_DISTANCE_HAMMING > cMatch.distance )
+            //ds if distance is acceptable (not available here)
             {
                 //ds buffer query point
-                const CDescriptorVectorPoint3DWORLD* pPointQUERY = p_pKeyFrameQUERY->mapDescriptorToPoint.at( cMatch.queryIdx );
+                const CDescriptorVectorPoint3DWORLD* pPointQUERY = p_pKeyFrameQUERY->mapDescriptorToPoint.at( i_cur[u] );
 
                 try
                 {
-                    vecPotentialClosures[pKeyFrameREFERENCE->uID].at( pPointQUERY->uID ).push_back( CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) );
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].at( pPointQUERY->uID ).push_back( CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( i_old[u] ), MAXIMUM_DISTANCE_HAMMING ) );
                 }
                 catch( const std::out_of_range& p_cException )
                 {
-                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( i_old[u] ), MAXIMUM_DISTANCE_HAMMING ) ) ) );
                 }
             }
-        }*/
+        }
+    }
 
 #endif
 
@@ -1314,3 +1314,76 @@ void CTrackerSVI::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionSc
     p_matDisplay( cv::Rect( 0, 0, 2*m_pCameraSTEREO->m_uPixelWidth, 17 ) ).setTo( CColorCodeBGR( 0, 0, 0 ) );
     cv::putText( p_matDisplay, chBuffer , cv::Point2i( 2, 12 ), cv::FONT_HERSHEY_PLAIN, 0.8, CColorCodeBGR( 0, 0, 255 ) );
 }
+
+#if defined USING_BOW
+
+//ds snippet: https://github.com/dorian3d/DLoopDetector/blob/master/include/DLoopDetector/TemplatedLoopDetector.h
+void CTrackerSVI::_getMatches_neighratio( const std::vector< boost::dynamic_bitset<>> &A,
+                             const std::vector<unsigned int> &i_A,
+                             const std::vector<boost::dynamic_bitset<>> &B,
+                             const std::vector<unsigned int> &i_B,
+                             std::vector<unsigned int> &i_match_A,
+                             std::vector<unsigned int> &i_match_B ) const
+{
+    i_match_A.resize(0);
+    i_match_B.resize(0);
+    i_match_A.reserve( min(i_A.size(), i_B.size()) );
+    i_match_B.reserve( min(i_A.size(), i_B.size()) );
+
+    vector<unsigned int>::const_iterator ait, bit;
+    unsigned int i, j;
+    i = 0;
+    for(ait = i_A.begin(); ait != i_A.end(); ++ait, ++i)
+    {
+        int best_j_now = -1;
+        double best_dist_1 = 1e9;
+        double best_dist_2 = 1e9;
+
+        j = 0;
+        for(bit = i_B.begin(); bit != i_B.end(); ++bit, ++j)
+        {
+            double d = DBoW2::FBrief::distance(A[*ait], B[*bit]);
+
+            // in i
+            if(d < best_dist_1)
+            {
+                best_j_now = j;
+                best_dist_2 = best_dist_1;
+                best_dist_1 = d;
+            }
+            else if(d < best_dist_2)
+            {
+                best_dist_2 = d;
+            }
+        }
+
+        //ds if the best distance is a portion of the second best
+        if(best_dist_1 / best_dist_2 <= 0.6)
+        {
+            unsigned int idx_B = i_B[best_j_now];
+            bit = find(i_match_B.begin(), i_match_B.end(), idx_B);
+
+            if(bit == i_match_B.end())
+            {
+                //ds if matching distance is satisfactory
+                if( MAXIMUM_DISTANCE_HAMMING > best_dist_1 )
+                {
+                    i_match_B.push_back(idx_B);
+                    i_match_A.push_back(*ait);
+                }
+            }
+            else
+            {
+                unsigned int idx_A = i_match_A[ bit - i_match_B.begin() ];
+                double d = DBoW2::FBrief::distance(A[idx_A], B[idx_B]);
+                if(best_dist_1 < d)
+                {
+                    i_match_A[ bit - i_match_B.begin() ] = *ait;
+                }
+            }
+        }
+    }
+}
+
+#endif
+

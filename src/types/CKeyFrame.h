@@ -119,12 +119,6 @@ public:
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
-    void setBoWVectors( const std::shared_ptr< BriefDatabase > p_pBoWDatabase )
-    {
-        assert( 0 != p_pBoWDatabase );
-        assert( 0 < vecDescriptorPool.size( ) );
-        p_pBoWDatabase->getVocabulary( )->transform( vecDescriptorPool, vecDescriptorPoolB, vecDescriptorPoolF, 2 );
-    }
 #else
     const CDescriptors getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #endif
