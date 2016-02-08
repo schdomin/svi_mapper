@@ -1,5 +1,5 @@
-#ifndef CTRACKERSVI_H
-#define CTRACKERSVI_H
+#ifndef CTRACKERSV_H
+#define CTRACKERSV_H
 
 #include "txt_io/imu_message.h"
 #include "txt_io/pinhole_image_message.h"
@@ -10,32 +10,29 @@
 #include "CFundamentalMatcher.h"
 #include "types/CKeyFrame.h"
 #include "optimization/Cg2oOptimizer.h"
-#include "utility/CIMUInterpolator.h"
 
 
 
-class CTrackerSVI
+class CTrackerSV
 {
 
 //ds ctor/dtor
 public:
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
-                    const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
+    CTrackerSV( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                     const EPlaybackMode& p_eMode,
-                    const double& p_dMinimumRelativeMatchesLoopClosure = 0.5,
                     const uint32_t& p_uWaitKeyTimeoutMS = 1 );
-    ~CTrackerSVI( );
+    ~CTrackerSV( );
 
 //ds members
 private:
 
     //ds vision setup
     uint32_t m_uWaitKeyTimeoutMS;
-    const std::shared_ptr< CPinholeCameraIMU > m_pCameraLEFT;
-    const std::shared_ptr< CPinholeCameraIMU > m_pCameraRIGHT;
-    const std::shared_ptr< CStereoCameraIMU > m_pCameraSTEREO;
+    const std::shared_ptr< CPinholeCamera > m_pCameraLEFT;
+    const std::shared_ptr< CPinholeCamera > m_pCameraRIGHT;
+    const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
     //ds SLAM structures
     std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
@@ -45,12 +42,10 @@ private:
     UIDFrame m_uFrameCount = 0;
     Eigen::Isometry3d m_matTransformationWORLDtoLEFTLAST;
     Eigen::Isometry3d m_matTransformationLEFTLASTtoLEFTNOW;
-    CAngularVelocityLEFT m_vecVelocityAngularFilteredLAST       = {0.0, 0.0, 0.0};
-    CLinearAccelerationLEFT m_vecLinearAccelerationFilteredLAST = {0.0, 0.0, 0.0};
-    double m_dTimestampLASTSeconds                              = 0.0;
+    double m_dTimestampLASTSeconds                      = 0.0;
     CPoint3DWORLD m_vecPositionKeyFrameLAST;
     Eigen::Vector3d m_vecCameraOrientationAccumulated   = {0.0, 0.0, 0.0};
-    const double m_dTranslationDeltaForKeyFrameMetersL2 = 0.5; //5.0; //0.25;
+    const double m_dTranslationDeltaForKeyFrameMetersL2 = 25.0; //5.0; //0.25;
     const double m_dAngleDeltaForKeyFrameRadiansL2      = 0.25;
     const UIDFrame m_uFrameDifferenceForKeyFrame        = 1e6; //100;
     UIDFrame m_uFrameKeyFrameLAST                       = 0;
@@ -64,7 +59,7 @@ private:
     const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
 
     const uint8_t m_uVisibleLandmarksMinimum;
-    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 10; //1e6; //1e6; //20;
+    const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 2; //1e6; //20;
     UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
     std::shared_ptr< CTriangulator > m_pTriangulator;
@@ -75,7 +70,7 @@ private:
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
     std::vector< CLandmark* >::size_type m_uAvailableLandmarkID = 0;
     int32_t m_uNumberofVisibleLandmarksLAST                     = 0;
-    const double m_dMaximumMotionScalingForOptimization = 1.05;
+    const double m_dMaximumMotionScalingForOptimization = 1.5;
     double m_dMotionScalingLAST                         = 1.0;
     uint32_t m_uCountInstability                        = 0;
     std::vector< Eigen::Vector3d > m_vecRotations;
@@ -88,14 +83,13 @@ private:
 
     //ds loop closing
     const int64_t m_uMinimumLoopClosingKeyFrameDistance                              = 20; //20
-    const double m_dMinimumRelativeMatchesLoopClosure;
+    const double m_dMinimumRelativeMatchesLoopClosure                                = 0.5;
     const std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFrameWaitingQueue    = 1;
     std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFramesInQueue              = 0;
     std::vector< CKeyFrame* >::size_type m_uIDLoopClosureOptimizedLAST               = 0;
     const double m_dLoopClosingRadiusSquaredMetersL2                                 = 25.0;
 
     //ds robocentric world frame refreshing
-    const std::shared_ptr< CIMUInterpolator > m_pIMU;
     std::vector< Eigen::Vector3d > m_vecTranslationDeltas;
     const std::vector< Eigen::Vector3d >::size_type m_uIMULogbackSize = 200;
     Eigen::Vector3d m_vecGradientXYZ      = {0.0, 0.0, 0.0};
@@ -123,13 +117,12 @@ private:
 public:
 
     void process( const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageLEFT,
-                  const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageRIGHT,
-                  const std::shared_ptr< txt_io::CIMUMessage > p_pIMU );
+                  const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageRIGHT );
 
     const UIDFrame getFrameCount( ) const { return m_uFrameCount; }
     const bool isShutdownRequested( ) const { return m_bIsShutdownRequested; }
     void finalize( );
-    void sanitizeFiletree( ){ /*m_cGraphOptimizer.clearFiles( );*/ }
+    void sanitizeFiletree( ){ m_cOptimizer.clearFilesUNIX( ); }
     const double getDistanceTraveled( ) const { return m_dDistanceTraveledMeters; }
     const double getTotalDurationOptimizationSeconds( ) const { return 0; /*m_cGraphOptimizer.getTotalOptimizationDurationSeconds( );*/ }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cMatcher.getDurationTotalSecondsStereoPosit( ); }
@@ -188,4 +181,4 @@ private:
 
 };
 
-#endif //#define CTRACKERSVI_H
+#endif //#define CTRACKERSV_H

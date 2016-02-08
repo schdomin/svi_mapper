@@ -1,4 +1,4 @@
-#include "CTrackerSVI.h"
+#include "CTrackerSV.h"
 
 #include <opencv/highgui.h>
 #include <opencv2/features2d/features2d.hpp>
@@ -6,13 +6,12 @@
 #include "../gui/CConfigurationOpenCV.h"
 #include "../exceptions/CExceptionPoseOptimization.h"
 #include "../exceptions/CExceptionNoMatchFound.h"
+#include "utility/CIMUInterpolator.h"
 
 
 
-CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
-                                const std::shared_ptr< CIMUInterpolator > p_pIMUInterpolator,
+CTrackerSV::CTrackerSV( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                                 const EPlaybackMode& p_eMode,
-                                const double& p_dMinimumRelativeMatchesLoopClosure,
                                 const uint32_t& p_uWaitKeyTimeoutMS ): m_uWaitKeyTimeoutMS( p_uWaitKeyTimeoutMS ),
                                                                            m_pCameraLEFT( p_pCameraSTEREO->m_pCameraLEFT ),
                                                                            m_pCameraRIGHT( p_pCameraSTEREO->m_pCameraRIGHT ),
@@ -21,7 +20,7 @@ CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTE
                                                                            m_vecLandmarks( std::make_shared< std::vector< CLandmark* > >( ) ),
                                                                            m_vecKeyFrames( std::make_shared< std::vector< CKeyFrame* > >( ) ),
 
-                                                                           m_matTransformationWORLDtoLEFTLAST( p_pIMUInterpolator->getTransformationWORLDtoCAMERA( m_pCameraLEFT->m_matRotationIMUtoCAMERA ) ),
+                                                                           m_matTransformationWORLDtoLEFTLAST( CIMUInterpolator::getTransformationInitialWORLDtoLEFT( ) ),
                                                                            m_matTransformationLEFTLASTtoLEFTNOW( Eigen::Matrix4d::Identity( ) ),
                                                                            m_vecPositionKeyFrameLAST( m_matTransformationWORLDtoLEFTLAST.inverse( ).translation( ) ),
                                                                            m_vecPositionCurrent( m_vecPositionKeyFrameLAST ),
@@ -36,17 +35,16 @@ CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTE
                                                                            m_pTriangulator( std::make_shared< CTriangulator >( m_pCameraSTEREO, m_pExtractor ) ),
                                                                            m_cMatcher( m_pTriangulator, m_pDetector ),
                                                                            m_cOptimizer( m_pCameraSTEREO, m_vecLandmarks, m_vecKeyFrames, m_matTransformationWORLDtoLEFTLAST.inverse( ) ),
-
-                                                                           m_dMinimumRelativeMatchesLoopClosure( p_dMinimumRelativeMatchesLoopClosure ),
-
-                                                                           m_pIMU( p_pIMUInterpolator ),
+                                                                           //m_pMatcherLoopClosing( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) ), m_dMinimumRelativeMatchesLoopClosure( 0.5 ),
+                                                                           //m_pMatcherLoopClosing( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) ), m_dMinimumRelativeMatchesLoopClosure( 0.4 ),
+                                                                           //m_pMatcherLoopClosing( std::make_shared< cv::CBTreeMatcher< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( ) ), m_dMinimumRelativeMatchesLoopClosure( 0.45 ),
 
                                                                            m_eMode( p_eMode ),
-                                                                           m_strVersionInfo( "CTrackerSVI [" + std::to_string( m_pCameraSTEREO->m_uPixelWidth )
+                                                                           m_strVersionInfo( "CTrackerSV [" + std::to_string( m_pCameraSTEREO->m_uPixelWidth )
                                                                                                              + "|" + std::to_string( m_pCameraSTEREO->m_uPixelHeight ) + "]" )
 #if defined USING_BOW
 #define DBOW2_ID_LEVELS 2
-                                                                          ,m_pBoWDatabase( std::make_shared< BriefDatabase >( BriefVocabulary( "brief_k10L6.voc.gz" ), true, DBOW2_ID_LEVELS ) )
+                                                                          ,m_pBoWDatabase( std::make_shared< BriefDatabase >( BriefVocabulary( "vocabulary_BRIEF_392090_256_K10_L6.yml.gz" ), true, DBOW2_ID_LEVELS ) )
 #endif
 {
     m_vecLandmarks->clear( );
@@ -67,27 +65,27 @@ CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTE
     cv::namedWindow( m_strVersionInfo, cv::WINDOW_AUTOSIZE );
 
     CLogger::openBox( );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <OpenCV> available CPUs: %i\n", m_uFrameCount, cv::getNumberOfCPUs( ) );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <OpenCV> available threads: %i\n", m_uFrameCount, cv::getNumThreads( ) );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) feature detector: %s\n", m_uFrameCount, m_pDetector->name( ).c_str( ) );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) descriptor extractor: %s\n", m_uFrameCount, m_pExtractor->name( ).c_str( ) );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) descriptor size: %i bytes\n", m_uFrameCount, m_pExtractor->descriptorSize( ) );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <CIMUInterpolator> maximum timestamp delta: %f\n", m_uFrameCount, CIMUInterpolator::dMaximumDeltaTimeSeconds );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <CIMUInterpolator> imprecision angular velocity: %f\n", m_uFrameCount, CIMUInterpolator::m_dImprecisionAngularVelocity );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <CIMUInterpolator> imprecision linear acceleration: %f\n", m_uFrameCount, CIMUInterpolator::m_dImprecisionLinearAcceleration );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <CIMUInterpolator> bias linear acceleration x/y/z: %4.2f/%4.2f/%4.2f\n", m_uFrameCount, CIMUInterpolator::m_vecBiasLinearAccelerationXYZ[0],
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <OpenCV> available CPUs: %i\n", m_uFrameCount, cv::getNumberOfCPUs( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <OpenCV> available threads: %i\n", m_uFrameCount, cv::getNumThreads( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) feature detector: %s\n", m_uFrameCount, m_pDetector->name( ).c_str( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) descriptor extractor: %s\n", m_uFrameCount, m_pExtractor->name( ).c_str( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) descriptor size: %i bytes\n", m_uFrameCount, m_pExtractor->descriptorSize( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <CIMUInterpolator> maximum timestamp delta: %f\n", m_uFrameCount, CIMUInterpolator::dMaximumDeltaTimeSeconds );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <CIMUInterpolator> imprecision angular velocity: %f\n", m_uFrameCount, CIMUInterpolator::m_dImprecisionAngularVelocity );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <CIMUInterpolator> imprecision linear acceleration: %f\n", m_uFrameCount, CIMUInterpolator::m_dImprecisionLinearAcceleration );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <CIMUInterpolator> bias linear acceleration x/y/z: %4.2f/%4.2f/%4.2f\n", m_uFrameCount, CIMUInterpolator::m_vecBiasLinearAccelerationXYZ[0],
                                                                                                                                                   CIMUInterpolator::m_vecBiasLinearAccelerationXYZ[1],
                                                                                                                                                   CIMUInterpolator::m_vecBiasLinearAccelerationXYZ[2] );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <Landmark> cap iterations: %u\n", m_uFrameCount, CLandmark::uCapIterations );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <Landmark> convergence delta: %f\n", m_uFrameCount, CLandmark::dConvergenceDelta );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <Landmark> maximum error L2 inlier: %f\n", m_uFrameCount, CLandmark::dKernelMaximumErrorSquaredPixels );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) <Landmark> maximum error L2 average: %f\n", m_uFrameCount, CLandmark::dMaximumErrorSquaredAveragePixels );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) loop closing minimum relative matches: %f\n", m_uFrameCount, m_dMinimumRelativeMatchesLoopClosure );
-    std::printf( "[0][%06lu]<CTrackerSVI>(CTrackerSVI) instance allocated\n", m_uFrameCount );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <Landmark> cap iterations: %u\n", m_uFrameCount, CLandmark::uCapIterations );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <Landmark> convergence delta: %f\n", m_uFrameCount, CLandmark::dConvergenceDelta );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <Landmark> maximum error L2 inlier: %f\n", m_uFrameCount, CLandmark::dKernelMaximumErrorSquaredPixels );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) <Landmark> maximum error L2 average: %f\n", m_uFrameCount, CLandmark::dMaximumErrorSquaredAveragePixels );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) loop closing minimum relative matches: %f\n", m_uFrameCount, m_dMinimumRelativeMatchesLoopClosure );
+    std::printf( "[0][%06lu]<CTrackerSV>(CTrackerSV) instance allocated\n", m_uFrameCount );
     CLogger::closeBox( );
 }
 
-CTrackerSVI::~CTrackerSVI( )
+CTrackerSV::~CTrackerSV( )
 {
     /*ds close loggers
     CLogger::CLogLandmarkCreation::close( );
@@ -117,7 +115,7 @@ CTrackerSVI::~CTrackerSVI( )
         assert( 0 != pLandmark );
         delete pLandmark;
     }
-    std::printf( "[0][%06lu]<CTrackerSVI>(~CTrackerSVI) deallocated landmarks: %lu (%.0fMB)\n", m_uFrameCount, m_vecLandmarks->size( ), uSizeBytesLandmarks/1e6 );
+    std::printf( "[0][%06lu]<CTrackerSV>(~CTrackerSV) deallocated landmarks: %lu (%.0fMB)\n", m_uFrameCount, m_vecLandmarks->size( ), uSizeBytesLandmarks/1e6 );
 
     //ds total data structure size
     uint64_t uSizeBytesKeyFrames = 0;
@@ -129,86 +127,53 @@ CTrackerSVI::~CTrackerSVI( )
         assert( 0 != pKeyFrame );
         delete pKeyFrame;
     }
-    std::printf( "[0][%06lu]<CTrackerSVI>(~CTrackerSVI) deallocated key frames: %lu (%.0fMB)\n", m_uFrameCount, m_vecKeyFrames->size( ), uSizeBytesKeyFrames/1e6 );
-    std::printf( "[0][%06lu]<CTrackerSVI>(~CTrackerSVI) instance deallocated\n", m_uFrameCount );
+    std::printf( "[0][%06lu]<CTrackerSV>(~CTrackerSV) deallocated key frames: %lu (%.0fMB)\n", m_uFrameCount, m_vecKeyFrames->size( ), uSizeBytesKeyFrames/1e6 );
+    std::printf( "[0][%06lu]<CTrackerSV>(~CTrackerSV) instance deallocated\n", m_uFrameCount );
 }
 
-void CTrackerSVI::process( const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageLEFT,
-                                                const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageRIGHT,
-                                                const std::shared_ptr< txt_io::CIMUMessage > p_pIMU )
+void CTrackerSV::process( const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageLEFT,
+                          const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageRIGHT )
 {
     //ds preprocessed images
     cv::Mat matPreprocessedLEFT( p_pImageLEFT->image( ) );
     cv::Mat matPreprocessedRIGHT( p_pImageRIGHT->image( ) );
 
     //ds preprocess images
-    cv::equalizeHist( p_pImageLEFT->image( ), matPreprocessedLEFT );
-    cv::equalizeHist( p_pImageRIGHT->image( ), matPreprocessedRIGHT );
-    m_pCameraSTEREO->undistortAndrectify( matPreprocessedLEFT, matPreprocessedRIGHT );
+    //cv::equalizeHist( p_pImageLEFT->image( ), matPreprocessedLEFT );
+    //cv::equalizeHist( p_pImageRIGHT->image( ), matPreprocessedRIGHT );
+    //m_pCameraSTEREO->undistortAndrectify( matPreprocessedLEFT, matPreprocessedRIGHT );
 
     //ds current timestamp
-    const double dTimestampSeconds      = p_pIMU->timestamp( );
+    const double dTimestampSeconds      = p_pImageLEFT->timestamp( );
     const double dDeltaTimestampSeconds = dTimestampSeconds - m_dTimestampLASTSeconds;
 
     assert( 0.0 <= dDeltaTimestampSeconds );
+    assert( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds );
 
     //ds parallel transformation with erased translation
     Eigen::Isometry3d matTransformationRotationOnlyLEFTLASTtoLEFTNOW( m_matTransformationLEFTLASTtoLEFTNOW );
     matTransformationRotationOnlyLEFTLASTtoLEFTNOW.translation( ) = Eigen::Vector3d::Zero( );
 
-    //ds if the delta is acceptable
-    if( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds )
-    {
-        //ds compute total rotation
-        const Eigen::Vector3d vecRotationTotal( m_vecVelocityAngularFilteredLAST*dDeltaTimestampSeconds );
-        const Eigen::Vector3d vecTranslationTotal( 0.5*m_vecLinearAccelerationFilteredLAST*dDeltaTimestampSeconds*dDeltaTimestampSeconds );
+    //ds changes from last (based on constant velocity motion model)
+    const Eigen::Vector3d vecRotationTotal( CMiniVisionToolbox::toOrientationRodrigues( m_matTransformationLEFTLASTtoLEFTNOW.linear( ) ) );
+    const Eigen::Vector3d vecTranslationTotal( m_matTransformationLEFTLASTtoLEFTNOW.translation( ) );
 
-        //ds integrate imu input: overwrite rotation
-        m_matTransformationLEFTLASTtoLEFTNOW.linear( ) = CMiniVisionToolbox::fromOrientationRodrigues( vecRotationTotal );
-
-        //ds add acceleration
-        m_matTransformationLEFTLASTtoLEFTNOW.translation( ) += vecTranslationTotal;
-
-        //ds process images (fed with IMU prior pose)
-        _trackLandmarks( matPreprocessedLEFT,
-                         matPreprocessedRIGHT,
-                         m_matTransformationLEFTLASTtoLEFTNOW*m_matTransformationWORLDtoLEFTLAST,
-                         matTransformationRotationOnlyLEFTLASTtoLEFTNOW*m_matTransformationWORLDtoLEFTLAST,
-                         p_pIMU->getLinearAcceleration( ),
-                         p_pIMU->getAngularVelocity( ),
-                         vecRotationTotal,
-                         vecTranslationTotal,
-                         dDeltaTimestampSeconds );
-    }
-    else
-    {
-        //ds compute reduced entities
-        const Eigen::Vector3d vecRotationTotalDamped( m_vecVelocityAngularFilteredLAST*CIMUInterpolator::dMaximumDeltaTimeSeconds );
-        const Eigen::Vector3d vecTranslationTotalDamped( Eigen::Vector3d::Zero( ) );
-
-        //ds use full angular velocity
-        std::printf( "[0][%06lu]<CTrackerSVI>(receivevDataVI) using reduced IMU input, timestamp delta: %f\n", m_uFrameCount, dDeltaTimestampSeconds );
-
-        //ds integrate imu input: overwrite rotation with limited IMU input
-        m_matTransformationLEFTLASTtoLEFTNOW.linear( ) = CMiniVisionToolbox::fromOrientationRodrigues( vecRotationTotalDamped );
-
-        //ds process images (fed with IMU prior pose: damped input)
-        _trackLandmarks( matPreprocessedLEFT,
-                         matPreprocessedRIGHT,
-                         m_matTransformationLEFTLASTtoLEFTNOW*m_matTransformationWORLDtoLEFTLAST,
-                         matTransformationRotationOnlyLEFTLASTtoLEFTNOW*m_matTransformationWORLDtoLEFTLAST,
-                         p_pIMU->getLinearAcceleration( ),
-                         p_pIMU->getAngularVelocity( ),
-                         vecRotationTotalDamped,
-                         vecTranslationTotalDamped,
-                         dDeltaTimestampSeconds );
-    }
+    //ds process images (fed with IMU prior pose)
+    _trackLandmarks( matPreprocessedLEFT,
+                     matPreprocessedRIGHT,
+                     m_matTransformationLEFTLASTtoLEFTNOW*m_matTransformationWORLDtoLEFTLAST,
+                     matTransformationRotationOnlyLEFTLASTtoLEFTNOW*m_matTransformationWORLDtoLEFTLAST,
+                     CLinearAccelerationIMU::Zero( ),
+                     CAngularVelocityIMU::Zero( ),
+                     vecRotationTotal,
+                     vecTranslationTotal,
+                     dDeltaTimestampSeconds );
 
     //ds update timestamp
     m_dTimestampLASTSeconds = dTimestampSeconds;
 }
 
-void CTrackerSVI::finalize( )
+void CTrackerSV::finalize( )
 {
 
 /*#ifdef USING_BOW
@@ -229,14 +194,14 @@ void CTrackerSVI::finalize( )
         vecDescriptorsKeyFrames.push_back( pKeyFrame->vecDescriptorPool );
     }
 
-    std::printf( "[0][%06lu]<CTrackerSVI>(finalize) creating vocabulary\n", m_uFrameCount );
+    std::printf( "[0][%06lu]<CTrackerSV>(finalize) creating vocabulary\n", m_uFrameCount );
 
     //ds create the vocabulary
     const double dTimeStartSeconds = CTimer::getTimeSeconds( );
     cVoc.create( vecDescriptorsKeyFrames );
     const double dDurationSeconds = CTimer::getTimeSeconds( )-dTimeStartSeconds;
 
-    std::printf( "[0][%06lu]<CTrackerSVI>(finalize) creation complete - duration: %fs\n", m_uFrameCount, dDurationSeconds );
+    std::printf( "[0][%06lu]<CTrackerSV>(finalize) creation complete - duration: %fs\n", m_uFrameCount, dDurationSeconds );
 
     //ds filename
     const std::string strVocabularyName( "vocabulary_BRIEF_"+std::to_string( vecDescriptorsKeyFrames.size( ) )+"_K"+std::to_string( uBranchingFactor )+"_L"+std::to_string( uDepthLevels )+".yml.gz" );
@@ -244,7 +209,7 @@ void CTrackerSVI::finalize( )
     //ds save to disk
     cVoc.save( strVocabularyName );
 
-    std::printf( "[0][%06lu]<CTrackerSVI>(finalize) saved DBoW2 vocabulary to: '%s'\n", m_uFrameCount, strVocabularyName.c_str( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(finalize) saved DBoW2 vocabulary to: '%s'\n", m_uFrameCount, strVocabularyName.c_str( ) );
 
 #endif*/
 
@@ -252,7 +217,7 @@ void CTrackerSVI::finalize( )
     if( !m_bIsShutdownRequested )
     {
         //ds inform
-        std::printf( "[0][%06lu]<CTrackerSVI>(finalize) press any key to perform final optimization\n", m_uFrameCount );
+        std::printf( "[0][%06lu]<CTrackerSV>(finalize) press any key to perform final optimization\n", m_uFrameCount );
 
         //ds also display on image
         cv::Mat matDisplayComplete = cv::Mat( 2*m_pCameraSTEREO->m_uPixelHeight, 2*m_pCameraSTEREO->m_uPixelWidth, CV_8UC3, cv::Scalar( 0.0 ) );
@@ -264,14 +229,14 @@ void CTrackerSVI::finalize( )
     }
     else
     {
-        std::printf( "[0][%06lu]<CTrackerSVI>(finalize) running final optimization\n", m_uFrameCount );
+        std::printf( "[0][%06lu]<CTrackerSV>(finalize) running final optimization\n", m_uFrameCount );
     }
 
     //ds trigger shutdown
     m_bIsShutdownRequested = true;
 }
 
-void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
+void CTrackerSV::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                                                  const cv::Mat& p_matImageRIGHT,
                                                  const Eigen::Isometry3d& p_matTransformationEstimateWORLDtoLEFT,
                                                  const Eigen::Isometry3d& p_matTransformationEstimateParallelWORLDtoLEFT,
@@ -294,7 +259,7 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
     const cv::Mat matDisplayRIGHTClean( matDisplayRIGHT.clone( ) );
 
     //ds compute motion scaling (capped)
-    const double dMotionScaling = std::min( 1.0+100*( p_vecRotationTotal.squaredNorm( )+p_vecTranslationTotal.squaredNorm( ) ), 2.0 );
+    const double dMotionScaling = std::min( 1.0+( 10.0*p_vecRotationTotal.norm( )+0.5*p_vecTranslationTotal.norm( ) ), 5.0 );
 
     //ds refresh landmark states
     m_cMatcher.resetVisibilityActiveLandmarks( );
@@ -324,7 +289,7 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
     }
     catch( const CExceptionPoseOptimization& p_cException )
     {
-        std::printf( "[0][%06lu]<CTrackerSVI>(_trackLandmarks) pose optimization failed [RAW PRIOR]: '%s'\n", m_uFrameCount, p_cException.what( ) );
+        std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) pose optimization failed [RAW PRIOR]: '%s'\n", m_uFrameCount, p_cException.what( ) );
         try
         {
             //ds get the optimized pose on constant motion
@@ -333,7 +298,7 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                                                                               matDisplayRIGHT,
                                                                               p_matImageLEFT,
                                                                               p_matImageRIGHT,
-                                                                              m_matTransformationWORLDtoLEFTLAST,
+                                                                              p_matTransformationEstimateParallelWORLDtoLEFT,
                                                                               m_matTransformationWORLDtoLEFTLAST,
                                                                               p_vecRotationTotal,
                                                                               p_vecTranslationTotal,
@@ -346,12 +311,31 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             {
                 m_uCountInstability += 5;
             }
-            std::printf( "[0][%06lu]<CTrackerSVI>(_trackLandmarks) pose optimization failed [DAMPED PRIOR]: '%s' - running on damped IMU only\n", m_uFrameCount, p_cException.what( ) );
-
-            //ds compute damped rotation
-            Eigen::Vector3d vecRotationYZ( p_vecRotationTotal );
-            vecRotationYZ.x( ) = 0.0;
-            matTransformationWORLDtoLEFT = CMiniVisionToolbox::fromOrientationRodrigues( vecRotationYZ )*m_matTransformationWORLDtoLEFTLAST;
+            std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) pose optimization failed [DAMPED PRIOR]: '%s'\n", m_uFrameCount, p_cException.what( ) );
+            try
+            {
+                //ds get the optimized pose on constant motion
+                matTransformationWORLDtoLEFT = m_cMatcher.getPoseStereoPosit( m_uFrameCount,
+                                                                                  matDisplayLEFT,
+                                                                                  matDisplayRIGHT,
+                                                                                  p_matImageLEFT,
+                                                                                  p_matImageRIGHT,
+                                                                                  m_matTransformationWORLDtoLEFTLAST,
+                                                                                  m_matTransformationWORLDtoLEFTLAST,
+                                                                                  p_vecRotationTotal,
+                                                                                  p_vecTranslationTotal,
+                                                                                  dMotionScaling );
+            }
+            catch( const CExceptionPoseOptimization& p_cException )
+            {
+                //ds if not capped already
+                if( 20 > m_uCountInstability )
+                {
+                    m_uCountInstability += 5;
+                }
+                std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) pose optimization failed [LAST VISUAL]: '%s' - using rotation only\n", m_uFrameCount, p_cException.what( ) );
+                matTransformationWORLDtoLEFT = p_matTransformationEstimateParallelWORLDtoLEFT;
+            }
         }
     }
 
@@ -381,22 +365,10 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             m_uCountInstability += 5;
         }
 
-        std::printf( "[0][%06lu]<CTrackerSVI>(_trackLandmarks) lost track (landmarks visible: %3i lost: %3i), total delta: %f (%f %f %f), motion scaling: %f\n",
-                     m_uFrameCount, uNumberOfVisibleLandmarks, static_cast< int32_t >( iLandmarksLost ), m_vecVelocityAngularFilteredLAST.squaredNorm( ), m_vecVelocityAngularFilteredLAST.x( ), m_vecVelocityAngularFilteredLAST.y( ), m_vecVelocityAngularFilteredLAST.z( ), dMotionScaling );
+        std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) lost track (landmarks visible: %3i lost: %3i), total delta: %f (%f %f %f), motion scaling: %f\n",
+                     m_uFrameCount, uNumberOfVisibleLandmarks, static_cast< int32_t >( iLandmarksLost ), m_matTransformationLEFTLASTtoLEFTNOW.translation( ).squaredNorm( ), p_vecRotationTotal.x( ), p_vecRotationTotal.y( ), p_vecRotationTotal.z( ), dMotionScaling );
         //m_uWaitKeyTimeoutMS = 0;
     }
-
-    //ds estimate acceleration in current WORLD frame (necessary to filter gravity)
-    const Eigen::Matrix3d matRotationIMUtoWORLD( matTransformationLEFTtoWORLD.linear( )*m_pCameraLEFT->m_matRotationIMUtoCAMERA );
-    const CLinearAccelerationWORLD vecLinearAccelerationWORLD( matRotationIMUtoWORLD*p_vecLinearAcceleration );
-    const CLinearAccelerationWORLD vecLinearAccelerationWORLDFiltered( CIMUInterpolator::getLinearAccelerationFiltered( vecLinearAccelerationWORLD ) );
-
-    //ds get angular velocity filtered
-    const CAngularVelocityIMU vecAngularVelocityFiltered( CIMUInterpolator::getAngularVelocityFiltered( p_vecAngularVelocity ) );
-
-    //ds update IMU input references
-    m_vecLinearAccelerationFilteredLAST = matTransformationWORLDtoLEFT.linear( )*vecLinearAccelerationWORLDFiltered;
-    m_vecVelocityAngularFilteredLAST    = m_pCameraLEFT->m_matRotationIMUtoCAMERA*vecAngularVelocityFiltered;
 
     //ds current translation
     m_vecPositionLAST    = m_vecPositionCurrent;
@@ -438,7 +410,7 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
         m_dAngleDeltaForKeyFrameRadiansL2 < m_vecCameraOrientationAccumulated.squaredNorm( ) ||
         m_uFrameDifferenceForKeyFrame < m_uFrameCount-m_uFrameKeyFrameLAST                   )
     {
-        //ds compute cloud for current keyframe (also optimizes landmarks!)
+        //ds compute cloud for current keyframe
         const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud = m_cMatcher.getCloudForVisibleOptimizedLandmarks( m_uFrameCount );
 
         //ds if the number of points in the cloud is sufficient
@@ -451,7 +423,7 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             CKeyFrame* pKeyFrameNEW = new CKeyFrame( m_vecKeyFrames->size( ),
                                                   m_uFrameCount,
                                                   matTransformationLEFTtoWORLD,
-                                                  p_vecLinearAcceleration.normalized( ),
+                                                  CLinearAccelerationIMU::Zero( ),
                                                   m_cMatcher.getMeasurementsForVisibleLandmarks( ),
                                                   vecCloud,
                                                   m_uCountInstability,
@@ -570,14 +542,14 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                     //ds switch to stepwise mode
                     m_uWaitKeyTimeoutMS = 0;
                     m_eMode = ePlaybackStepwise;
-                    std::printf( "[0][%06lu]<CTrackerSVI>(_trackLandmarks) switched to stepwise mode\n", m_uFrameCount );
+                    std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) switched to stepwise mode\n", m_uFrameCount );
                 }
                 else
                 {
                     //ds switch to benchmark mode
                     m_uWaitKeyTimeoutMS = 1;
                     m_eMode = ePlaybackBenchmark;
-                    std::printf( "[0][%06lu]<CTrackerSVI>(_trackLandmarks) switched back to benchmark mode\n", m_uFrameCount );
+                    std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) switched back to benchmark mode\n", m_uFrameCount );
                 }
                 break;
             }
@@ -602,14 +574,9 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
     //ds log final status (after potential optimization)
     //CLogger::CLogIMUInput::addEntry( m_uFrameCount, vecLinearAccelerationWORLD, vecLinearAccelerationWORLDFiltered, p_vecAngularVelocity, vecAngularVelocityFiltered );
     //CLogger::CLogTrajectory::addEntry( m_uFrameCount, m_vecPositionCurrent, Eigen::Quaterniond( matTransformationLEFTtoWORLD.linear( ) ) );
-
-    /*if( 75 == m_vecKeyFrames->size( ) )
-    {
-        finalize( );
-    }*/
 }
 
-void CTrackerSVI::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
+void CTrackerSV::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
                                                   const cv::Mat& p_matImageRIGHT,
                                                   const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
                                                   const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
@@ -671,6 +638,9 @@ void CTrackerSVI::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
                                                      matProjectionWORLDtoRIGHT,
                                                      m_uFrameCount );
 
+            //ds KITTI default
+            pLandmarkNEW->bIsOptimal = true;
+
             //ds log creation
             //CLogger::CLogLandmarkCreation::addEntry( m_uFrameCount, pLandmark, dDepthMeters, ptLandmarkLEFT, ptLandmarkRIGHT );
 
@@ -695,14 +665,14 @@ void CTrackerSVI::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
         catch( const CExceptionNoMatchFound& p_cException )
         {
             cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 3, CColorCodeBGR( 0, 0, 255 ), -1 );
-            //std::printf( "[0][%06lu]<CTrackerSVI>(_addNewLandmarks) could not find match for keypoint: '%s'\n", m_uFrameCount, p_cException.what( ) );
+            //std::printf( "[0][%06lu]<CTrackerSV>(_addNewLandmarks) could not find match for keypoint: '%s'\n", m_uFrameCount, p_cException.what( ) );
         }
     }
 
     //ds if we couldn't find new landmarks
     if( 0 == vecNewLandmarks->size( ) )
     {
-        std::printf( "[0][%06lu]<CTrackerSVI>(_getNewLandmarks) unable to detect new landmarks\n", m_uFrameCount );
+        std::printf( "[0][%06lu]<CTrackerSV>(_getNewLandmarks) unable to detect new landmarks\n", m_uFrameCount );
     }
     else
     {
@@ -717,12 +687,12 @@ void CTrackerSVI::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
             m_cMatcher.addDetectionPoint( p_matTransformationLEFTtoWORLD, vecNewLandmarks );
         }
 
-        //std::printf( "<CTrackerSVI>(_getNewLandmarks) added new landmarks: %lu/%lu\n", vecNewLandmarks->size( ), vecKeyPoints.size( ) );
+        //std::printf( "<CTrackerSV>(_getNewLandmarks) added new landmarks: %lu/%lu\n", vecNewLandmarks->size( ), vecKeyPoints.size( ) );
     }
 }
 
 //ds locked key frames from upper scope
-const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrameQUERY,
+const std::vector< const CKeyFrame::CMatchICP* > CTrackerSV::_getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrameQUERY,
                                                                                            const double& p_dSearchRadiusMetersL2,
                                                                                            const double& p_dMinimumRelativeMatchesLoopClosure )
 {
@@ -735,13 +705,10 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds total matching duration for this query cloud
     double dDurationMatchingSeconds = 0.0;
 
-    //ds to string
-    const std::string strMinimumRelativeMatches = std::to_string( static_cast< uint32_t >( m_dMinimumRelativeMatchesLoopClosure*100 ) );
-
 #ifdef USING_BTREE
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_btree_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_btree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileTiming( "logs/matching_time_closures_btree.txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_btree.txt" );
 
     //ds query descriptors
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
@@ -779,8 +746,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #elif defined USING_BF
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_bf_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_bf_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileTiming( "logs/matching_time_closures_bf.txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_bf.txt" );
 
     //ds query descriptors
     const CDescriptors vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
@@ -819,8 +786,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #elif defined USING_LSH
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_lsh_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_lsh_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileTiming( "logs/matching_time_closures_lsh.txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_lsh.txt" );
 
     //ds query descriptors
     const CDescriptors vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
@@ -859,8 +826,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #elif defined USING_BOW
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_dbow2_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_dbow2_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileTiming( "logs/matching_time_closures_dbow2.txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_dbow2.txt" );
 
     //ds query descriptors
     const DBoW2::FeatureVector& vecDescriptorPoolFQUERY = p_pKeyFrameQUERY->vecDescriptorPoolF;
@@ -979,7 +946,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             matClosureMapNew( uIDREFERENCE, m_vecKeyFrames->size( ) ) = 1.0;
 
             ++uNumberOfClosures;
-            std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
+            std::printf( "[0][%06lu]<CTrackerSV>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
                          m_uFrameCount, p_pKeyFrameQUERY->uID, uIDREFERENCE, dRelativeMatches, vecPotentialClosures[uIDREFERENCE].size( ), p_pKeyFrameQUERY->vecCloud->size( ) );
 
             /*ds spatial matches for ICP loop closure computation
@@ -1042,7 +1009,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds closure vector to align
     std::vector< std::pair< const CKeyFrame*, const std::vector< CMatchCloud > > > vecClosuresToCompute( 0 );
 
-    std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) checking for closure in potential keyframes: %lu\n", m_uFrameCount, vecPotentialClosureKeyFrames.size( ) );
+    std::printf( "[0][%06lu]<CTrackerSV>(_getLoopClosuresForKeyFrame) checking for closure in potential keyframes: %lu\n", m_uFrameCount, vecPotentialClosureKeyFrames.size( ) );
 
     //ds timing
     const double dTimeStartMatchingSeconds = CTimer::getTimeSeconds( );
@@ -1072,7 +1039,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             //    }
             //    catch( const std::out_of_range& p_cException )
             //    {
-            //        std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) unable to match points over descriptor-to-point map\n", m_uFrameCount );
+            //        std::printf( "[0][%06lu]<CTrackerSV>(_getLoopClosuresForKeyFrame) unable to match points over descriptor-to-point map\n", m_uFrameCount );
             //    }
             //}
         }
@@ -1083,7 +1050,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         //ds if we have a suffient amount of matches
         if( p_dMinimumRelativeMatchesLoopClosure < dRelativeMatches )
         {
-            std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu%lu)\n",
+            std::printf( "[0][%06lu]<CTrackerSV>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu%lu)\n",
                          m_uFrameCount, p_pKeyFrameQUERY->uID, pKeyFrameReference->uID, dRelativeMatches, p_pKeyFrameQUERY->vecDescriptorPool.size( ), pKeyFrameReference->vecDescriptorPool.size( ) );
             vecClosuresToCompute.push_back( std::make_pair( pKeyFrameReference, vecMatches ) );
         }
@@ -1223,7 +1190,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     return vecLoopClosures;
 }
 
-const CMatchCloud CTrackerSVI::_getMatchNN( std::list< CMatchCloud >& p_lMatches ) const
+const CMatchCloud CTrackerSV::_getMatchNN( std::list< CMatchCloud >& p_lMatches ) const
 {
     //ds sort the list
     p_lMatches.sort( []( const CMatchCloud& prLHS, const CMatchCloud& prRHS )
@@ -1235,7 +1202,7 @@ const CMatchCloud CTrackerSVI::_getMatchNN( std::list< CMatchCloud >& p_lMatches
     return p_lMatches.front( );
 }
 
-void CTrackerSVI::_initializeTranslationWindow( )
+void CTrackerSV::_initializeTranslationWindow( )
 {
     //ds reinitialize translation window
     m_vecTranslationDeltas.clear( );
@@ -1246,13 +1213,13 @@ void CTrackerSVI::_initializeTranslationWindow( )
     m_vecGradientXYZ = Eigen::Vector3d::Zero( );
 }
 
-void CTrackerSVI::_shutDown( )
+void CTrackerSV::_shutDown( )
 {
     m_bIsShutdownRequested = true;
-    std::printf( "[0][%06lu]<CTrackerSVI>(_shutDown) termination requested, <CTrackerSVI> disabled\n", m_uFrameCount );
+    std::printf( "[0][%06lu]<CTrackerSV>(_shutDown) termination requested, <CTrackerSV> disabled\n", m_uFrameCount );
 }
 
-void CTrackerSVI::_updateFrameRateForInfoBox( const uint32_t& p_uFrameProbeRange )
+void CTrackerSV::_updateFrameRateForInfoBox( const uint32_t& p_uFrameProbeRange )
 {
     //ds check if we can compute the frame rate
     if( p_uFrameProbeRange == m_uFramesCurrentCycle )
@@ -1278,7 +1245,7 @@ void CTrackerSVI::_updateFrameRateForInfoBox( const uint32_t& p_uFrameProbeRange
     ++m_uFramesCurrentCycle;
 }
 
-void CTrackerSVI::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionScaling ) const
+void CTrackerSV::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionScaling ) const
 {
     char chBuffer[1024];
 
@@ -1308,7 +1275,7 @@ void CTrackerSVI::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionSc
         }
         default:
         {
-            std::printf( "[0][%06lu]<CTrackerSVI>(_drawInfoBox) unsupported playback mode, no info box displayed\n", m_uFrameCount );
+            std::printf( "[0][%06lu]<CTrackerSV>(_drawInfoBox) unsupported playback mode, no info box displayed\n", m_uFrameCount );
             break;
         }
     }
@@ -1321,7 +1288,7 @@ void CTrackerSVI::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionSc
 #if defined USING_BOW
 
 //ds snippet: https://github.com/dorian3d/DLoopDetector/blob/master/include/DLoopDetector/TemplatedLoopDetector.h
-void CTrackerSVI::_getMatches_neighratio( const std::vector< boost::dynamic_bitset<>> &A,
+void CTrackerSV::_getMatches_neighratio( const std::vector< boost::dynamic_bitset<>> &A,
                              const std::vector<unsigned int> &i_A,
                              const std::vector<boost::dynamic_bitset<>> &B,
                              const std::vector<unsigned int> &i_B,

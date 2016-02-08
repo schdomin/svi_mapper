@@ -26,7 +26,7 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
         for( uint32_t uLS = 0; uLS < m_uCapIterationsPoseOptimization; ++uLS )
         {
             //ds error
-            double dErrorSquaredTotalCurrent = 0.0;
+            double dErrorTotalPixelsL2 = 0.0;
             std::vector< CSolverStereoPosit::CMatch >::size_type uInliersCurrent = 0;
 
             //ds initialize setup
@@ -72,7 +72,7 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
                     {
                         ++uInliersCurrent;
                     }
-                    dErrorSquaredTotalCurrent += dWeight*dErrorSquaredPixels;
+                    dErrorTotalPixelsL2 += dWeight*dErrorSquaredPixels;
 
                     //ds get the jacobian of the transform part
                     Eigen::Matrix< double, 4, 6 > matJacobianTransform;
@@ -114,8 +114,20 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
             m_matTransformationWORLDtoLEFT.linear( ) -= 0.5*matRotation*matRotationSquared;
 
             //ds check if converged (descent not required, at least one inlier otherwise it drifted off)
-            if( m_dConvergenceDelta > std::fabs( m_dErrorTotalPreviousSquaredPixels-dErrorSquaredTotalCurrent ) )
+            if( m_dConvergenceDelta > std::fabs( m_dErrorTotalPreviousSquaredPixels-dErrorTotalPixelsL2 ) )
             {
+                //ds simplicity
+                m_dDurationTotalSeconds += CTimer::getTimeSeconds( )-dTimeStartSeconds;
+
+                //ds average error
+                const double dErrorAveragePixelsL2 = dErrorTotalPixelsL2/uNumberOfMeasurements;
+
+                //ds escape if not acceptable
+                if( m_dMaximumErrorAveragePixelsL2 < dErrorAveragePixelsL2 && m_uMinimumInliersPoseOptimization > uInliersCurrent )
+                {
+                    throw CExceptionPoseOptimization( "insufficient accuracy (average error: "+std::to_string( dErrorAveragePixelsL2 )+" inliers: " + std::to_string( uInliersCurrent )+")" );
+                }
+
                 //ds compute quality identifiers
                 const Eigen::Vector3d vecDeltaTranslationOptimized( m_matTransformationWORLDtoLEFT.translation( )-p_matTransformationWORLDtoLEFTLAST.translation( ) );
                 const double dNormOptimizationTranslation = vecDeltaTranslationOptimized.squaredNorm( );
@@ -139,23 +151,18 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
                 const Eigen::Isometry3d matTransformationLEFTtoWORLD( m_matTransformationWORLDtoLEFT.inverse( ) );
                 const double dOptimizationRISK = ( matTransformationLEFTtoWORLD.translation( )-p_matTransformationWORLDtoLEFTESTIMATE.inverse( ).translation( )-p_vecTranslationIMU ).squaredNorm( );
 
-                //ds if solution is acceptable
-                if( m_uMinimumInliersPoseOptimization < uInliersCurrent &&
-                    m_dMaximumRISK > dOptimizationRISK                  )
+                //ds check optimization risk (relate computed transformation to prior -> if they differ too much we discard the result)
+                if( m_dMaximumRISK < dOptimizationRISK )
                 {
-                    //ds return with pose
-                    m_dDurationTotalSeconds += CTimer::getTimeSeconds( )-dTimeStartSeconds;
-                    return m_matTransformationWORLDtoLEFT;
+                    throw CExceptionPoseOptimization( "inconsistent with prior (HIGH RISK: " + std::to_string( dOptimizationRISK ) + ")" );
                 }
-                else
-                {
-                    m_dDurationTotalSeconds += CTimer::getTimeSeconds( )-dTimeStartSeconds;
-                    throw CExceptionPoseOptimization( "insufficient accuracy (inliers: " + std::to_string( uInliersCurrent ) + " RISK: " + std::to_string( dOptimizationRISK ) + ")" );
-                }
+
+                //ds return with pose if still here - all checks passed
+                return m_matTransformationWORLDtoLEFT;
             }
             else
             {
-                m_dErrorTotalPreviousSquaredPixels = dErrorSquaredTotalCurrent;
+                m_dErrorTotalPreviousSquaredPixels = dErrorTotalPixelsL2;
             }
         }
 

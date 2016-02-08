@@ -83,9 +83,9 @@ public:
     //static constexpr double m_dLevenbergDamping                   = 5.0;
     //const double m_dFactorDynamicDamping        = 1.05;
     static constexpr double dConvergenceDelta                 = 1e-5;
-    static constexpr double dMinimumRatioInliersToOutliers    = 0.5;
-    static constexpr double dKernelMaximumErrorSquaredPixels  = 15.0; //ds REGULAR: 10.0 CAR: 20.0
-    static constexpr double dMaximumErrorSquaredAveragePixels = 14.0; //ds REGULAR: 9.0 CAR: 17.5
+    static constexpr double dMinimumRatioInliersToOutliers    = 0.5; //0.5;
+    static constexpr double dKernelMaximumErrorSquaredPixels  = 10.0; //15.0; //ds REGULAR: 10.0 CAR: 20.0
+    static constexpr double dMaximumErrorSquaredAveragePixels = 9.0; //14.0; //ds REGULAR: 9.0 CAR: 17.5
     //static constexpr uint8_t m_uMinimumInliers                    = 10;
     static constexpr std::vector< CMeasurementLandmark* >::size_type uMinimumMeasurementsForOptimization = 5;
 
@@ -104,8 +104,8 @@ public:
                          const MatrixProjection& p_matProjectionWORLDtoRIGHT );
 
     //ds getters ONLY used for wrapping
-    const cv::Point2d getLastDetectionLEFT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->ptUVLEFT; }
-    const cv::Point2d getLastDetectionRIGHT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->ptUVRIGHT; }
+    const cv::Point2f getLastDetectionLEFT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->ptUVLEFT; }
+    const cv::Point2f getLastDetectionRIGHT( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->ptUVRIGHT; }
     const CDescriptor getLastDescriptorLEFT( ) const { return vecDescriptorsLEFT.back( ); }
     const CDescriptor getLastDescriptorRIGHT( ) const { return vecDescriptorsRIGHT.back( ); }
     const float getLastDisparity( ) const { assert( 0 != m_vecMeasurements.back( ) ); return m_vecMeasurements.back( )->fDisparity; }

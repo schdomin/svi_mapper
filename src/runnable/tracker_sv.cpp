@@ -4,10 +4,8 @@
 
 //ds custom
 #include "txt_io/message_reader.h"
-
-#include "../core/CTrackerSVI.h"
+#include "../core/CTrackerSV.h"
 #include "exceptions/CExceptionLogfileTree.h"
-#include "utility/CIMUInterpolator.h"
 #include "utility/CParameterBase.h"
 #include "optimization/Cg2oOptimizer.h"
 
@@ -17,13 +15,9 @@
 void setParametersNaive( const int& p_iArgc,
                          char** const p_pArgv,
                          std::string& p_strMode,
-                         std::string& p_strInfileCameraIMUMessages,
-                         double& p_dMinimumRelativeMatchesLoopClosure );
+                         std::string& p_strInfileCameraIMUMessages );
 
 void printHelp( );
-
-//ds speed tests
-void testSpeedEigen( );
 
 
 
@@ -34,12 +28,11 @@ int32_t main( int32_t argc, char **argv )
     //ds defaults
     std::string strMode              = "benchmark";
     std::string strInfileMessageDump = "";
-    std::string strConfigurationCameraLEFT  = "../hardware_parameters/vi_sensor_camera_left.txt";
-    std::string strConfigurationCameraRIGHT = "../hardware_parameters/vi_sensor_camera_right.txt";
-    double dMinimumRelativeMatchesLoopClosure = 0.5;
+    std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
+    std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
 
     //ds get params
-    setParametersNaive( argc, argv, strMode, strInfileMessageDump, dMinimumRelativeMatchesLoopClosure );
+    setParametersNaive( argc, argv, strMode, strInfileMessageDump );
 
     //ds escape here on failure
     if( strInfileMessageDump.empty( ) )
@@ -118,11 +111,11 @@ int32_t main( int32_t argc, char **argv )
     try
     {
         //ds load camera parameters
-        CParameterBase::loadCameraLEFTwithIMU( strConfigurationCameraLEFT );
+        CParameterBase::loadCameraLEFT( strConfigurationCameraLEFT );
         std::printf( "[0](main) successfully imported camera LEFT\n" );
-        CParameterBase::loadCameraRIGHTwithIMU( strConfigurationCameraRIGHT );
+        CParameterBase::loadCameraRIGHT( strConfigurationCameraRIGHT );
         std::printf( "[0](main) successfully imported camera RIGHT\n" );
-        CParameterBase::constructCameraSTEREOwithIMU( );
+        CParameterBase::constructCameraSTEREO( Eigen::Vector3d( -0.54, 0.0, 0.0 ) );
     }
     catch( const CExceptionParameter& p_cException )
     {
@@ -140,50 +133,22 @@ int32_t main( int32_t argc, char **argv )
         return 1;
     }
 
-    //ds evaluate IMU situation first
-    std::shared_ptr< CIMUInterpolator > pIMUInterpolator( std::make_shared< CIMUInterpolator >( ) );
-
     //ds stop time
     const double dTimeStartSeconds = CLogger::getTimeSeconds( );
 
     //ds message holders
-    std::shared_ptr< txt_io::CIMUMessage > pMessageIMU( 0 );
     std::shared_ptr< txt_io::PinholeImageMessage > pMessageCameraLEFT( 0 );
     std::shared_ptr< txt_io::PinholeImageMessage > pMessageCameraRIGHT( 0 );
 
-    //ds playback the dump - IMU calibration
-    while( cMessageReader.good( ) && !pIMUInterpolator->isCalibrated( ) )
-    {
-        //ds retrieve a message
-        txt_io::BaseMessage* msgBase = cMessageReader.readMessage( );
-
-        //ds if set
-        if( 0 != msgBase )
-        {
-            //ds trigger callbacks artificially - check for imu input first
-            if( "IMU_MESSAGE" == msgBase->tag( ) )
-            {
-                //ds IMU message
-                pMessageIMU = std::shared_ptr< txt_io::CIMUMessage >( dynamic_cast< txt_io::CIMUMessage* >( msgBase ) );
-
-                //ds add to interpolator
-                pIMUInterpolator->addMeasurementCalibration( pMessageIMU->getLinearAcceleration( ), pMessageIMU->getAngularVelocity( ) );
-            }
-        }
-    }
-
     //ds must be calibrated
-    assert( pIMUInterpolator->isCalibrated( ) );
-    assert( 0 != CParameterBase::pCameraLEFTwithIMU );
-    assert( 0 != CParameterBase::pCameraRIGHTwithIMU );
-    assert( 0 != CParameterBase::pCameraSTEREOwithIMU );
+    assert( 0 != CParameterBase::pCameraLEFT );
+    assert( 0 != CParameterBase::pCameraRIGHT );
+    assert( 0 != CParameterBase::pCameraSTEREO );
 
     //ds allocate the tracker
-    CTrackerSVI cTracker( CParameterBase::pCameraSTEREOwithIMU,
-                             pIMUInterpolator,
-                             eMode,
-                             dMinimumRelativeMatchesLoopClosure,
-                             uWaitKeyTimeout );
+    CTrackerSV cTracker( CParameterBase::pCameraSTEREO,
+                         eMode,
+                         uWaitKeyTimeout );
     try
     {
         //ds prepare file structure
@@ -208,54 +173,37 @@ int32_t main( int32_t argc, char **argv )
         //ds if set
         if( 0 != msgBase )
         {
-            //ds trigger callbacks artificially - check for imu input first
-            if( "IMU_MESSAGE" == msgBase->tag( ) )
-            {
-                //ds IMU message
-                pMessageIMU = std::shared_ptr< txt_io::CIMUMessage >( dynamic_cast< txt_io::CIMUMessage* >( msgBase ) );
+            //ds camera message
+            std::shared_ptr< txt_io::PinholeImageMessage > pMessageImage( dynamic_cast< txt_io::PinholeImageMessage* >( msgBase ) );
+            assert( 0 != pMessageImage );
 
-                //ds add to interpolator
-                pIMUInterpolator->addMeasurement( pMessageIMU->getLinearAcceleration( ), pMessageIMU->getAngularVelocity( ) );
+            //ds if its the left camera
+            if( "camera_left" == pMessageImage->frameId( ) )
+            {
+                pMessageCameraLEFT  = pMessageImage;
             }
             else
             {
-                //ds camera message
-                std::shared_ptr< txt_io::PinholeImageMessage > pMessageImage( dynamic_cast< txt_io::PinholeImageMessage* >( msgBase ) );
-
-                //ds if its the left camera
-                if( "camera_left" == pMessageImage->frameId( ) )
-                {
-                    pMessageCameraLEFT  = pMessageImage;
-                }
-                else
-                {
-                    pMessageCameraRIGHT = pMessageImage;
-                }
+                pMessageCameraRIGHT = pMessageImage;
             }
         }
 
         //ds as soon as we have data in all the stacks - process
-        if( 0 != pMessageCameraLEFT && 0 != pMessageCameraRIGHT && 0 != pMessageIMU )
+        if( 0 != pMessageCameraLEFT && 0 != pMessageCameraRIGHT )
         {
             //ds if the timestamps match (optimally the case)
             if( pMessageCameraLEFT->timestamp( ) == pMessageCameraRIGHT->timestamp( ) )
             {
-                //ds synchronization expected
-                assert( pMessageIMU->timestamp( ) == pMessageCameraLEFT->timestamp( ) );
-                assert( pMessageIMU->timestamp( ) == pMessageCameraRIGHT->timestamp( ) );
-
                 //ds evaluate images and IMU (inner landmark locking)
-                cTracker.process( pMessageCameraLEFT, pMessageCameraRIGHT, pMessageIMU );
+                cTracker.process( pMessageCameraLEFT, pMessageCameraRIGHT );
 
                 //ds reset holders
                 pMessageCameraLEFT.reset( );
                 pMessageCameraRIGHT.reset( );
-                pMessageIMU.reset( );
 
                 //ds check reset
                 assert( 0 == pMessageCameraLEFT );
                 assert( 0 == pMessageCameraRIGHT );
-                assert( 0 == pMessageIMU );
             }
             else
             {
@@ -315,9 +263,6 @@ int32_t main( int32_t argc, char **argv )
         std::printf( "[0](main) dataset completed - no frames processed\n" );
     }
 
-    //ds speed checks
-    //testSpeedEigen( );
-
     //ds exit
     return 0;
 }
@@ -325,8 +270,7 @@ int32_t main( int32_t argc, char **argv )
 void setParametersNaive( const int& p_iArgc,
                          char** const p_pArgv,
                          std::string& p_strMode,
-                         std::string& p_strInfileCameraIMUMessages,
-                         double& p_dMinimumRelativeMatchesLoopClosure )
+                         std::string& p_strInfileCameraIMUMessages )
 {
     //ds attribute names (C style for printf)
     const char* arrParameter1 = "-mode";
@@ -335,7 +279,6 @@ void setParametersNaive( const int& p_iArgc,
     const char* arrParameter4 = "--h";
     const char* arrParameter5 = "-help";
     const char* arrParameter6 = "--help";
-    const char* arrParameter7 = "-lc";
 
     try
     {
@@ -360,7 +303,6 @@ void setParametersNaive( const int& p_iArgc,
         const std::vector< std::string >::const_iterator itParameter4( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter4 ) );
         const std::vector< std::string >::const_iterator itParameter5( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter5 ) );
         const std::vector< std::string >::const_iterator itParameter6( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter6 ) );
-        const std::vector< std::string >::const_iterator itParameter7( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter7 ) );
 
         //ds check for help parameters first
         if( vecCommandLineArguments.end( ) != itParameter3 ||
@@ -376,7 +318,6 @@ void setParametersNaive( const int& p_iArgc,
         //ds set parameters if found
         if( vecCommandLineArguments.end( ) != itParameter1 ){ p_strMode                    = *( itParameter1+1 ); }
         if( vecCommandLineArguments.end( ) != itParameter2 ){ p_strInfileCameraIMUMessages = *( itParameter2+1 ); }
-        if( vecCommandLineArguments.end( ) != itParameter7 ){ p_dMinimumRelativeMatchesLoopClosure = std::stod( *( itParameter7+1 ) ); }
     }
     catch( const std::invalid_argument& p_cException )
     {
@@ -394,27 +335,5 @@ void setParametersNaive( const int& p_iArgc,
 
 void printHelp( )
 {
-    std::printf( "[0](printHelp) usage: tracker_svi -messages='textfile_path' [-mode='interactive'|'stepwise'|'benchmark']\n" );
-}
-
-void testSpeedEigen( )
-{
-    //ds build speed check
-    CLogger::openBox( );
-    std::printf( "[0](testSpeedEigen) speed test started - this might take a while\n" );
-    Eigen::Matrix< double, 100, 100 > matTest( Eigen::Matrix< double, 100, 100 >::Identity( ) );
-    const double dTimeStartSeconds = CTimer::getTimeSeconds( );
-    for( uint64_t u = 0; u < 1e5; ++u )
-    {
-        matTest = matTest*matTest;
-        for( uint8_t v = 0; v < matTest.rows( ); ++v )
-        {
-            for( uint8_t w = 0; w < matTest.cols( ); ++w )
-            {
-                assert( 0 <= matTest(v,w) );
-            }
-        }
-    }
-    std::printf( "[0](testSpeedEigen) speed test run complete - duration: %fs\n", CTimer::getTimeSeconds( )-dTimeStartSeconds );
-    CLogger::closeBox( );
+    std::printf( "[0](printHelp) usage: tracker_sv -messages='textfile_path' [-mode='interactive'|'stepwise'|'benchmark']\n" );
 }

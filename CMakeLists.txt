@@ -56,8 +56,8 @@ message(" ")
 
 
 #ds add c++11 support, no optimization, all warnings
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
-#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
+#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
 
 
 
@@ -128,6 +128,8 @@ add_library(G2oEdges SHARED src/optimization/G2oEdges.cpp src/optimization/edge_
 #ds core binaries
 add_executable(tracker_svi src/runnable/tracker_svi.cpp src/core/CTrackerSVI.cpp ${SOURCEFILES})
 target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
+#add_executable(tracker_sv src/runnable/tracker_sv.cpp src/core/CTrackerSV.cpp ${SOURCEFILES})
+#target_link_libraries(tracker_sv ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 
 #ds io
 #add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)
@@ -150,6 +152,8 @@ target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION
 #target_link_libraries(compute_descriptors_holidays ${OpenCV_LIBRARIES})
 #add_executable(match_clouds_holidays src/runnable/match_clouds_holidays.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
 #target_link_libraries(match_clouds_holidays ${OpenCV_LIBRARIES})
+add_executable(create_vocabulary_dbow2 src/runnable/create_vocabulary_dbow2.cpp src/utility/CLogger.cpp)
+target_link_libraries(create_vocabulary_dbow2 ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY} ${DLIB_LIBRARY} ${DBOW2_LIBRARY})
 
 #ds list binaries UGLY GULY
 message("stereo_fps")

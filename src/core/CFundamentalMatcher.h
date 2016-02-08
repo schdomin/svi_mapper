@@ -85,6 +85,7 @@ private:
     UIDLandmark m_uNumberOfTracksStage2_1 = 0;
     UIDLandmark m_uNumberOfTracksStage3   = 0;
     UIDLandmark m_uNumberOfTracksStage2_2 = 0;
+    const double m_dEpipolarLineBaseLength = 20.0; //15.0;
 
     //ds posit solving
     const uint8_t m_uSearchBlockSizePoseOptimization = 15; //15
@@ -129,18 +130,16 @@ public:
                                                     const Eigen::Vector3d& p_vecTranslationTotal,
                                                     const double& p_dMotionScaling );
 
-    const Eigen::Isometry3d getPoseOptimizedSTEREOUVfromLAST( const UIDFrame p_uFrame,
-                                                    cv::Mat& p_matDisplayLEFT,
-                                                    cv::Mat& p_matDisplayRIGHT,
-                                                    const cv::Mat& p_matImageLEFT,
-                                                    const cv::Mat& p_matImageRIGHT,
-                                                    const Eigen::Isometry3d& p_matTransformationEstimateWORLDtoLEFT,
-                                                    const Eigen::Isometry3d& p_matTransformationWORLDtoLEFTLAST,
-                                                    const Eigen::Vector3d& p_vecRotationTotal,
-                                                    const Eigen::Vector3d& p_vecTranslationTotal,
-                                                    const double& p_dMotionScaling );
-
-    const Eigen::Isometry3d getPoseRefinedOnVisibleLandmarks( const Eigen::Isometry3d& p_matTransformationWORLDtoLEFTEstimate );
+    const Eigen::Isometry3d getPoseStereoPositfromLAST( const UIDFrame p_uFrame,
+                                                        cv::Mat& p_matDisplayLEFT,
+                                                        cv::Mat& p_matDisplayRIGHT,
+                                                        const cv::Mat& p_matImageLEFT,
+                                                        const cv::Mat& p_matImageRIGHT,
+                                                        const Eigen::Isometry3d& p_matTransformationEstimateWORLDtoLEFT,
+                                                        const Eigen::Isometry3d& p_matTransformationWORLDtoLEFTLAST,
+                                                        const Eigen::Vector3d& p_vecRotationTotal,
+                                                        const Eigen::Vector3d& p_vecTranslationTotal,
+                                                        const double& p_dMotionScaling );
 
     void trackEpipolar( const UIDFrame p_uFrame,
                        const cv::Mat& p_matImageLEFT,

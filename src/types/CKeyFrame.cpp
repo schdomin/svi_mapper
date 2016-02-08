@@ -30,9 +30,9 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
 #endif
 {
 #if defined USING_BF
-    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPoolCV ) );
+    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
 #elif defined USING_LSH
-    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPoolCV ) );
+    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
     m_pMatcherLSH->train( );
 #endif
 
@@ -67,9 +67,9 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
 #endif
 {
 #if defined USING_BF
-    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPoolCV ) );
+    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
 #elif defined USING_LSH
-    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPoolCV ) );
+    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
     m_pMatcherLSH->train( );
 #endif
 
@@ -98,9 +98,9 @@ CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.
 #endif
 {
 #if defined USING_BF
-    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPoolCV ) );
+    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
 #elif defined USING_LSH
-    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPoolCV ) );
+    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
     m_pMatcherLSH->train( );
 #endif
 

@@ -8,8 +8,8 @@
 struct CMeasurementLandmark
 {
     const UIDLandmark uID;
-    const cv::Point2d ptUVLEFT;
-    const cv::Point2d ptUVRIGHT;
+    const cv::Point2f ptUVLEFT;
+    const cv::Point2f ptUVRIGHT;
     const float fDisparity;
     const CPoint3DCAMERA vecPointXYZLEFT;
     const CPoint3DWORLD  vecPointXYZWORLD;
@@ -20,8 +20,8 @@ struct CMeasurementLandmark
     const uint32_t uOptimizations;
 
     CMeasurementLandmark( const UIDLandmark& p_uID,
-                          const cv::Point2d& p_ptUVLEFT,
-                          const cv::Point2d& p_ptUVRIGHT,
+                          const cv::Point2f& p_ptUVLEFT,
+                          const cv::Point2f& p_ptUVRIGHT,
                           const CPoint3DCAMERA& p_vecPointXYZ,
                           const CPoint3DWORLD& p_vecPointXYZWORLD,
                           const CPoint3DWORLD& p_vecPointXYZWORLDOptimized,

@@ -309,6 +309,23 @@ const CAngularVelocityIMU CIMUInterpolator::getAngularVelocityFiltered( const CA
     return vecAngularVelocityFiltered;
 }
 
+const Eigen::Isometry3d CIMUInterpolator::getTransformationInitialWORLDtoLEFT( )
+{
+    //ds standard default camera to world configuration
+    const double matTransformationIntialWORLDtoLEFT[] = { 1,  0,  0, 0,
+                                                          0,  0,  1, 0,
+                                                          0, -1,  0, 0,
+                                                          0,  0,  0, 1 };
+
+    return Eigen::Isometry3d( Eigen::Matrix4d( matTransformationIntialWORLDtoLEFT ) );
+}
+
+const Eigen::Isometry3d CIMUInterpolator::getTransformationInitialLEFTtoWORLD( )
+{
+    //ds just wrapped
+    return getTransformationInitialWORLDtoLEFT( ).inverse( );
+}
+
 //ds nasty ghastly hacky function
 const int8_t CIMUInterpolator::sign( const double& p_fNumber )
 {

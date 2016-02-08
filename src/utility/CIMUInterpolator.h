@@ -65,6 +65,8 @@ public:
 
     static const CLinearAccelerationWORLD getLinearAccelerationFiltered( const CLinearAccelerationWORLD& p_vecLinearAcceleration );
     static const CAngularVelocityIMU getAngularVelocityFiltered( const CAngularVelocityIMU& p_vecAngularVelocity );
+    static const Eigen::Isometry3d getTransformationInitialWORLDtoLEFT( );
+    static const Eigen::Isometry3d getTransformationInitialLEFTtoWORLD( );
 
     //ds nasty ghastly hacky function
     inline static const int8_t sign( const double& p_fNumber );
