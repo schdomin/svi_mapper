@@ -317,6 +317,80 @@ public:
         assert( 0 != pCameraSTEREO );
     }
 
+    //ds automatic stereo camera construction based on transformation
+    static void constructCameraSTEREO( const std::string& p_strCameraConfigurationFileLEFT,
+                                       const std::string& p_strCameraConfigurationFileRIGHT,
+                                       const Eigen::Isometry3d& p_matTransformationLEFTtoRIGHT )
+    {
+        //ds params
+        const std::vector< std::string > vecParametersLEFT( getParametersFromFile( p_strCameraConfigurationFileLEFT ) );
+        const std::vector< std::string > vecParametersRIGHT( getParametersFromFile( p_strCameraConfigurationFileRIGHT ) );
+
+        //ds parse core parameters
+        const std::string strCameraLabelLEFT( vecParametersLEFT.front( ) );
+        const uint32_t m_uWidthPixelLEFT  = CParameterBase::getIntegerFromFile( vecParametersLEFT, "uWidthPixels" );
+        const uint32_t m_uHeightPixelLEFT = CParameterBase::getIntegerFromFile( vecParametersLEFT, "uHeightPixels" );
+        const Eigen::Matrix3d matIntrinsicLEFT( CParameterBase::getMatrixFromFile< 3, 3 >( vecParametersLEFT, "matIntrinsic" ) );
+        const double dFocalLengthMetersLEFT = CParameterBase::getDoubleFromFile( vecParametersLEFT, "dFocalLengthMeters" );
+        const Eigen::Vector4d vecDistortionCoefficientsLEFT( CParameterBase::getMatrixFromFile< 4, 1 >( vecParametersLEFT, "vecDistortionCoefficients" ) );
+        const std::string strCameraLabelRIGHT( vecParametersRIGHT.front( ) );
+        const uint32_t m_uWidthPixelRIGHT  = CParameterBase::getIntegerFromFile( vecParametersRIGHT, "uWidthPixels" );
+        const uint32_t m_uHeightPixelRIGHT = CParameterBase::getIntegerFromFile( vecParametersRIGHT, "uHeightPixels" );
+        const Eigen::Matrix3d matIntrinsicRIGHT( CParameterBase::getMatrixFromFile< 3, 3 >( vecParametersRIGHT, "matIntrinsic" ) );
+        const double dFocalLengthMetersRIGHT = CParameterBase::getDoubleFromFile( vecParametersRIGHT, "dFocalLengthMeters" );
+        const Eigen::Vector4d vecDistortionCoefficientsRIGHT( CParameterBase::getMatrixFromFile< 4, 1 >( vecParametersRIGHT, "vecDistortionCoefficients" ) );
+
+        //ds stereo info
+        cv::Mat matRectificationLEFT;
+        cv::Mat matRectificationRIGHT;
+        cv::Mat matProjectionLEFT;
+        cv::Mat matProjectionRIGHT;
+        cv::Mat matDisparityToDepth;
+
+        //ds retrieve info
+        cv::stereoRectify( CWrapperOpenCV::toCVMatrix( matIntrinsicLEFT ),
+                           CWrapperOpenCV::toCVVector( vecDistortionCoefficientsLEFT ),
+                           CWrapperOpenCV::toCVMatrix( matIntrinsicRIGHT ),
+                           CWrapperOpenCV::toCVVector( vecDistortionCoefficientsRIGHT ),
+                           cv::Size2i( m_uWidthPixelLEFT, m_uHeightPixelLEFT ),
+                           CWrapperOpenCV::toCVMatrix( static_cast< Eigen::Matrix3d >( p_matTransformationLEFTtoRIGHT.linear( ) ) ),
+                           CWrapperOpenCV::toCVVector( static_cast< Eigen::Vector3d >( p_matTransformationLEFTtoRIGHT.translation( ) ) ),
+                           matRectificationLEFT,
+                           matRectificationRIGHT,
+                           matProjectionLEFT,
+                           matProjectionRIGHT,
+                           matDisparityToDepth );
+
+        std::cout << "LEFT: " << std::endl;
+        std::cout << matProjectionLEFT << std::endl;
+        std::cout << "RIGHT: " << std::endl;
+        std::cout << matProjectionRIGHT << std::endl;
+
+        //ds create camera instances
+        pCameraLEFT = std::make_shared< CPinholeCamera >( strCameraLabelLEFT,
+                                                          m_uWidthPixelLEFT,
+                                                          m_uHeightPixelLEFT,
+                                                          CWrapperOpenCV::fromCVMatrix< double, 3, 4 >( matProjectionLEFT ),
+                                                          matIntrinsicLEFT,
+                                                          dFocalLengthMetersLEFT,
+                                                          vecDistortionCoefficientsLEFT,
+                                                          CWrapperOpenCV::fromCVMatrix< double, 3, 3 >( matRectificationLEFT ) );
+        pCameraRIGHT = std::make_shared< CPinholeCamera >( strCameraLabelRIGHT,
+                                                          m_uWidthPixelRIGHT,
+                                                          m_uHeightPixelRIGHT,
+                                                          CWrapperOpenCV::fromCVMatrix< double, 3, 4 >( matProjectionRIGHT ),
+                                                          matIntrinsicRIGHT,
+                                                          dFocalLengthMetersRIGHT,
+                                                          vecDistortionCoefficientsRIGHT,
+                                                          CWrapperOpenCV::fromCVMatrix< double, 3, 3 >( matRectificationRIGHT ) );
+
+        //ds setup stereo
+        pCameraSTEREO = std::make_shared< CStereoCamera >( pCameraLEFT, pCameraRIGHT, p_matTransformationLEFTtoRIGHT );
+        assert( 0 != pCameraLEFT );
+        assert( 0 != pCameraRIGHT );
+        assert( 0 != pCameraSTEREO );
+    }
+
 //ds buffered parameters
 public:
 

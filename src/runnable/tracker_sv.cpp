@@ -23,13 +23,37 @@ void printHelp( );
 
 int32_t main( int32_t argc, char **argv )
 {
-    //assert( false );
+    /*assert( false );
+    Eigen::Isometry3d matTransformationWORLDtoLEFT( Eigen::Matrix4d::Identity( ) );
+    Eigen::Isometry3d matTransformationWORLDtoRIGHT( Eigen::Matrix4d::Identity( ) );
+
+    Eigen::Matrix3d matRotationWORLDtoLEFT;
+    matRotationWORLDtoLEFT = Eigen::AngleAxisd( -88.43/180*M_PI, Eigen::Vector3d::UnitZ( ) )
+                            *Eigen::AngleAxisd( -2.99/180*M_PI, Eigen::Vector3d::UnitX( ) )
+                            *Eigen::AngleAxisd( -87.23/180*M_PI, Eigen::Vector3d::UnitY( ) );
+    Eigen::Matrix3d matRotationWORLDtoRIGHT;
+    matRotationWORLDtoRIGHT = Eigen::AngleAxisd( -90.31/180*M_PI, Eigen::Vector3d::UnitZ( ) )
+                             *Eigen::AngleAxisd( -3.53/180*M_PI, Eigen::Vector3d::UnitX( ) )
+                             *Eigen::AngleAxisd( -86.19/180*M_PI, Eigen::Vector3d::UnitY( ) );
+    matTransformationWORLDtoLEFT.linear( ) = matRotationWORLDtoLEFT;
+    matTransformationWORLDtoRIGHT.linear( ) = matRotationWORLDtoRIGHT;
+
+    matTransformationWORLDtoLEFT.translation( ) = Eigen::Vector3d( 2.216, 0.430, 0.022 );
+    matTransformationWORLDtoRIGHT.translation( ) = Eigen::Vector3d( 2.200, -0.427, 0.025 );
+
+    //ds compute transformation
+    const Eigen::Isometry3d matTransformationLEFTtoRIGHT( matTransformationWORLDtoRIGHT*matTransformationWORLDtoLEFT.inverse( ) );
+
+    Eigen::Matrix3d matFix;
+    matFix << 0, 1, 0, -1, 0, 0, 0, 0, 1;*/
 
     //ds defaults
     std::string strMode              = "benchmark";
     std::string strInfileMessageDump = "";
     std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
     std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
+    //std::string strConfigurationCameraLEFT  = "../hardware_parameters/malaga_camera_left.txt";
+    //std::string strConfigurationCameraRIGHT = "../hardware_parameters/malaga_camera_right.txt";
 
     //ds get params
     setParametersNaive( argc, argv, strMode, strInfileMessageDump );
@@ -110,12 +134,11 @@ int32_t main( int32_t argc, char **argv )
 
     try
     {
-        //ds load camera parameters
+        //ds load cameras
         CParameterBase::loadCameraLEFT( strConfigurationCameraLEFT );
-        std::printf( "[0](main) successfully imported camera LEFT\n" );
         CParameterBase::loadCameraRIGHT( strConfigurationCameraRIGHT );
-        std::printf( "[0](main) successfully imported camera RIGHT\n" );
         CParameterBase::constructCameraSTEREO( Eigen::Vector3d( -0.54, 0.0, 0.0 ) );
+        //CParameterBase::constructCameraSTEREO( strConfigurationCameraLEFT, strConfigurationCameraRIGHT, matFix*matTransformationLEFTtoRIGHT );
     }
     catch( const CExceptionParameter& p_cException )
     {

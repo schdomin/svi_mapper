@@ -44,6 +44,28 @@ public:
         //ds nothing to do
     }
 
+    CStereoCamera( const std::shared_ptr< CPinholeCamera > p_pCameraLEFT,
+                   const std::shared_ptr< CPinholeCamera > p_pCameraRIGHT,
+                   const Eigen::Isometry3d& p_matTranslationToRIGHT ): m_pCameraLEFT( p_pCameraLEFT ),
+                                                                       m_pCameraRIGHT( p_pCameraRIGHT ),
+                                                                       m_uPixelWidth( p_pCameraLEFT->m_uWidthPixel ),
+                                                                       m_uPixelHeight( p_pCameraLEFT->m_uHeightPixel ),
+                                                                       m_fWidthPixels( m_uPixelWidth ),
+                                                                       m_fHeightPixels( m_uPixelHeight ),
+                                                                       m_cVisibleRange( 28, 28, m_uPixelWidth-56, m_uPixelHeight-56 )
+    {
+        //ds adjust transformation
+        m_matTransformLEFTtoRIGHT = p_matTranslationToRIGHT;
+
+        m_dBaselineMeters = m_matTransformLEFTtoRIGHT.translation( ).norm( );
+
+        CLogger::openBox( );
+        std::printf( "<CStereoCamera>(CStereoCamera) manually set transformation LEFT to RIGHT: \n\n" );
+        std::cout << m_matTransformLEFTtoRIGHT.matrix( ) << "\n" << std::endl;
+        std::printf( "<CStereoCamera>(CStereoCamera) new baseline: %f\n", m_dBaselineMeters );
+        CLogger::closeBox( );
+    }
+
     //ds no manual dynamic allocation
     virtual ~CStereoCamera( ){ }
 

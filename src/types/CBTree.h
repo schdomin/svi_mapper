@@ -11,8 +11,8 @@
 #define DESCRIPTOR_SIZE_BITS 256
 #define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
 
-//#define USING_BTREE
-#define USING_BF
+#define USING_BTREE
+//#define USING_BF
 //#define USING_LSH
 //#define USING_BOW
 

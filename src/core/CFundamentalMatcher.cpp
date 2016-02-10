@@ -34,7 +34,7 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) minimum depth cutoff: %f\n", m_dMinimumDepthMeters );
-    std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) maximum depth cutoff: %f\n", m_dMinimumDepthMeters );
+    std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) maximum depth cutoff: %f\n", m_dMaximumDepthMeters );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 1: %f\n", m_dMatchingDistanceCutoffTrackingStage1 );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 2: %f\n", m_dMatchingDistanceCutoffTrackingStage2 );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 3: %f\n", m_dMatchingDistanceCutoffTrackingStage3 );

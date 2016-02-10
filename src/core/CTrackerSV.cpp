@@ -148,7 +148,7 @@ void CTrackerSV::process( const std::shared_ptr< txt_io::PinholeImageMessage > p
     const double dDeltaTimestampSeconds = dTimestampSeconds - m_dTimestampLASTSeconds;
 
     assert( 0.0 <= dDeltaTimestampSeconds );
-    assert( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds );
+    //assert( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds );
 
     //ds parallel transformation with erased translation
     Eigen::Isometry3d matTransformationRotationOnlyLEFTLASTtoLEFTNOW( m_matTransformationLEFTLASTtoLEFTNOW );

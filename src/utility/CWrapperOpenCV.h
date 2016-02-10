@@ -56,6 +56,19 @@ public:
     }
 
     //ds overloads
+    inline static const cv::Vec3d toCVVector( const Eigen::Vector3d& p_vecEigen )
+    {
+        //ds allocate cv vector
+        cv::Vec3d vecCV;
+
+        //ds fill the vector (column major)
+        for( uint32_t u = 0; u < 3; ++u )
+        {
+            vecCV( u ) = p_vecEigen( u );
+        }
+
+        return vecCV;
+    }
     inline static const cv::Vec4d toCVVector( const Eigen::Vector4d& p_vecEigen )
     {
         //ds allocate cv vector
