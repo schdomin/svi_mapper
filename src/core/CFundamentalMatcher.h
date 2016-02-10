@@ -77,8 +77,8 @@ private:
 
     //ds internal
     const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
-    const uint8_t m_uRecursionLimitEpipolarLines               = 2;
-    const uint8_t m_uRecursionStepSize                         = 2;
+    const uint8_t m_uRecursionLimitEpipolarLines               = 4; //2; //2;
+    const uint8_t m_uRecursionStepSize                         = 1; //2;
     UIDLandmark m_uNumberOfFailedLandmarkOptimizationsTotal    = 0;
     UIDLandmark m_uNumberOfInvalidLandmarksTotal               = 0;
     UIDLandmark m_uNumberOfTracksStage1   = 0;
