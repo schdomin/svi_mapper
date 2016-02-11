@@ -46,7 +46,7 @@ private:
     CPoint3DWORLD m_vecPositionKeyFrameLAST;
     Eigen::Vector3d m_vecCameraOrientationAccumulated   = {0.0, 0.0, 0.0};
     const double m_dTranslationDeltaForKeyFrameMetersL2 = 25.0; //5.0; //0.25;
-    const double m_dAngleDeltaForKeyFrameRadiansL2      = 0.25;
+    const double m_dAngleDeltaForKeyFrameRadiansL2      = 0.025;
     const UIDFrame m_uFrameDifferenceForKeyFrame        = 1e6; //100;
     UIDFrame m_uFrameKeyFrameLAST                       = 0;
     CPoint3DWORLD m_vecPositionCurrent;
@@ -65,7 +65,6 @@ private:
     std::shared_ptr< CTriangulator > m_pTriangulator;
     CFundamentalMatcher m_cMatcher;
     Cg2oOptimizer m_cOptimizer;
-    //const std::shared_ptr< cv::DescriptorMatcher > m_pMatcherLoopClosing;
 
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
     std::vector< CLandmark* >::size_type m_uAvailableLandmarkID = 0;

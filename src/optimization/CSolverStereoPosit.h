@@ -27,7 +27,7 @@ public:
         const CDescriptor matDescriptorRIGHT;
 
         CMatch( CLandmark* p_pLandmark,
-                const CPoint3DCAMERA& p_vecPointXYZWORLD,
+                const CPoint3DWORLD& p_vecPointXYZWORLD,
                 const CPoint3DCAMERA& p_vecPointXYZLEFT,
                 const cv::Point2f& p_ptUVLEFT,
                 const cv::Point2f& p_ptUVRIGHT,
@@ -89,14 +89,13 @@ private:
     const uint32_t m_uMinimumPointsForPoseOptimization = 25;
     const uint32_t m_uMinimumInliersPoseOptimization   = 15;
     const uint32_t m_uCapIterationsPoseOptimization    = 1000;
-    const double m_dMaximumErrorInlierPixelsL2         = 12.5; //10.0;
-    const double m_dMaximumErrorAveragePixelsL2        = 11.0; //9.0
-    const double m_dMaximumRISK                        = 25.0; //2.0; //10.0; //1e6; //2.0;
+    const double m_dMaximumErrorInlierPixelsL2         = 10.0; //10.0;
+    const double m_dMaximumErrorAveragePixelsL2        = 9.0; //9.0
+    const double m_dMaximumRISK                        = 2.0; //2.0; //10.0; //1e6; //2.0;
     const double m_dConvergenceDelta                   = 1e-5;
 
     //ds precision settings
     const double m_dMinimumTranslationMetersL2 = 0.001;
-    const double m_dMinimumRotationRadL2       = 0.0001;
 
     //ds timing
     double m_dDurationTotalSeconds = 0.0;

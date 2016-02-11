@@ -17,47 +17,12 @@
 uint64_t g_uFrameIDCameraRIGHT = 0;
 uint64_t g_uFrameIDCameraLEFT  = 0;
 
-//ds publishers
-//image_transport::Publisher g_cPublisherCameraLEFT;
-//image_transport::Publisher g_cPublisherCameraRIGHT;
-
 //ds message buffer
 std::ofstream g_strOutfile;
-
-/*ds camera projection matrices - constant for KITTI (2015-10-19)
-const double arrProjectionLEFT[12]  = { 7.188560000000e+02,
-                                        0.000000000000e+00,
-                                        6.071928000000e+02,
-                                        0.000000000000e+00,
-                                        0.000000000000e+00,
-                                        7.188560000000e+02,
-                                        1.852157000000e+02,
-                                        0.000000000000e+00,
-                                        0.000000000000e+00,
-                                        0.000000000000e+00,
-                                        1.000000000000e+00,
-                                        0.000000000000e+00 };
-const double arrProjectionRIGHT[12] = { 7.188560000000e+02,
-                                        0.000000000000e+00,
-                                        6.071928000000e+02,
-                                        -3.861448000000e+02,
-                                        0.000000000000e+00,
-                                        7.188560000000e+02,
-                                        1.852157000000e+02,
-                                        0.000000000000e+00,
-                                        0.000000000000e+00,
-                                        0.000000000000e+00,
-                                        1.000000000000e+00,
-                                        0.000000000000e+00 };
-
-const Eigen::Vector3d vecTranslationToRIGHT( -0.54, 0, 0 );
-const MatrixProjection matProjectionLEFT( Eigen::Matrix< double, 4, 3 >( arrProjectionLEFT ).transpose( ) );
-const MatrixProjection matProjectionRIGHT( Eigen::Matrix< double, 4, 3 >( arrProjectionRIGHT ).transpose( ) );*/
 
 inline void readNextMessageFromFile( const double& p_dTimestampSeconds,
                                      const std::string& p_strImageFolderLEFT,
                                      const std::string& p_strImageFolderRIGHT,
-                                     const uint32_t& p_uSleepMicroseconds,
                                      const std::string& p_strOutfile );
 
 int32_t main( int32_t argc, char **argv )
@@ -73,23 +38,10 @@ int32_t main( int32_t argc, char **argv )
         return 1;
     }
 
-    //ds setup node
-    //ros::init( argc, argv, "republisher_node_kitti" );
-    //ros::NodeHandle hNode;
-
-    /*ds escape here on failure
-    if( !hNode.ok( ) )
-    {
-        std::printf( "\n(main) ERROR: unable to instantiate node\n" );
-        std::printf( "(main) terminated: %s\n", argv[0] );
-        std::fflush( stdout );
-        return 1;
-    }*/
-
     //ds default files
-    std::string strInfileTimestamps = argv[1]; strInfileTimestamps += "times.txt";
-    std::string strImageFolderLEFT  = argv[1]; strImageFolderLEFT += "image_0/";
-    std::string strImageFolderRIGHT = argv[1]; strImageFolderRIGHT += "image_1/";
+    std::string strInfileTimestamps = argv[1]; strInfileTimestamps += "/times.txt";
+    std::string strImageFolderLEFT  = argv[1]; strImageFolderLEFT += "/image_0/";
+    std::string strImageFolderRIGHT = argv[1]; strImageFolderRIGHT += "/image_1/";
     std::string strOutfile          = argv[2];
 
     //ds open outfile
@@ -156,12 +108,6 @@ int32_t main( int32_t argc, char **argv )
     assert( 1 < vecTimestampsSeconds.size( ) );
     std::printf( "(main) successfully loaded timestamps: %lu\n", vecTimestampsSeconds.size( ) );
 
-    /*ds instantiate publishers
-    image_transport::ImageTransport itTransportCameraLEFT( hNode );
-    image_transport::ImageTransport itTransportCameraRIGHT( hNode );
-    g_cPublisherCameraLEFT  = itTransportCameraLEFT.advertise( "/thin_visensor_node/camera_left/image_raw", 1 );
-    g_cPublisherCameraRIGHT = itTransportCameraRIGHT.advertise( "/thin_visensor_node/camera_right/image_raw", 1 );*/
-
     //ds log configuration
     CLogger::openBox( );
     //std::printf( "(main) ROS Node namespace   := '%s'\n", hNode.getNamespace( ).c_str( ) );
@@ -172,9 +118,6 @@ int32_t main( int32_t argc, char **argv )
     std::fflush( stdout );
     CLogger::closeBox( );
 
-    //ds current index in the pump
-    std::vector< double >::size_type uIndex = 0;
-
     std::printf( "(main) press [ENTER] to start playback\n" );
     while( -1 == getchar( ) )
     {
@@ -183,23 +126,14 @@ int32_t main( int32_t argc, char **argv )
     std::printf( "\n(main) streaming to file\n" );
 
     //ds playback the dump
-    while( uIndex < vecTimestampsSeconds.size( )-1 )
+    for( uint64_t u = 0; u < vecTimestampsSeconds.size( ); ++u )
     {
-        //ds compute delta timestamp
-        const double dTimestampDeltaSeconds = vecTimestampsSeconds[uIndex+1]-vecTimestampsSeconds[uIndex];
-
-        //ds to microseconds for sleeping
-        const uint32_t uSleepMicroseconds = dTimestampDeltaSeconds*1e6;
-
         //ds read a message
-        readNextMessageFromFile( vecTimestampsSeconds[uIndex], strImageFolderLEFT, strImageFolderRIGHT, uSleepMicroseconds, strOutfileDirectory );
+        readNextMessageFromFile( vecTimestampsSeconds[u], strImageFolderLEFT, strImageFolderRIGHT, strOutfileDirectory );
 
         //ds info
-        std::printf( "remaining time: %f\n", vecTimestampsSeconds.back( )-vecTimestampsSeconds[uIndex] );
+        std::printf( "remaining time: %f\n", vecTimestampsSeconds.back( )-vecTimestampsSeconds[u] );
         std::fflush( stdout );
-
-        //ds go on
-        ++uIndex;
     }
 
     //ds done
@@ -214,7 +148,6 @@ int32_t main( int32_t argc, char **argv )
 inline void readNextMessageFromFile( const double& p_dTimestampSeconds,
                                      const std::string& p_strImageFolderLEFT,
                                      const std::string& p_strImageFolderRIGHT,
-                                     const uint32_t& p_uSleepMicroseconds,
                                      const std::string& p_strOutfile )
 {
     //ds parse LEFT image - build image file name
@@ -225,12 +158,6 @@ inline void readNextMessageFromFile( const double& p_dTimestampSeconds,
     //ds read the image
     cv::Mat matImageLEFT = cv::imread( strImageFileLEFT, cv::IMREAD_GRAYSCALE );
 
-    /*ds image header
-    std_msgs::Header msgHeaderLEFT;
-    msgHeaderLEFT.stamp    = ros::Time( p_dTimestampSeconds );
-    msgHeaderLEFT.seq      = g_uFrameIDCameraLEFT;
-    msgHeaderLEFT.frame_id = "camera_left";*/
-
     //ds parse RIGHT image - build image file name
     char chBufferRIGHT[10];
     std::snprintf( chBufferRIGHT, 7, "%06lu", g_uFrameIDCameraRIGHT );
@@ -238,12 +165,6 @@ inline void readNextMessageFromFile( const double& p_dTimestampSeconds,
 
     //ds read the image
     cv::Mat matImageRIGHT = cv::imread( strImageFileRIGHT, cv::IMREAD_GRAYSCALE );
-
-    /*ds image header
-    std_msgs::Header msgHeaderRIGHT;
-    msgHeaderRIGHT.stamp    = ros::Time( p_dTimestampSeconds );
-    msgHeaderRIGHT.seq      = g_uFrameIDCameraRIGHT;
-    msgHeaderRIGHT.frame_id = "camera_right";*/
 
     //ds synchronization enforced
     assert( g_uFrameIDCameraLEFT == g_uFrameIDCameraRIGHT );
@@ -266,11 +187,6 @@ inline void readNextMessageFromFile( const double& p_dTimestampSeconds,
     g_strOutfile << "\n";
 
     //ds publish the images
-    //g_cPublisherCameraLEFT.publish( cv_bridge::CvImage( msgHeaderLEFT, "mono8", matImageLEFT ).toImageMsg( ) );
-    //g_cPublisherCameraRIGHT.publish( cv_bridge::CvImage( msgHeaderRIGHT, "mono8", matImageRIGHT ).toImageMsg( ) );
     ++g_uFrameIDCameraLEFT;
     ++g_uFrameIDCameraRIGHT;
-
-    //ds maintain playback speed
-    //usleep( p_uSleepMicroseconds );
 }

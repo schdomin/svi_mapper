@@ -131,20 +131,12 @@ const Eigen::Isometry3d CSolverStereoPosit::getTransformationWORLDtoLEFT( const 
                 //ds compute quality identifiers
                 const Eigen::Vector3d vecDeltaTranslationOptimized( m_matTransformationWORLDtoLEFT.translation( )-p_matTransformationWORLDtoLEFTLAST.translation( ) );
                 const double dNormOptimizationTranslation = vecDeltaTranslationOptimized.squaredNorm( );
-                const double dNormRotationMatrix          = ( m_matTransformationWORLDtoLEFT.linear( )-p_matTransformationWORLDtoLEFTLAST.linear( ) ).squaredNorm( );
 
                 //ds check translational change
                 if( m_dMinimumTranslationMetersL2 > dNormOptimizationTranslation )
                 {
                     //ds don't integrate translational part
                     m_matTransformationWORLDtoLEFT.translation( ) = p_matTransformationWORLDtoLEFTLAST.translation( );
-                }
-
-                //ds check rotational change
-                if( m_dMinimumRotationRadL2 > dNormRotationMatrix )
-                {
-                    //ds don't integrate rotational part
-                    m_matTransformationWORLDtoLEFT.linear( ) = p_matTransformationWORLDtoLEFTLAST.linear( );
                 }
 
                 //ds log resulting trajectory and delta to initial

@@ -112,11 +112,15 @@ void CLandmark::optimize( const UIDFrame& p_uFrame )
     bIsOptimal = false;
 
     //ds update position - if we have at least n measurements
-    //if( CLandmark::uMinimumMeasurementsForOptimization < m_vecMeasurements.size( ) )
-    //{
+    if( CLandmark::uMinimumMeasurementsForOptimization < m_vecMeasurements.size( ) )
+    {
         //vecPointXYZOptimized = _getOptimizedLandmarkLEFT3D( p_uFrame, vecPointXYZOptimized );
         vecPointXYZOptimized = _getOptimizedLandmarkSTEREOUV( p_uFrame, vecPointXYZOptimized );
-    //}
+    }
+    else
+    {
+        bIsOptimal = true;
+    }
 }
 
 //ds measurements reset

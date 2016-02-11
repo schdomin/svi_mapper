@@ -148,7 +148,7 @@ void CTrackerSV::process( const std::shared_ptr< txt_io::PinholeImageMessage > p
     const double dDeltaTimestampSeconds = dTimestampSeconds - m_dTimestampLASTSeconds;
 
     assert( 0.0 <= dDeltaTimestampSeconds );
-    //assert( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds );
+    assert( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds );
 
     //ds parallel transformation with erased translation
     Eigen::Isometry3d matTransformationRotationOnlyLEFTLASTtoLEFTNOW( m_matTransformationLEFTLASTtoLEFTNOW );
@@ -266,6 +266,7 @@ void CTrackerSV::_trackLandmarks( const cv::Mat& p_matImageLEFT,
 
     //ds initial transformation
     Eigen::Isometry3d matTransformationWORLDtoLEFT( p_matTransformationEstimateWORLDtoLEFT );
+    const CPoint3DWORLD vecPositionLEFTESTIMATE( matTransformationWORLDtoLEFT.translation( ) );
 
     try
     {
@@ -312,30 +313,7 @@ void CTrackerSV::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                 m_uCountInstability += 5;
             }
             std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) pose optimization failed [DAMPED PRIOR]: '%s'\n", m_uFrameCount, p_cException.what( ) );
-            try
-            {
-                //ds get the optimized pose on constant motion
-                matTransformationWORLDtoLEFT = m_cMatcher.getPoseStereoPosit( m_uFrameCount,
-                                                                                  matDisplayLEFT,
-                                                                                  matDisplayRIGHT,
-                                                                                  p_matImageLEFT,
-                                                                                  p_matImageRIGHT,
-                                                                                  m_matTransformationWORLDtoLEFTLAST,
-                                                                                  m_matTransformationWORLDtoLEFTLAST,
-                                                                                  p_vecRotationTotal,
-                                                                                  p_vecTranslationTotal,
-                                                                                  dMotionScaling );
-            }
-            catch( const CExceptionPoseOptimization& p_cException )
-            {
-                //ds if not capped already
-                if( 20 > m_uCountInstability )
-                {
-                    m_uCountInstability += 5;
-                }
-                std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) pose optimization failed [LAST VISUAL]: '%s' - using rotation only\n", m_uFrameCount, p_cException.what( ) );
-                matTransformationWORLDtoLEFT = p_matTransformationEstimateParallelWORLDtoLEFT;
-            }
+            matTransformationWORLDtoLEFT = p_matTransformationEstimateParallelWORLDtoLEFT;
         }
     }
 
@@ -367,7 +345,7 @@ void CTrackerSV::_trackLandmarks( const cv::Mat& p_matImageLEFT,
 
         std::printf( "[0][%06lu]<CTrackerSV>(_trackLandmarks) lost track (landmarks visible: %3i lost: %3i), total delta: %f (%f %f %f), motion scaling: %f\n",
                      m_uFrameCount, uNumberOfVisibleLandmarks, static_cast< int32_t >( iLandmarksLost ), m_matTransformationLEFTLASTtoLEFTNOW.translation( ).squaredNorm( ), p_vecRotationTotal.x( ), p_vecRotationTotal.y( ), p_vecRotationTotal.z( ), dMotionScaling );
-        //m_uWaitKeyTimeoutMS = 0;
+        m_uWaitKeyTimeoutMS = 0;
     }
 
     //ds current translation
