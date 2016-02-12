@@ -117,7 +117,9 @@ public:
 
     //ds returns cloud version of currently visible landmarks
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > getCloudForVisibleOptimizedLandmarks( const UIDFrame& p_uFrame ) const;
-    const std::vector< const CMeasurementLandmark* > getMeasurementsForVisibleLandmarks( ) const { return m_vecMeasurementsVisible; }
+
+    //ds wrapper for measurement vector
+    const std::vector< const CMeasurementLandmark* > getMeasurementsForVisibleLandmarks( );
 
     const Eigen::Isometry3d getPoseStereoPosit( const UIDFrame p_uFrame,
                                                     cv::Mat& p_matDisplayLEFT,
@@ -131,6 +133,15 @@ public:
                                                     const double& p_dMotionScaling );
 
     void trackEpipolar( const UIDFrame p_uFrame,
+                       const cv::Mat& p_matImageLEFT,
+                       const cv::Mat& p_matImageRIGHT,
+                       const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
+                       const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
+                       const double& p_dMotionScaling,
+                       cv::Mat& p_matDisplayLEFT,
+                       cv::Mat& p_matDisplayRIGHT );
+
+    void trackManual( const UIDFrame p_uFrame,
                        const cv::Mat& p_matImageLEFT,
                        const cv::Mat& p_matImageRIGHT,
                        const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,

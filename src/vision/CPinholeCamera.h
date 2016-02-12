@@ -231,7 +231,7 @@ private:
 
     virtual void _logConfiguration( const double& p_dImprecision ) const
     {
-        //ds log complete configuration
+        /*ds log complete configuration
         CLogger::openBox( );
         std::cout << "Configuration camera: " << m_strCameraLabel << "\n\n"
                   << "Configuration imprecision: " << p_dImprecision << "\n"
@@ -247,7 +247,7 @@ private:
                   << "Resolution (w x h): " << m_uWidthPixel << " x " << m_uHeightPixel << "\n"
                   << "Normalized x range: [" << m_prRangeWidthNormalized.first << ", " << m_prRangeWidthNormalized.second << "]\n"
                   << "Normalized y range: [" << m_prRangeHeightNormalized.first << ", " << m_prRangeHeightNormalized.second << "]" << std::endl;
-        CLogger::closeBox( );
+        CLogger::closeBox( );*/
     }
 
 };

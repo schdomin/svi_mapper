@@ -129,11 +129,15 @@ private:
 
 public:
 
-    //ds copying intended
     void optimize( const UIDFrame& p_uFrame,
                    const UIDKeyFrame& p_uIDBeginKeyFrame,
                    const UIDKeyFrame& p_uNumberOfLoopClosures,
                    const Eigen::Vector3d& p_vecTranslationToG2o );
+
+    void saveGraph( const UIDFrame& p_uFrame,
+                    const UIDKeyFrame& p_uIDBeginKeyFrame,
+                    const UIDKeyFrame& p_uNumberOfLoopClosures,
+                    const Eigen::Vector3d& p_vecTranslationToG2o );
 
     const uint64_t getNumberOfOptimizations( ) const { return m_uOptimizations; }
 

@@ -128,16 +128,18 @@ add_library(G2oEdges SHARED src/optimization/G2oEdges.cpp src/optimization/edge_
 #ds core binaries
 #add_executable(tracker_svi src/runnable/tracker_svi.cpp src/core/CTrackerSVI.cpp ${SOURCEFILES})
 #target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
-add_executable(tracker_sv src/runnable/tracker_sv.cpp src/core/CTrackerSV.cpp ${SOURCEFILES})
-target_link_libraries(tracker_sv ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
+#add_executable(tracker_sv src/runnable/tracker_sv.cpp src/core/CTrackerSV.cpp ${SOURCEFILES})
+#target_link_libraries(tracker_sv ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
+add_executable(tracker_gt src/runnable/tracker_gt.cpp src/core/CTrackerGT.cpp ${SOURCEFILES})
+target_link_libraries(tracker_gt ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 
 #ds io
 #add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)
 #target_link_libraries(test_cloud_matching ${OpenCV_LIBRARIES} ${LIBRARIES_VISUALIZATION})
 #add_executable(validate_dataset src/runnable/validate_dataset.cpp)
 #target_link_libraries(validate_dataset ${TXT_IO_LIBRARY})
-add_executable(republish_malaga src/runnable/republish_malaga.cpp)
-target_link_libraries(republish_malaga ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY})
+#add_executable(republish_malaga src/runnable/republish_malaga.cpp)
+#target_link_libraries(republish_malaga ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY})
 
 #ds utilities
 #add_executable(interpolate_trajectory src/runnable/interpolate_trajectory.cpp src/utility/CLogger.cpp)
