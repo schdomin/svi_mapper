@@ -22,28 +22,32 @@ public:
         //ds wrapped
     }
 
-private:
-
-    //ds only internally called
-    CBNode( const uint64_t& p_uDepth,
-            const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors,
-            CDescriptorVector p_cMask ): uDepth( p_uDepth ), vecDescriptors( p_vecDescriptors )
+    //ds create leafs (external use intented)
+    bool spawnLeafs( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors )
     {
-        assert( 0 != p_vecDescriptors.size( ) );
+        //ds affirm initial situation
+        uIndexSplitBit = -1;
+        uOnesTotal     = 0;
+        dPartitioning  = 1.0;
+        assert( 0 < p_vecDescriptors.size( ) );
 
         //ds we have to find the split for this node - scan all index
         for( uint32_t uIndexBit = 0; uIndexBit < uDescriptorSizeBits; ++uIndexBit )
         {
             //ds if this index is available in the mask
-            if( p_cMask[uIndexBit] )
+            if( matMask[uIndexBit] )
             {
+                //ds temporary set bit count
+                uint32_t uNumberOfSetBits = 0;
+
                 //ds compute distance for this index (0.0 is perfect)
-                const double fPartitioningCurrent = std::fabs( 0.5-_getOnesFraction( uIndexBit, p_vecDescriptors, uOnesTotal ) );
+                const double fPartitioningCurrent = std::fabs( 0.5-_getOnesFraction( uIndexBit, p_vecDescriptors, uNumberOfSetBits ) );
 
                 //ds if better
                 if( dPartitioning > fPartitioningCurrent )
                 {
                     dPartitioning  = fPartitioningCurrent;
+                    uOnesTotal     = uNumberOfSetBits;
                     uIndexSplitBit = uIndexBit;
 
                     //ds finalize loop if maximum target is reached
@@ -56,7 +60,7 @@ private:
         }
 
         //ds if best was found - we can spawn leaves
-        if( -1 != uIndexSplitBit && uMaximumDepth > p_uDepth )
+        if( -1 != uIndexSplitBit && uMaximumDepth > uDepth )
         {
             //ds check if we have enough data to split (NOT REQUIRED IF DEPTH IS SET ACCORDINGLY)
             if( 0 < uOnesTotal && 0.5 > dPartitioning )
@@ -64,8 +68,11 @@ private:
                 //ds enabled
                 bHasLeaves = true;
 
-                //ds update mask
-                p_cMask[uIndexSplitBit] = 0;
+                //ds get a mask copy
+                CDescriptorVector vecMask( matMask );
+
+                //ds update mask for leafs
+                vecMask[uIndexSplitBit] = 0;
 
                 //ds first we have to split the descriptors by the found index - preallocate vectors since we know how many ones we have
                 std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsLeafOnes;
@@ -76,7 +83,7 @@ private:
                 //ds loop over all descriptors and assing them to the new vectors
                 for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptor: p_vecDescriptors )
                 {
-                    //ds check if split bit is one
+                    //ds check if split bit is set
                     if( cDescriptor.vecData[uIndexSplitBit] )
                     {
                         vecDescriptorsLeafOnes.push_back( cDescriptor );
@@ -89,34 +96,36 @@ private:
 
                 //ds if there are elements for leaves
                 assert( 0 < vecDescriptorsLeafOnes.size( ) );
-                pLeafOnes = new CBNode< uMaximumDepth, uDescriptorSizeBits >( uDepth+1, vecDescriptorsLeafOnes, p_cMask );
+                pLeafOnes = new CBNode< uMaximumDepth, uDescriptorSizeBits >( uDepth+1, vecDescriptorsLeafOnes, vecMask );
 
                 assert( 0 < vecDescriptorsLeafZeros.size( ) );
-                pLeafZeros = new CBNode< uMaximumDepth, uDescriptorSizeBits >( uDepth+1, vecDescriptorsLeafZeros, p_cMask );
+                pLeafZeros = new CBNode< uMaximumDepth, uDescriptorSizeBits >( uDepth+1, vecDescriptorsLeafZeros, vecMask );
+
+                //ds worked
+                return true;
             }
             else
             {
-                //ds if we got a final node with more than one descriptor
-                if( 1 < p_vecDescriptors.size( ) )
-                {
-                    //ds compute internal difference
-                    uint32_t uDiversity = 0;
-                    const CDescriptorBRIEF< uDescriptorSizeBits > cDescriptorReference( p_vecDescriptors.front( ) );
-                    for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptorInner: p_vecDescriptors )
-                    {
-                        uDiversity += CBNode< uMaximumDepth, uDescriptorSizeBits >::getDistanceHamming( cDescriptorInner.vecData, cDescriptorReference.vecData );
-                    }
-
-                    //ds if theres no differences we can reduce the vector to one single element
-                    if( 0 == uDiversity )
-                    {
-                        //ds reduce vector to one element
-                        vecDescriptors.clear( );
-                        vecDescriptors.push_back( cDescriptorReference );
-                    }
-                }
+                //ds split failed
+                return false;
             }
         }
+        else
+        {
+            //ds split failed
+            return false;
+        }
+    }
+
+private:
+
+    //ds only internally called
+    CBNode( const uint64_t& p_uDepth,
+            const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors,
+            CDescriptorVector p_vecMask ): uDepth( p_uDepth ), vecDescriptors( p_vecDescriptors ), matMask( p_vecMask )
+    {
+        //ds call recursive leaf spawner
+        spawnLeafs( p_vecDescriptors );
     }
 
 public:
@@ -132,17 +141,19 @@ public:
     //ds rep
     const uint64_t uDepth;
     std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptors;
+    std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsToSplit;
     int32_t uIndexSplitBit = -1;
     uint32_t uOnesTotal    = 0;
     bool bHasLeaves        = false;
     double dPartitioning   = 1.0;
+    CDescriptorVector matMask;
 
     //ds info (incremented in tree during search)
     //uint64_t uLinkedPoints = 0;
 
     //ds peer: each node has two potential children
-    const CBNode* pLeafOnes  = 0;
-    const CBNode* pLeafZeros = 0;
+    CBNode* pLeafOnes  = 0;
+    CBNode* pLeafZeros = 0;
 
 //ds helpers
 private:

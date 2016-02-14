@@ -4,7 +4,31 @@
 #include "CLandmark.h"
 #include "TypesCloud.h"
 #include "../utility/CLogger.h"
+
+
+
+//TODO templatify KeyFrame for maximum generics
+#define MAXIMUM_DISTANCE_HAMMING 25
+#define BTREE_MAXIMUM_DEPTH 256
+#define DESCRIPTOR_SIZE_BITS 256
+//#define DESCRIPTOR_SIZE_BITS 512
+#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
+
+//#define USING_BTREE
+//#define USING_BF
+//#define USING_LSH
+//#define USING_BOW
+#define USING_BTREE_INDEXED
+
+
+
+#if defined USING_BTREE
 #include "CBTree.h"
+#endif
+
+#if defined USING_BTREE_INDEXED
+#include "CBITree.h"
+#endif
 
 #if defined USING_BOW
 #include "DBoW2.h" // defines Surf64Vocabulary and Surf64Database
@@ -76,7 +100,7 @@ public:
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud;
     std::map< UIDDescriptor, const CDescriptorVectorPoint3DWORLD* > mapDescriptorToPoint;
 
-#if defined USING_BTREE
+#if defined USING_BTREE or defined USING_BTREE_INDEXED
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > vecDescriptorPool;
@@ -115,7 +139,7 @@ public:
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
 
-#if defined USING_BTREE
+#if defined USING_BTREE or defined USING_BTREE_INDEXED
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );

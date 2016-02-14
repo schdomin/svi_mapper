@@ -5,20 +5,6 @@
 
 
 
-//TODO templatify KeyFrame for maximum generics
-#define MAXIMUM_DISTANCE_HAMMING 25
-#define BTREE_MAXIMUM_DEPTH 50
-#define DESCRIPTOR_SIZE_BITS 256
-//#define DESCRIPTOR_SIZE_BITS 512
-#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
-
-#define USING_BTREE
-//#define USING_BF
-//#define USING_LSH
-//#define USING_BOW
-
-
-
 template< uint32_t uMaximumDistanceHamming = 25, uint64_t uMaximumDepth = 50, uint32_t uDescriptorSizeBits = 256 >
 class CBTree
 {

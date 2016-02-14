@@ -125,7 +125,10 @@ void CTrackerGT::process( const std::shared_ptr< txt_io::PinholeImageMessage > p
     const double dDeltaTimestampSeconds = dTimestampSeconds - m_dTimestampLASTSeconds;
 
     assert( 0.0 <= dDeltaTimestampSeconds );
-    assert( CIMUInterpolator::dMaximumDeltaTimeSeconds > dDeltaTimestampSeconds );
+    if( CIMUInterpolator::dMaximumDeltaTimeSeconds < dDeltaTimestampSeconds )
+    {
+        std::printf( "[0][%06lu]<CTrackerGT>(process) received large timestamp delta: %fs\n", m_uFrameCount, dDeltaTimestampSeconds );
+    }
 
     //ds update change
     m_matTransformationLEFTLASTtoLEFTNOW = p_matTransformationLEFTLASTtoLEFTNOW;
@@ -148,62 +151,8 @@ void CTrackerGT::process( const std::shared_ptr< txt_io::PinholeImageMessage > p
 
 void CTrackerGT::finalize( )
 {
-
-/*#ifdef USING_BOW
-
-    const uint32_t uBranchingFactor = 10;
-    const uint32_t uDepthLevels = 6;
-
-    //ds instantiate controller
-    BriefVocabulary cVoc( uBranchingFactor, uDepthLevels, DBoW2::BINARY );
-
-    //ds data structure containing key frames with descriptor info
-    std::vector< std::vector< boost::dynamic_bitset< > > > vecDescriptorsKeyFrames;
-    vecDescriptorsKeyFrames.reserve( m_vecKeyFrames->size( ) );
-
-    //ds for each
-    for( const CKeyFrame* pKeyFrame: *m_vecKeyFrames )
-    {
-        vecDescriptorsKeyFrames.push_back( pKeyFrame->vecDescriptorPool );
-    }
-
-    std::printf( "[0][%06lu]<CTrackerGT>(finalize) creating vocabulary\n", m_uFrameCount );
-
-    //ds create the vocabulary
-    const double dTimeStartSeconds = CTimer::getTimeSeconds( );
-    cVoc.create( vecDescriptorsKeyFrames );
-    const double dDurationSeconds = CTimer::getTimeSeconds( )-dTimeStartSeconds;
-
-    std::printf( "[0][%06lu]<CTrackerGT>(finalize) creation complete - duration: %fs\n", m_uFrameCount, dDurationSeconds );
-
-    //ds filename
-    const std::string strVocabularyName( "vocabulary_BRIEF_"+std::to_string( vecDescriptorsKeyFrames.size( ) )+"_K"+std::to_string( uBranchingFactor )+"_L"+std::to_string( uDepthLevels )+".yml.gz" );
-
-    //ds save to disk
-    cVoc.save( strVocabularyName );
-
-    std::printf( "[0][%06lu]<CTrackerGT>(finalize) saved DBoW2 vocabulary to: '%s'\n", m_uFrameCount, strVocabularyName.c_str( ) );
-
-#endif*/
-
-    //ds if tracker GUI is still open - otherwise run the optimization right away
-    if( !m_bIsShutdownRequested )
-    {
-        //ds inform
-        std::printf( "[0][%06lu]<CTrackerGT>(finalize) press any key to perform final optimization\n", m_uFrameCount );
-
-        //ds also display on image
-        cv::Mat matDisplayComplete = cv::Mat( 2*m_pCameraSTEREO->m_uPixelHeight, 2*m_pCameraSTEREO->m_uPixelWidth, CV_8UC3, cv::Scalar( 0.0 ) );
-        cv::putText( matDisplayComplete, "DATASET COMPLETE - PRESS ANY KEY TO EXIT" , cv::Point2i( 50, 50 ), cv::FONT_HERSHEY_PLAIN, 2.0, CColorCodeBGR( 255, 255, 255 ) );
-        cv::imshow( "vi_mapper [L|R]", matDisplayComplete );
-
-        //ds wait for any user input
-        cv::waitKey( 0 );
-    }
-    else
-    {
-        std::printf( "[0][%06lu]<CTrackerGT>(finalize) running final optimization\n", m_uFrameCount );
-    }
+    //ds nothing to do
+    std::printf( "[0][%06lu]<CTrackerGT>(finalize) terminating tracker\n", m_uFrameCount );
 
     //ds trigger shutdown
     m_bIsShutdownRequested = true;

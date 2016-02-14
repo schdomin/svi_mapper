@@ -31,6 +31,8 @@ int32_t main( int32_t argc, char **argv )
     std::string strInfileGroundTruth = "";
     std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
     std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
+    //std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_11_camera_left.txt";
+    //std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_11_camera_right.txt";
 
     //ds get params
     setParametersNaive( argc, argv, strMode, strInfileMessageDump, strInfileGroundTruth );

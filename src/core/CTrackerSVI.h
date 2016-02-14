@@ -119,6 +119,10 @@ private:
     const std::shared_ptr< BriefDatabase > m_pBoWDatabase;
 #endif
 
+#if defined USING_BTREE_INDEXED
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
+#endif
+
 //ds accessors
 public:
 

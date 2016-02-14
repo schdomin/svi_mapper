@@ -394,6 +394,28 @@ const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDesc
     return vecDescriptorPool;
 }
 
+#elif defined USING_BTREE_INDEXED
+
+const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
+{
+    mapDescriptorToPoint.clear( );
+    std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
+
+    //ds fill the pool
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
+    {
+        //ds add up descriptors
+        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
+        {
+            //ds map descriptor pool to points for later retrieval
+            mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
+            vecDescriptorPool.push_back( CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( vecDescriptorPool.size( ), CBNode< BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS >::getDescriptorVector( cDescriptor ), uID ) );
+        }
+    }
+
+    return vecDescriptorPool;
+}
+
 #elif defined USING_BOW
 
 const std::vector< boost::dynamic_bitset< > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
