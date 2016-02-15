@@ -100,7 +100,15 @@ public:
     const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > vecCloud;
     std::map< UIDDescriptor, const CDescriptorVectorPoint3DWORLD* > mapDescriptorToPoint;
 
-#if defined USING_BTREE or defined USING_BTREE_INDEXED
+#if defined USING_BTREE and defined USING_BOW
+
+    //ds TODO REMOVE THIS UGLY BOILERPLATE CODE
+    const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolBTree;
+    const std::vector< boost::dynamic_bitset< > > vecDescriptorPoolBoW;
+    DBoW2::BowVector vecDescriptorPoolB;
+    DBoW2::FeatureVector vecDescriptorPoolF;
+
+#elif defined USING_BTREE or defined USING_BTREE_INDEXED
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > vecDescriptorPool;
@@ -138,8 +146,10 @@ public:
 
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
-
-#if defined USING_BTREE or defined USING_BTREE_INDEXED
+#if defined USING_BTREE and defined USING_BOW
+    const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPoolBTree( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    const std::vector< boost::dynamic_bitset< > > getDescriptorPoolBoW( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#elif defined USING_BTREE or defined USING_BTREE_INDEXED
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );

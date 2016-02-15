@@ -109,6 +109,10 @@ private:
     const std::shared_ptr< BriefDatabase > m_pBoWDatabase;
 #endif
 
+#if defined USING_BTREE_INDEXED
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
+#endif
+
 //ds accessors
 public:
 
@@ -145,10 +149,11 @@ private:
                            cv::Mat& p_matDisplaySTEREO );
 
     const std::vector< const CKeyFrame::CMatchICP* > _getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrameQUERY,
+                                                                                  const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDQUERY,
                                                                                   const double& p_dSearchRadiusMeters,
                                                                                   const double& p_dMinimumRelativeMatchesLoopClosure );
 
-    const CMatchCloud _getMatchNN( std::list< CMatchCloud >& p_lMatches ) const;
+    const CMatchCloud _getMatchNN( const std::vector< CMatchCloud >& p_vecMatches ) const;
 
     //ds reference frame update TODO implement
     //void _updateWORLDFrame( const Eigen::Vector3d& p_vecTranslationWORLD );

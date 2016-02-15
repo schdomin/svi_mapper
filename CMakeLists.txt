@@ -9,10 +9,11 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules" ${CMAKE_MODULE_PATH}
 message("CMake module path: ${CMAKE_MODULE_PATH}")
 
 #ds default build type RELEASE
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE RELEASE)
-endif(NOT CMAKE_BUILD_TYPE)
+#if(NOT CMAKE_BUILD_TYPE)
+#  set(CMAKE_BUILD_TYPE RELEASE)
+#endif(NOT CMAKE_BUILD_TYPE)
 
+set(CMAKE_BUILD_TYPE Release)
 message("build type: ${CMAKE_BUILD_TYPE}")
 
 message(" ")
@@ -56,8 +57,8 @@ message(" ")
 
 
 #ds add c++11 support, no optimization, all warnings
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
-#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
+#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
 
 
 
@@ -130,8 +131,8 @@ add_executable(tracker_svi src/runnable/tracker_svi.cpp src/core/CTrackerSVI.cpp
 target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 #add_executable(tracker_sv src/runnable/tracker_sv.cpp src/core/CTrackerSV.cpp ${SOURCEFILES})
 #target_link_libraries(tracker_sv ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
-#add_executable(tracker_gt src/runnable/tracker_gt.cpp src/core/CTrackerGT.cpp ${SOURCEFILES})
-#target_link_libraries(tracker_gt ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
+add_executable(tracker_gt src/runnable/tracker_gt.cpp src/core/CTrackerGT.cpp ${SOURCEFILES})
+target_link_libraries(tracker_gt ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 
 #ds io
 #add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)

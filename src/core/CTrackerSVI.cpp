@@ -7,6 +7,9 @@
 #include "../exceptions/CExceptionPoseOptimization.h"
 #include "../exceptions/CExceptionNoMatchFound.h"
 
+//#define LOOPCLOSING_BOW_BOW
+//#define LOOPCLOSING_BOW_BTREE
+
 
 
 CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
@@ -251,7 +254,7 @@ void CTrackerSVI::finalize( )
 
 #endif*/
 
-    //ds if tracker GUI is still open - otherwise run the optimization right away
+    /*ds if tracker GUI is still open - otherwise run the optimization right away
     if( !m_bIsShutdownRequested )
     {
         //ds inform
@@ -268,7 +271,10 @@ void CTrackerSVI::finalize( )
     else
     {
         std::printf( "[0][%06lu]<CTrackerSVI>(finalize) running final optimization\n", m_uFrameCount );
-    }
+    }*/
+
+    //ds nothing to do
+    std::printf( "[0][%06lu]<CTrackerGT>(finalize) terminating tracker\n", m_uFrameCount );
 
     //ds trigger shutdown
     m_bIsShutdownRequested = true;
@@ -460,14 +466,18 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                                                   m_uCountInstability,
                                                   dMotionScaling );
 
-#if defined USING_BOW
+#if defined LOOPCLOSING_BOW_BTREE
+            assert( 0 != m_pBoWDatabase );
+            assert( 0 < pKeyFrameNEW->vecDescriptorPoolBoW.size( ) );
+            m_pBoWDatabase->getVocabulary( )->transform( pKeyFrameNEW->vecDescriptorPoolBoW, pKeyFrameNEW->vecDescriptorPoolB, pKeyFrameNEW->vecDescriptorPoolF, DBOW2_ID_LEVELS  );
+#elif defined USING_BOW
             assert( 0 != m_pBoWDatabase );
             assert( 0 < pKeyFrameNEW->vecDescriptorPool.size( ) );
             m_pBoWDatabase->getVocabulary( )->transform( pKeyFrameNEW->vecDescriptorPool, pKeyFrameNEW->vecDescriptorPoolB, pKeyFrameNEW->vecDescriptorPoolF, DBOW2_ID_LEVELS  );
 #endif
 
             //ds set loop closures
-            pKeyFrameNEW->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrameNEW, m_dLoopClosingRadiusSquaredMetersL2, m_dMinimumRelativeMatchesLoopClosure );
+            pKeyFrameNEW->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrameNEW, matTransformationLEFTtoWORLD, m_dLoopClosingRadiusSquaredMetersL2, m_dMinimumRelativeMatchesLoopClosure );
 
             //ds if we found closures
             if( 0 < pKeyFrameNEW->vecLoopClosures.size( ) )
@@ -726,6 +736,7 @@ void CTrackerSVI::_addNewLandmarks( const cv::Mat& p_matImageLEFT,
 
 //ds locked key frames from upper scope
 const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrameQUERY,
+                                                                                           const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDQUERY,
                                                                                            const double& p_dSearchRadiusMetersL2,
                                                                                            const double& p_dMinimumRelativeMatchesLoopClosure )
 {
@@ -733,7 +744,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     const double dTimeStartSeconds = CTimer::getTimeSeconds( );
 
     //ds potential closures list
-    std::vector< std::map< UIDLandmark, std::list< CMatchCloud > > > vecPotentialClosures( m_vecKeyFrames->size( ) );
+    std::vector< std::map< UIDLandmark, std::vector< CMatchCloud > > > vecPotentialClosures( m_vecKeyFrames->size( ) );
 
     //ds last key frame ID available for a closure
     const int64_t uIDKeyFramesAvailableToCloseCap = p_pKeyFrameQUERY->uID-m_uMinimumLoopClosingKeyFrameDistance;
@@ -744,7 +755,162 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds to string
     const std::string strMinimumRelativeMatches = std::to_string( static_cast< uint32_t >( m_dMinimumRelativeMatchesLoopClosure*100 ) );
 
-#ifdef USING_BTREE
+#if defined LOOPCLOSING_BOW_BOW
+
+    const std::string strOutFileTiming( "logs/matching_time_closures_dbow2_dbow2_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_dbow2_dbow2_"+strMinimumRelativeMatches+".txt" );
+
+    //ds query descriptors
+    const DBoW2::FeatureVector& vecDescriptorPoolFQUERY = p_pKeyFrameQUERY->vecDescriptorPoolF;
+
+    //ds results
+    DBoW2::QueryResults vecResultsQUERY;
+
+    //ds get the query results
+    const double dTimeStartQuerySeconds = CTimer::getTimeSeconds( );
+    m_pBoWDatabase->query( p_pKeyFrameQUERY->vecDescriptorPoolB, vecResultsQUERY, m_vecKeyFrames->size( ), m_vecKeyFrames->size( ) );
+    const double dDurationQuerySeconds = CTimer::getTimeSeconds( )-dTimeStartQuerySeconds;
+    dDurationMatchingSeconds = dDurationQuerySeconds;
+
+    //ds check results
+    for( const DBoW2::Result& cResult: vecResultsQUERY )
+    {
+        //ds if available
+        if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
+        {
+            //ds if minimum matches are provided
+            if( p_dMinimumRelativeMatchesLoopClosure/3.0 < cResult.Score )
+            {
+                const double dTimeStartGetCorrespondences = CTimer::getTimeSeconds( );
+                const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
+                const DBoW2::FeatureVector& vecDescriptorPoolFREFERENCE = m_pBoWDatabase->retrieveFeatures( cResult.Id );
+
+                std::vector<unsigned int> i_old, i_cur;
+
+                DBoW2::FeatureVector::const_iterator old_it = vecDescriptorPoolFREFERENCE.begin();
+                DBoW2::FeatureVector::const_iterator cur_it = vecDescriptorPoolFQUERY.begin( );
+                const DBoW2::FeatureVector::const_iterator old_end = vecDescriptorPoolFREFERENCE.end( );
+                const DBoW2::FeatureVector::const_iterator cur_end = vecDescriptorPoolFQUERY.end( );
+
+                while(old_it != old_end && cur_it != cur_end)
+                {
+                    if(old_it->first == cur_it->first)
+                    {
+                        // compute matches between
+                        // features old_it->second of m_image_keys[old_entry] and
+                        // features cur_it->second of keys
+                        std::vector<unsigned int> i_old_now, i_cur_now;
+
+                        _getMatches_neighratio( pKeyFrameREFERENCE->vecDescriptorPool, old_it->second, p_pKeyFrameQUERY->vecDescriptorPool, cur_it->second, i_old_now, i_cur_now);
+
+                        i_old.insert(i_old.end(), i_old_now.begin(), i_old_now.end());
+                        i_cur.insert(i_cur.end(), i_cur_now.begin(), i_cur_now.end());
+
+                        // move old_it and cur_it forward
+                        ++old_it;
+                        ++cur_it;
+                    }
+                    else if(old_it->first < cur_it->first)
+                    {
+                        // move old_it forward
+                        old_it = vecDescriptorPoolFREFERENCE.lower_bound(cur_it->first);
+                        // old_it = (first element >= cur_it.id)
+                    }
+                    else
+                    {
+                        // move cur_it forward
+                        cur_it = vecDescriptorPoolFQUERY.lower_bound(old_it->first);
+                        // cur_it = (first element >= old_it.id)
+                    }
+                }
+
+                dDurationMatchingSeconds += CTimer::getTimeSeconds( )-dTimeStartGetCorrespondences;
+
+                assert( i_cur.size( ) == i_old.size( ) );
+
+                //ds evaluate all matches for this reference cloud
+                for( uint64_t u = 0; u < i_old.size( ); ++u )
+                {
+                    //ds if distance is acceptable (not available here)
+                    {
+                        //ds buffer query point
+                        const CDescriptorVectorPoint3DWORLD* pPointQUERY = p_pKeyFrameQUERY->mapDescriptorToPoint.at( i_cur[u] );
+
+                        try
+                        {
+                            vecPotentialClosures[pKeyFrameREFERENCE->uID].at( pPointQUERY->uID ).push_back( CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( i_old[u] ), MAXIMUM_DISTANCE_HAMMING ) );
+                        }
+                        catch( const std::out_of_range& p_cException )
+                        {
+                            vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( i_old[u] ), MAXIMUM_DISTANCE_HAMMING ) ) ) );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+#elif defined LOOPCLOSING_BOW_BTREE
+
+    const std::string strOutFileTiming( "logs/matching_time_closures_dbow2_btree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_dbow2_btree_"+strMinimumRelativeMatches+".txt" );
+
+    //ds query descriptors for the combined methods
+    const DBoW2::FeatureVector& vecDescriptorPoolFQUERY = p_pKeyFrameQUERY->vecDescriptorPoolF;
+    const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPoolBTree;
+
+    //ds results
+    DBoW2::QueryResults vecResultsQUERY;
+
+    //ds get the query results
+    const double dTimeStartQuerySeconds = CTimer::getTimeSeconds( );
+    m_pBoWDatabase->query( p_pKeyFrameQUERY->vecDescriptorPoolB, vecResultsQUERY, m_vecKeyFrames->size( ), m_vecKeyFrames->size( ) );
+    const double dDurationQuerySeconds = CTimer::getTimeSeconds( )-dTimeStartQuerySeconds;
+    dDurationMatchingSeconds = dDurationQuerySeconds;
+
+    //ds check results
+    for( const DBoW2::Result& cResult: vecResultsQUERY )
+    {
+        //ds if available
+        if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
+        {
+            //ds if minimum matches are provided
+            if( p_dMinimumRelativeMatchesLoopClosure/3.0 < cResult.Score )
+            {
+                //ds buffer reference key frame
+                const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
+
+                //ds matches within the current reference
+                std::vector< cv::DMatch > vecMatches( 0 );
+
+                //ds match
+                const double dTimeStartMatchingSeconds = CTimer::getTimeSeconds( );
+                pKeyFrameREFERENCE->m_pBTree->match( vecDescriptorPoolQUERY, vecMatches );
+                dDurationMatchingSeconds += CTimer::getTimeSeconds( )-dTimeStartMatchingSeconds;
+
+                //ds evaluate all matches for this reference cloud
+                for( const cv::DMatch& cMatch: vecMatches )
+                {
+                    //ds if distance is acceptable (fixed for BTree)
+                    {
+                        //ds buffer query point
+                        const CDescriptorVectorPoint3DWORLD* pPointQUERY = p_pKeyFrameQUERY->mapDescriptorToPoint.at( cMatch.queryIdx );
+
+                        try
+                        {
+                            vecPotentialClosures[pKeyFrameREFERENCE->uID].at( pPointQUERY->uID ).push_back( CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) );
+                        }
+                        catch( const std::out_of_range& p_cException )
+                        {
+                            vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+#elif defined USING_BTREE
 
     const std::string strOutFileTiming( "logs/matching_time_closures_btree_"+strMinimumRelativeMatches+".txt" );
     const std::string strOutFileClosureMap( "logs/closure_map_btree_"+strMinimumRelativeMatches+".txt" );
@@ -777,7 +943,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
                 }
                 catch( const std::out_of_range& p_cException )
                 {
-                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
                 }
             }
         }
@@ -817,7 +983,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
                 }
                 catch( const std::out_of_range& p_cException )
                 {
-                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
                 }
             }
         }
@@ -857,7 +1023,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
                 }
                 catch( const std::out_of_range& p_cException )
                 {
-                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) ) ) );
                 }
             }
         }
@@ -974,7 +1140,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
                 }
                 catch( const std::out_of_range& p_cException )
                 {
-                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( i_old[u] ), MAXIMUM_DISTANCE_HAMMING ) ) ) );
+                    vecPotentialClosures[pKeyFrameREFERENCE->uID].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pKeyFrameREFERENCE->mapDescriptorToPoint.at( i_old[u] ), MAXIMUM_DISTANCE_HAMMING ) ) ) );
                 }
             }
         }
@@ -1011,7 +1177,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             }
             catch( const std::out_of_range& p_cException )
             {
-                vecPotentialClosures[cMatch.imgIdx].insert( std::make_pair( pPointQUERY->uID, std::list< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pPointREFERENCE, cMatch.distance ) ) ) );
+                vecPotentialClosures[cMatch.imgIdx].insert( std::make_pair( pPointQUERY->uID, std::vector< CMatchCloud >( 1, CMatchCloud( pPointQUERY, pPointREFERENCE, cMatch.distance ) ) ) );
             }
         }
     }
@@ -1032,6 +1198,9 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
     double dRelativeMatchesBest = 0.0;
 
+    //ds closure vector to align
+    std::vector< std::pair< const CKeyFrame*, const std::vector< CMatchCloud > > > vecClosuresToCompute;
+
     //ds check all keyframes for distance
     for( int64_t uIDREFERENCE = 0; uIDREFERENCE < uIDKeyFramesAvailableToCloseCap; ++uIDREFERENCE )
     {
@@ -1045,32 +1214,33 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             dRelativeMatchesBest = dRelativeMatches;
         }
 
-        //ds if we have a suffient amount of matches
+        //ds if we have a sufficient amount of matches
         if( p_dMinimumRelativeMatchesLoopClosure < dRelativeMatches )
         {
+            //ds stats
             matClosureMapNew( m_vecKeyFrames->size( ), uIDREFERENCE ) = 1.0;
             matClosureMapNew( uIDREFERENCE, m_vecKeyFrames->size( ) ) = 1.0;
-
             ++uNumberOfClosures;
             std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
                          m_uFrameCount, p_pKeyFrameQUERY->uID, uIDREFERENCE, dRelativeMatches, vecPotentialClosures[uIDREFERENCE].size( ), p_pKeyFrameQUERY->vecCloud->size( ) );
 
-            /*ds spatial matches for ICP loop closure computation
-            std::vector< CMatchCloud > vecMatchesICP;
-            vecMatchesICP.reserve( vecPotentialClosures[uIDREFERENCE].size( ) );
+
+
+
+            //ds spatial matches for ICP loop closure computation
+            std::vector< CMatchCloud > vecMatchesForICP;
+            vecMatchesForICP.reserve( vecPotentialClosures[uIDREFERENCE].size( ) );
 
             //ds filter actual spatial matches
-            for( std::pair< UIDLandmark, std::list< CMatchCloud > > prMatch: vecPotentialClosures[uIDREFERENCE] )
+            for( const std::pair< UIDLandmark, std::vector< CMatchCloud > >& prMatch: vecPotentialClosures[uIDREFERENCE] )
             {
-                vecMatchesICP.push_back( _getMatchNN( prMatch.second ) );
-            }*/
+                vecMatchesForICP.push_back( _getMatchNN( prMatch.second ) );
+            }
+
+            //ds add to compute
+            vecClosuresToCompute.push_back( std::make_pair( m_vecKeyFrames->at( uIDREFERENCE ), vecMatchesForICP ) );
         }
     }
-
-    //ds log stats
-    std::ofstream ofLogfileTiming( strOutFileTiming, std::ofstream::out | std::ofstream::app );
-    ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << uNumberOfClosures << " " << dRelativeMatchesBest << "\n";
-    ofLogfileTiming.close( );
 
     //ds update stats
     m_matClosureMap.swap( matClosureMapNew );
@@ -1092,198 +1262,157 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds save file
     ofLogfilePPL.close( );
 
-    /*ds potential keyframes for loop closing
-    std::vector< const CKeyFrame* > vecPotentialClosureKeyFrames;
-
-    //ds check all keyframes for distance
-    for( const CKeyFrame* pKeyFrameReference: *m_vecKeyFrames )
-    {
-        //ds break if near to current id (forward closing)
-        if( m_uMinimumLoopClosingKeyFrameDistance > uIDQuery-pKeyFrameReference->uID )
-        {
-            break;
-        }
-
-        //ds if the distance is acceptable
-        if( p_dSearchRadiusMetersL2 > ( pKeyFrameReference->matTransformationLEFTtoWORLD.translation( )-vecPositionQuery ).squaredNorm( ) )
-        {
-            //ds add the keyframe to the loop closing pool
-            vecPotentialClosureKeyFrames.push_back( pKeyFrameReference );
-        }
-    }
-
-    //ds closure vector to align
-    std::vector< std::pair< const CKeyFrame*, const std::vector< CMatchCloud > > > vecClosuresToCompute( 0 );
-
-    std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) checking for closure in potential keyframes: %lu\n", m_uFrameCount, vecPotentialClosureKeyFrames.size( ) );
-
-    //ds timing
-    const double dTimeStartMatchingSeconds = CTimer::getTimeSeconds( );
-
-    //ds compare current cloud against previous ones to enable loop closure (skipping the keyframes added just before)
-    for( const CKeyFrame* pKeyFrameReference: vecPotentialClosureKeyFrames )
-    {
-        //ds get matches
-        std::vector< cv::DMatch > vecMatchesCV( 0 );
-        m_pMatcherLoopClosing->match( vecDescriptorPoolCVQUERY, vecMatchesCV );
-        //m_pMatcherLoopClosing->match( vecDescriptorPoolCVQUERY, pKeyFrameReference->vecDescriptorPoolCV, vecMatchesCV );
-
-        //ds custom matches
-        std::vector< CMatchCloud > vecMatches;
-
-        //ds filter real matches
-        for( const cv::DMatch cMatch: vecMatchesCV )
-        {
-            //ds if acceptable (a requirement if done with BTree)
-            assert( MAXIMUM_DISTANCE_HAMMING == cMatch.distance );
-            //if( MAXIMUM_DISTANCE_HAMMING > cMatch.distance )
-            //{
-            //    try
-            //    {
-                    //ds match points
-                    vecMatches.push_back( CMatchCloud( p_pKeyFrameQUERY->mapDescriptorToPoint.at( cMatch.queryIdx ), pKeyFrameReference->mapDescriptorToPoint.at( cMatch.trainIdx ), cMatch.distance ) );
-            //    }
-            //    catch( const std::out_of_range& p_cException )
-            //    {
-            //        std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) unable to match points over descriptor-to-point map\n", m_uFrameCount );
-            //    }
-            //}
-        }
-
-        //ds compute relative matches
-        const double dRelativeMatches = static_cast< double >( vecMatches.size( ) )/vecDescriptorPoolQUERY.size( );
-
-        //ds if we have a suffient amount of matches
-        if( p_dMinimumRelativeMatchesLoopClosure < dRelativeMatches )
-        {
-            std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu%lu)\n",
-                         m_uFrameCount, p_pKeyFrameQUERY->uID, pKeyFrameReference->uID, dRelativeMatches, p_pKeyFrameQUERY->vecDescriptorPool.size( ), pKeyFrameReference->vecDescriptorPool.size( ) );
-            vecClosuresToCompute.push_back( std::make_pair( pKeyFrameReference, vecMatches ) );
-        }
-    }*/
-
     //ds solution vector
-    std::vector< const CKeyFrame::CMatchICP* > vecLoopClosures( 0 );
+    std::vector< const CKeyFrame::CMatchICP* > vecLoopClosures;
 
-            /*ds transformation between this keyframe and the loop closure one (take current measurement as prior)
-            Eigen::Isometry3d matTransformationToClosure( pKeyFrameReference->matTransformationLEFTtoWORLD.inverse( )*matTransformationLEFTtoWORLDQuery );
-            matTransformationToClosure.translation( ) = Eigen::Vector3d::Zero( );
-            //const Eigen::Isometry3d matTransformationToClosureInitial( matTransformationToClosure );
+    //ds success rate count
+    uint32_t uNumberOfClosedKeyFrames = 0;
 
-            //ds 1mm for convergence
-            const double dErrorDeltaForConvergence      = 1e-5;
-            double dErrorSquaredTotalPrevious           = 0.0;
-            const double dMaximumErrorForInlier         = 0.25; //0.25
-            const double dMaximumErrorAverageForClosure = 0.2; //0.1
+    //ds loop over all closures to align
+    for( const std::pair< const CKeyFrame*, const std::vector< CMatchCloud > >& prMatch: vecClosuresToCompute )
+    {
+        //ds buffer reference frame
+        const CKeyFrame* pKeyFrameREFERENCE = prMatch.first;
 
-            //ds LS setup
-            Eigen::Matrix< double, 6, 6 > matH;
-            Eigen::Matrix< double, 6, 1 > vecB;
-            Eigen::Matrix3d matOmega( Eigen::Matrix3d::Identity( ) );
+        //ds buffer matches
+        const std::vector< CMatchCloud >& vecMatches = prMatch.second;
 
-            //std::printf( "<CTrackerStereo>(_getLoopClosureKeyFrameFCFS) t: %4.1f %4.1f %4.1f > ", matTransformationToClosure.translation( ).x( ), matTransformationToClosure.translation( ).y( ), matTransformationToClosure.translation( ).z( ) );
+        //ds transformation between this keyframe and the loop closure one (take current measurement as prior)
+        Eigen::Isometry3d matTransformationToClosure( pKeyFrameREFERENCE->matTransformationLEFTtoWORLD.inverse( )*p_matTransformationLEFTtoWORLDQUERY );
 
-            //ds run least-squares maximum 100 times
-            for( uint8_t uLS = 0; uLS < 100; ++uLS )
+        //ds and erase translation
+        matTransformationToClosure.translation( ) = Eigen::Vector3d::Zero( );
+        //const Eigen::Isometry3d matTransformationToClosureInitial( matTransformationToClosure );
+
+        //ds 1mm for convergence
+        const double dErrorDeltaForConvergence      = 1e-5;
+        double dErrorSquaredTotalPrevious           = 0.0;
+        const double dMaximumErrorForInlier         = 0.25; //0.25
+        const double dMaximumErrorAverageForClosure = 0.2; //0.1
+        const uint32_t uMaximumIterations           = 1000;
+
+        //ds LS setup
+        Eigen::Matrix< double, 6, 6 > matH;
+        Eigen::Matrix< double, 6, 1 > vecB;
+        Eigen::Matrix3d matOmega( Eigen::Matrix3d::Identity( ) );
+
+        //ds run least-squares maximum 100 times
+        for( uint32_t uLS = 0; uLS < uMaximumIterations; ++uLS )
+        {
+            //ds error
+            double dErrorSquaredTotal = 0.0;
+            uint32_t uInliers         = 0;
+
+            //ds initialize setup
+            matH.setZero( );
+            vecB.setZero( );
+
+            //ds for all the points
+            for( const CMatchCloud& cMatch: vecMatches )
             {
-                //ds error
-                double dErrorSquaredTotal = 0.0;
-                uint32_t uInliers         = 0;
-
-                //ds initialize setup
-                matH.setZero( );
-                vecB.setZero( );
-
-                //ds for all the points
-                for( const CMatchCloud& cMatch: *vecMatches )
+                //ds compute projection into closure
+                const CPoint3DCAMERA vecPointXYZQuery( matTransformationToClosure*cMatch.pPointQuery->vecPointXYZCAMERA );
+                if( 0.0 < vecPointXYZQuery.z( ) )
                 {
-                    //ds compute projection into closure
-                    const CPoint3DCAMERA vecPointXYZQuery( matTransformationToClosure*cMatch.cPointQuery.vecPointXYZCAMERA );
-                    if( 0.0 < vecPointXYZQuery.z( ) )
+                    assert( 0.0 < cMatch.pPointReference->vecPointXYZCAMERA.z( ) );
+
+                    //ds adjust omega to inverse depth value (the further away the point, the less weight)
+                    matOmega(2,2) = 1.0/( cMatch.pPointReference->vecPointXYZCAMERA.z( ) );
+
+                    //ds compute error
+                    const Eigen::Vector3d vecError( vecPointXYZQuery-cMatch.pPointReference->vecPointXYZCAMERA );
+
+                    //ds update chi
+                    const double dErrorSquared = vecError.transpose( )*matOmega*vecError;
+
+                    //ds check if outlier
+                    double dWeight = 1.0;
+                    if( dMaximumErrorForInlier < dErrorSquared )
                     {
-                        assert( 0.0 < cMatch.cPointReference.vecPointXYZCAMERA.z( ) );
-
-                        //ds adjust omega to inverse depth value (the further away the point, the less weight)
-                        matOmega(2,2) = 1.0/( cMatch.cPointReference.vecPointXYZCAMERA.z( ) );
-
-                        //ds compute error
-                        const Eigen::Vector3d vecError( vecPointXYZQuery-cMatch.cPointReference.vecPointXYZCAMERA );
-
-                        //ds update chi
-                        const double dErrorSquared = vecError.transpose( )*matOmega*vecError;
-
-                        //ds check if outlier
-                        double dWeight = 1.0;
-                        if( dMaximumErrorForInlier < dErrorSquared )
-                        {
-                            dWeight = dMaximumErrorForInlier/dErrorSquared;
-                        }
-                        else
-                        {
-                            ++uInliers;
-                        }
-                        dErrorSquaredTotal += dWeight*dErrorSquared;
-
-                        //ds get the jacobian of the transform part = [I 2*skew(T*modelPoint)]
-                        Eigen::Matrix< double, 3, 6 > matJacobianTransform;
-                        matJacobianTransform.setZero( );
-                        matJacobianTransform.block<3,3>(0,0).setIdentity( );
-                        matJacobianTransform.block<3,3>(0,3) = -2*CMiniVisionToolbox::getSkew( vecPointXYZQuery );
-
-                        //ds precompute transposed
-                        const Eigen::Matrix< double, 6, 3 > matJacobianTransformTransposed( matJacobianTransform.transpose( ) );
-
-                        //ds accumulate
-                        matH += dWeight*matJacobianTransformTransposed*matOmega*matJacobianTransform;
-                        vecB += dWeight*matJacobianTransformTransposed*matOmega*vecError;
-                    }
-                }
-
-                //ds solve the system and update the estimate
-                matTransformationToClosure = CMiniVisionToolbox::getTransformationFromVector( matH.ldlt( ).solve( -vecB ) )*matTransformationToClosure;
-
-                //ds enforce rotation symmetry
-                const Eigen::Matrix3d matRotation        = matTransformationToClosure.linear( );
-                Eigen::Matrix3d matRotationSquared       = matRotation.transpose( )*matRotation;
-                matRotationSquared.diagonal( ).array( ) -= 1;
-                matTransformationToClosure.linear( )    -= 0.5*matRotation*matRotationSquared;
-
-                //ds check if converged (no descent required)
-                if( dErrorDeltaForConvergence > std::fabs( dErrorSquaredTotalPrevious-dErrorSquaredTotal ) )
-                {
-                    //ds compute average error
-                    const double dErrorAverage = dErrorSquaredTotal/vecMatches->size( );
-
-                    //ds if the solution is acceptable
-                    if( dMaximumErrorAverageForClosure > dErrorAverage && p_uMinimumNumberOfMatchesLoopClosure < uInliers )
-                    {
-                        //std::printf( "<CMapper>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] (matches: %3lu, iterations: %2u, average error: %5.3f, inliers: %2u)\n",
-                        //             uIDQuery, pKeyFrameReference->uID, vecMatches->size( ), uLS, dErrorAverage, uInliers );
-                        vecLoopClosures.push_back( new CKeyFrame::CMatchICP( pKeyFrameReference, matTransformationToClosure, vecMatches ) );
-                        break;
+                        dWeight = dMaximumErrorForInlier/dErrorSquared;
                     }
                     else
                     {
-                        //ds keep looping through keyframes
-                        //std::printf( "%4.1f %4.1f %4.1f | ", matTransformationToClosure.translation( ).x( ), matTransformationToClosure.translation( ).y( ), matTransformationToClosure.translation( ).z( ) );
-                        //std::printf( "system converged in %2u iterations, average error: %5.3f (inliers: %2u) - discarded\n", uLS, dErrorAverage, uInliers );
-                        break;
+                        ++uInliers;
                     }
+                    dErrorSquaredTotal += dWeight*dErrorSquared;
+
+                    //ds get the jacobian of the transform part = [I 2*skew(T*modelPoint)]
+                    Eigen::Matrix< double, 3, 6 > matJacobianTransform;
+                    matJacobianTransform.setZero( );
+                    matJacobianTransform.block<3,3>(0,0).setIdentity( );
+                    matJacobianTransform.block<3,3>(0,3) = -2*CMiniVisionToolbox::getSkew( vecPointXYZQuery );
+
+                    //ds precompute transposed
+                    const Eigen::Matrix< double, 6, 3 > matJacobianTransformTransposed( matJacobianTransform.transpose( ) );
+
+                    //ds accumulate
+                    matH += dWeight*matJacobianTransformTransposed*matOmega*matJacobianTransform;
+                    vecB += dWeight*matJacobianTransformTransposed*matOmega*vecError;
+                }
+            }
+
+            //ds solve the system and update the estimate
+            matTransformationToClosure = CMiniVisionToolbox::getTransformationFromVector( matH.ldlt( ).solve( -vecB ) )*matTransformationToClosure;
+
+            //ds enforce rotation symmetry
+            const Eigen::Matrix3d matRotation        = matTransformationToClosure.linear( );
+            Eigen::Matrix3d matRotationSquared       = matRotation.transpose( )*matRotation;
+            matRotationSquared.diagonal( ).array( ) -= 1;
+            matTransformationToClosure.linear( )    -= 0.5*matRotation*matRotationSquared;
+
+            //ds check if converged (no descent required)
+            if( dErrorDeltaForConvergence > std::fabs( dErrorSquaredTotalPrevious-dErrorSquaredTotal ) )
+            {
+                //ds compute average error
+                const double dErrorAverage = dErrorSquaredTotal/vecMatches.size( );
+
+                //ds if the solution is acceptable
+                if( dMaximumErrorAverageForClosure > dErrorAverage && 0 < uInliers )
+                {
+                    //std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] (matches: %3lu, iterations: %2u, average error: %5.3f, inliers: %2u)\n",
+                    //             p_pKeyFrameQUERY->uID, pKeyFrameREFERENCE->uID, vecMatches.size( ), uLS, dErrorAverage, uInliers );
+                    //vecLoopClosures.push_back( new CKeyFrame::CMatchICP( pKeyFrameREFERENCE, matTransformationToClosure, vecMatches ) );
+                    ++uNumberOfClosedKeyFrames;
+                    break;
                 }
                 else
                 {
-                    dErrorSquaredTotalPrevious = dErrorSquaredTotal;
+                    //std::printf( "%4.1f %4.1f %4.1f | ", matTransformationToClosure.translation( ).x( ), matTransformationToClosure.translation( ).y( ), matTransformationToClosure.translation( ).z( ) );
+                    //std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) system converged INVALID in %2u iterations, average error: %5.3f (inliers: %2u) - discarded\n", uLS, dErrorAverage, uInliers );
+                    break;
                 }
+            }
+            else
+            {
+                dErrorSquaredTotalPrevious = dErrorSquaredTotal;
+            }
 
-                //ds if not converged
-                if( 99 == uLS )
-                {
-                    //std::printf( "system did not converge\n" );
-                }
-            }*/
+            //ds if not converged
+            if( uMaximumIterations-1 == uLS )
+            {
+                //std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) system did not converge\n" );
+            }
+        }
+    }
 
-    //ds update closure matcher with current key frame
-    //m_pMatcherLoopClosing->add( std::vector< cv::Mat >( 1, vecDescriptorPoolCVQUERY ) );
+    if( 0 < vecClosuresToCompute.size( ) )
+    {
+        const double dSuccessRateICP = static_cast< double >( uNumberOfClosedKeyFrames )/vecClosuresToCompute.size( );
+        std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) [%06lu] ICP success rate: %f\n", m_uFrameCount, p_pKeyFrameQUERY->uID, dSuccessRateICP );
+
+        //ds log stats
+        std::ofstream ofLogfileTiming( strOutFileTiming, std::ofstream::out | std::ofstream::app );
+        ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << uNumberOfClosures << " " << dRelativeMatchesBest << " " << dSuccessRateICP << "\n";
+        ofLogfileTiming.close( );
+    }
+    else
+    {
+        //ds log stats (no closures to compute, default success rate)
+        std::ofstream ofLogfileTiming( strOutFileTiming, std::ofstream::out | std::ofstream::app );
+        ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << uNumberOfClosures << " " << dRelativeMatchesBest << " " << 1 << "\n";
+        ofLogfileTiming.close( );
+    }
 
 #if defined USING_BOW
     m_pBoWDatabase->add( p_pKeyFrameQUERY->vecDescriptorPoolB, vecDescriptorPoolFQUERY );
@@ -1301,16 +1430,37 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     return vecLoopClosures;
 }
 
-const CMatchCloud CTrackerSVI::_getMatchNN( std::list< CMatchCloud >& p_lMatches ) const
+//ds TODO make this efficient
+const CMatchCloud CTrackerSVI::_getMatchNN( const std::vector< CMatchCloud >& p_vecMatches ) const
 {
-    //ds sort the list
-    p_lMatches.sort( []( const CMatchCloud& prLHS, const CMatchCloud& prRHS )
-                     {
-                        assert( prLHS.pPointQuery->uID == prRHS.pPointQuery->uID );
-                        return prLHS.pPointReference->uID > prRHS.pPointReference->uID;
-                     } );
+    assert( 0 < p_vecMatches.size( ) );
 
-    return p_lMatches.front( );
+    //ds point counts
+    std::set< UIDLandmark > setCounts;
+
+    //ds best match and count so far
+    const CMatchCloud* pMatchBest = 0;
+    uint32_t uCountBest           = 0;
+
+    //ds loop over the list and count entries
+    for( const CMatchCloud& cMatch: p_vecMatches )
+    {
+        //ds update count
+        setCounts.insert( cMatch.pPointReference->uID );
+        const uint32_t uCountCurrent = setCounts.count( cMatch.pPointReference->uID );
+
+        //ds if we get a better count
+        if( uCountBest < uCountCurrent )
+        {
+            uCountBest = uCountCurrent;
+            pMatchBest = &cMatch;
+        }
+    }
+
+    assert( 0 != pMatchBest );
+
+    //ds return with best match
+    return CMatchCloud( pMatchBest->pPointQuery, pMatchBest->pPointReference, pMatchBest->dMatchingDistance );
 }
 
 void CTrackerSVI::_initializeTranslationWindow( )

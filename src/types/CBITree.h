@@ -85,20 +85,15 @@ public:
                         //ds check if we couldn't insert the descriptor
                         if( bFailedToInsertDescriptor )
                         {
-                            //ds add to split
-                            pNodeCurrent->vecDescriptorsToSplit.push_back( cDescriptorNEW );
+                            //ds place the descriptor into the leaf
+                            pNodeCurrent->vecDescriptors.push_back( cDescriptorNEW );
 
-                            //ds split as soon as we got two descriptors
-                            if( 1 < pNodeCurrent->vecDescriptorsToSplit.size( ) )
+                            //ds try to split the leaf
+                            if( pNodeCurrent->spawnLeafs( ) )
                             {
-                                //ds try to spawn leafs on this node
-                                if( pNodeCurrent->spawnLeafs( pNodeCurrent->vecDescriptorsToSplit ) )
-                                {
-                                    //ds success
-                                    pNodeCurrent->bHasLeaves = true;
-                                    bFailedToInsertDescriptor = false;
-                                    pNodeCurrent->vecDescriptorsToSplit.clear( );
-                                }
+                                //ds success
+                                assert( pNodeCurrent->bHasLeaves );
+                                bFailedToInsertDescriptor = false;
                             }
                         }
 
