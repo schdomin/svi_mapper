@@ -9,7 +9,7 @@
 #include "utility/CIMUInterpolator.h"
 
 //#define LOOPCLOSING_BOW_BOW
-//#define LOOPCLOSING_BOW_BTREE
+#define LOOPCLOSING_BOW_BTREE
 
 
 
