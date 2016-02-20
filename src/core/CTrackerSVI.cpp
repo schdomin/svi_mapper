@@ -51,7 +51,7 @@ CTrackerSVI::CTrackerSVI( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTE
 #define DBOW2_ID_LEVELS 2
                                                                           ,m_pBoWDatabase( std::make_shared< BriefDatabase >( BriefVocabulary( "brief_k10L6.voc.gz" ), true, DBOW2_ID_LEVELS ) )
 #endif
-#if defined USING_BTREE_INDEXED
+#if defined USING_BITREE
                                                                           ,m_pBTree( std::make_shared< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( ) )
 #endif
 {
@@ -479,6 +479,11 @@ void CTrackerSVI::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             //ds set loop closures
             pKeyFrameNEW->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrameNEW, matTransformationLEFTtoWORLD, m_dLoopClosingRadiusSquaredMetersL2, m_dMinimumRelativeMatchesLoopClosure );
 
+#if defined USING_BITREE
+            m_vecActiveDescriptorPoolQUERY = std::make_shared< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > >( pKeyFrameNEW->vecDescriptorPool );
+            m_bNewDescriptorPoolAvailable = true;
+#endif
+
             //ds if we found closures
             if( 0 < pKeyFrameNEW->vecLoopClosures.size( ) )
             {
@@ -779,7 +784,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( p_dMinimumRelativeMatchesLoopClosure/3.0 < cResult.Score )
+            if( p_dMinimumRelativeMatchesLoopClosure/4.0 < cResult.Score )
             {
                 const double dTimeStartGetCorrespondences = CTimer::getTimeSeconds( );
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
@@ -875,7 +880,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( p_dMinimumRelativeMatchesLoopClosure/3.0 < cResult.Score )
+            if( p_dMinimumRelativeMatchesLoopClosure/4.0 < cResult.Score )
             {
                 //ds buffer reference key frame
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
@@ -1146,10 +1151,15 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         }
     }
 
-#elif defined USING_BTREE_INDEXED
+#elif defined USING_BITREE
 
+#if defined REBUILD_BITREE
+    const std::string strOutFileTiming( "logs/matching_time_closures_rbitree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_rbitree_"+strMinimumRelativeMatches+".txt" );
+#else
     const std::string strOutFileTiming( "logs/matching_time_closures_bitree_"+strMinimumRelativeMatches+".txt" );
     const std::string strOutFileClosureMap( "logs/closure_map_bitree_"+strMinimumRelativeMatches+".txt" );
+#endif
 
     //ds query descriptors
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
@@ -1187,9 +1197,6 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds validate design
     assert( p_pKeyFrameQUERY->uID == vecPotentialClosures.size( ) );
 
-    //ds current count
-    uint64_t uNumberOfClosures = 0;
-
     //ds update stats matrix (adding the new key frame index)
     Eigen::MatrixXd matClosureMapNew( m_matClosureMap.rows( )+1, m_matClosureMap.cols( )+1 );
     matClosureMapNew.setZero( );
@@ -1211,7 +1218,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
         if( dRelativeMatchesBest < dRelativeMatches )
         {
-            dRelativeMatchesBest = dRelativeMatches;
+            dRelativeMatchesBest   = dRelativeMatches;
+            m_uIDBestKeyFrameQUERY = uIDREFERENCE;
         }
 
         //ds if we have a sufficient amount of matches
@@ -1220,7 +1228,6 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             //ds stats
             matClosureMapNew( m_vecKeyFrames->size( ), uIDREFERENCE ) = 1.0;
             matClosureMapNew( uIDREFERENCE, m_vecKeyFrames->size( ) ) = 1.0;
-            ++uNumberOfClosures;
             std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
                          m_uFrameCount, p_pKeyFrameQUERY->uID, uIDREFERENCE, dRelativeMatches, vecPotentialClosures[uIDREFERENCE].size( ), p_pKeyFrameQUERY->vecCloud->size( ) );
 
@@ -1403,14 +1410,14 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
         //ds log stats
         std::ofstream ofLogfileTiming( strOutFileTiming, std::ofstream::out | std::ofstream::app );
-        ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << uNumberOfClosures << " " << dRelativeMatchesBest << " " << dSuccessRateICP << "\n";
+        ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << vecClosuresToCompute.size( ) << " " << uNumberOfClosedKeyFrames << " " << dRelativeMatchesBest << " " << dSuccessRateICP << "\n";
         ofLogfileTiming.close( );
     }
     else
     {
         //ds log stats (no closures to compute, default success rate)
         std::ofstream ofLogfileTiming( strOutFileTiming, std::ofstream::out | std::ofstream::app );
-        ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << uNumberOfClosures << " " << dRelativeMatchesBest << " " << 1 << "\n";
+        ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << vecClosuresToCompute.size( ) << " " << 0.0 << " " << dRelativeMatchesBest << " " << 0.0 << "\n";
         ofLogfileTiming.close( );
     }
 
@@ -1418,7 +1425,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     m_pBoWDatabase->add( p_pKeyFrameQUERY->vecDescriptorPoolB, vecDescriptorPoolFQUERY );
 #endif
 
-#if defined USING_BTREE_INDEXED
+#if defined USING_BITREE
     m_pBTree->add( vecDescriptorPoolQUERY );
 #endif
 

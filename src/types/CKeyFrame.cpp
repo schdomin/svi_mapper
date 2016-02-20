@@ -472,7 +472,7 @@ const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDesc
     return vecDescriptorPool;
 }
 
-#elif defined USING_BTREE_INDEXED
+#elif defined USING_BITREE
 
 const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
 {

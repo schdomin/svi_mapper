@@ -14,19 +14,21 @@
 //#define DESCRIPTOR_SIZE_BITS 512
 #define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
 
-#define USING_BTREE
+//#define USING_BTREE
 //#define USING_BF
 //#define USING_LSH
-#define USING_BOW
-//#define USING_BTREE_INDEXED
-
+//#define USING_BOW
+#define USING_BITREE
+#if defined USING_BITREE
+#define REBUILD_BITREE
+#endif
 
 
 #if defined USING_BTREE
 #include "CBTree.h"
 #endif
 
-#if defined USING_BTREE_INDEXED
+#if defined USING_BITREE
 #include "CBITree.h"
 #endif
 
@@ -108,7 +110,7 @@ public:
     DBoW2::BowVector vecDescriptorPoolB;
     DBoW2::FeatureVector vecDescriptorPoolF;
 
-#elif defined USING_BTREE or defined USING_BTREE_INDEXED
+#elif defined USING_BTREE or defined USING_BITREE
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > vecDescriptorPool;
@@ -149,7 +151,7 @@ public:
 #if defined USING_BTREE and defined USING_BOW
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPoolBTree( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
     const std::vector< boost::dynamic_bitset< > > getDescriptorPoolBoW( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
-#elif defined USING_BTREE or defined USING_BTREE_INDEXED
+#elif defined USING_BTREE or defined USING_BITREE
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );

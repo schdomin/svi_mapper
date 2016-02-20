@@ -119,8 +119,11 @@ private:
     const std::shared_ptr< BriefDatabase > m_pBoWDatabase;
 #endif
 
-#if defined USING_BTREE_INDEXED
+#if defined USING_BITREE
     const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
+    std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > m_vecActiveDescriptorPoolQUERY;
+    bool m_bNewDescriptorPoolAvailable = false;
+    UIDKeyFrame m_uIDBestKeyFrameQUERY = 0;
 #endif
 
 //ds accessors
@@ -141,6 +144,14 @@ public:
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_cMatcher.getDurationTotalSecondsEpipolarTracking( ); }
     const double getDurationTotalSecondsLoopClosing( ) const { return m_dDurationTotalSecondsLoopClosing; }
     const double getDurationTotalSecondsOptimization( ) const { return m_cOptimizer.getDurationTotalSecondsOptimization( ); }
+
+#if defined USING_BITREE
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > getBITree( ) const { return m_pBTree; }
+    const bool isNewDescriptorPoolAvailable( ) const { return m_bNewDescriptorPoolAvailable; }
+    const std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > getActiveDescriptorPoolQUERY( ){ m_bNewDescriptorPoolAvailable = false; return m_vecActiveDescriptorPoolQUERY; }
+    const UIDKeyFrame getBestIDQUERY( ) const { return m_uIDBestKeyFrameQUERY; }
+#endif
+
 
 //ds helpers
 private:

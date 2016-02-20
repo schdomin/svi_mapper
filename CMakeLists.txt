@@ -91,7 +91,8 @@ src/optimization/Cg2oOptimizer.cpp
 src/optimization/edge_se3_linear_acceleration.cpp
 src/optimization/closure_buffer.cpp
 src/optimization/closure_checker.cpp
-src/gui/CViewerScene.cpp
+#src/gui/CViewerScene.cpp
+src/gui/CViewerBTree.cpp
 src/optimization/CSolverStereoPosit.cpp)
 
 
@@ -127,12 +128,12 @@ add_library(G2oEdges SHARED src/optimization/G2oEdges.cpp src/optimization/edge_
 #target_link_libraries(G2oEdges)
 
 #ds core binaries
-#add_executable(tracker_svi src/runnable/tracker_svi.cpp src/core/CTrackerSVI.cpp ${SOURCEFILES})
-#target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
+add_executable(tracker_svi src/runnable/tracker_svi.cpp src/core/CTrackerSVI.cpp ${SOURCEFILES})
+target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 #add_executable(tracker_sv src/runnable/tracker_sv.cpp src/core/CTrackerSV.cpp ${SOURCEFILES})
 #target_link_libraries(tracker_sv ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
-add_executable(tracker_gt src/runnable/tracker_gt.cpp src/core/CTrackerGT.cpp ${SOURCEFILES})
-target_link_libraries(tracker_gt ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
+#add_executable(tracker_gt src/runnable/tracker_gt.cpp src/core/CTrackerGT.cpp ${SOURCEFILES})
+#target_link_libraries(tracker_gt ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION})
 
 #ds io
 #add_executable(test_cloud_matching src/runnable/test_cloud_matching.cpp src/vision/CMiniVisionToolbox.cpp src/gui/CViewerCloud.cpp src/types/CKeyFrame.cpp)

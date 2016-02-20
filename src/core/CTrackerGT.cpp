@@ -562,7 +562,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerGT::_getLoopClosuresFor
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( p_dMinimumRelativeMatchesLoopClosure/3.0 < cResult.Score )
+            if( p_dMinimumRelativeMatchesLoopClosure/4.0 < cResult.Score )
             {
                 const double dTimeStartGetCorrespondences = CTimer::getTimeSeconds( );
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
@@ -658,7 +658,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerGT::_getLoopClosuresFor
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( p_dMinimumRelativeMatchesLoopClosure/3.0 < cResult.Score )
+            if( p_dMinimumRelativeMatchesLoopClosure/4.0 < cResult.Score )
             {
                 //ds buffer reference key frame
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );

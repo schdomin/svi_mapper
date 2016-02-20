@@ -1,15 +1,16 @@
 #include <opencv/highgui.h>
 #include <stack>
 #include <thread>
+#include <qapplication.h>
 
 //ds custom
 #include "txt_io/message_reader.h"
-
 #include "../core/CTrackerSVI.h"
 #include "exceptions/CExceptionLogfileTree.h"
 #include "utility/CIMUInterpolator.h"
 #include "utility/CParameterBase.h"
 #include "optimization/Cg2oOptimizer.h"
+#include "../gui/CViewerBTree.h"
 
 
 
@@ -180,10 +181,10 @@ int32_t main( int32_t argc, char **argv )
 
     //ds allocate the tracker
     CTrackerSVI cTracker( CParameterBase::pCameraSTEREOwithIMU,
-                             pIMUInterpolator,
-                             eMode,
-                             dMinimumRelativeMatchesLoopClosure,
-                             uWaitKeyTimeout );
+                          pIMUInterpolator,
+                          eMode,
+                          dMinimumRelativeMatchesLoopClosure,
+                          uWaitKeyTimeout );
     try
     {
         //ds prepare file structure
@@ -195,6 +196,18 @@ int32_t main( int32_t argc, char **argv )
         printHelp( );
         return 1;
     }
+
+#if defined USING_BITREE
+
+    /*ds start the qt application
+    QApplication cApplicationQT( argc, argv );
+
+    //ds instantiate a tree viewer
+    CViewerBTree cViewer( cTracker.getBITree( ) );
+    cViewer.setWindowTitle( "CViewerBTree: BITree" );
+    cViewer.showMaximized( );*/
+
+#endif
 
     //ds count invalid frames
     UIDFrame uInvalidFrames = 0;
@@ -256,6 +269,23 @@ int32_t main( int32_t argc, char **argv )
                 assert( 0 == pMessageCameraLEFT );
                 assert( 0 == pMessageCameraRIGHT );
                 assert( 0 == pMessageIMU );
+
+#if defined USING_BITREE
+
+                /*ds update the viewer if not closed yet
+                if( cViewer.isVisible( ) )
+                {
+                    //ds always redraw tree
+                    cViewer.manualDraw( );
+
+                    //ds check for a new query
+                    if( cTracker.isNewDescriptorPoolAvailable( ) )
+                    {
+                        cViewer.highlightQUERY( cTracker.getActiveDescriptorPoolQUERY( ), cTracker.getBestIDQUERY( ) );
+                    }
+                }*/
+
+#endif
             }
             else
             {
@@ -318,8 +348,24 @@ int32_t main( int32_t argc, char **argv )
     //ds speed checks
     //testSpeedEigen( );
 
-    //ds exit
+#if defined USING_BITREE
+
+    /*ds exit without closing the viewer if still active
+    if( cViewer.isVisible( ) )
+    {
+        return cApplicationQT.exec( );
+    }
+    else
+    {*/
+        return 0;
+    //}
+
+#else
+
+    //ds done
     return 0;
+
+#endif
 }
 
 void setParametersNaive( const int& p_iArgc,

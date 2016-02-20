@@ -26,7 +26,7 @@ public:
     bool spawnLeafs( )
     {
         //ds filter descriptors before leafing
-        _filterDescriptorsExhaustive( );
+        //_filterDescriptorsExhaustive( );
 
         //ds if there are at least 2 descriptors (minimal split)
         if( 1 < vecDescriptors.size( ) )
