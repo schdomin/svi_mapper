@@ -28,12 +28,14 @@ public:
 private:
 
     CBNode< uMaximumDepth, uDescriptorSizeBits >* m_pRoot;
-    //std::vector< CBNode< uMaximumDepth, uDescriptorSizeBits >* > m_vecEndNodes;
-    uint64_t m_uTotalNumberOfDescriptors = 0;
 
 #if defined REBUILD_BITREE
 
     std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > m_vecTotalDescriptors;
+
+#else
+
+    uint64_t m_uTotalNumberOfDescriptors = 0;
 
 #endif
 
@@ -45,7 +47,7 @@ public:
         assert( 0 < p_vecDescriptorsNEW.size( ) );
 
         //ds get filtered descriptors
-        const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsNEWFiltered( _getFilteredDescriptorsExhaustive( p_vecDescriptorsNEW ) );
+        const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsNEWFiltered( CBNode< uMaximumDepth, uDescriptorSizeBits >::getFilteredDescriptorsExhaustive( p_vecDescriptorsNEW ) );
 
 #if defined REBUILD_BITREE
 
@@ -60,6 +62,22 @@ public:
 
         //ds grow new tree on descriptors
         m_pRoot = new CBNode< uMaximumDepth, uDescriptorSizeBits >( m_vecTotalDescriptors );
+
+        //ds tree stats
+        uint64_t uDepth            = 0;
+        uint64_t uNumberOfEndNodes = 0;
+        _setInfoRecursive( m_pRoot, uDepth, uNumberOfEndNodes );
+
+        //ds log aggregation
+        std::ofstream ofLogFile( "logs/growth_rbitree.txt", std::ofstream::out | std::ofstream::app );
+        ofLogFile << vecDescriptorsNEWFiltered.front( ).uIDKeyFrame
+                  << " " << vecDescriptorsNEWFiltered.size( )
+                  << " " << 0
+                  << " " << uDepth
+                  << " " << static_cast< double >( m_vecTotalDescriptors.size( ) )/uNumberOfEndNodes
+                  << " " << m_vecTotalDescriptors.size( )
+                  << " " << uNumberOfEndNodes << "\n";
+        ofLogFile.close( );
 
 #else
 
@@ -340,47 +358,6 @@ private:
             _setInfoRecursive( p_pNode->pLeafOnes, p_uMaximumDepth, p_uNumberOfEndNodes );
             _setInfoRecursive( p_pNode->pLeafZeros, p_uMaximumDepth, p_uNumberOfEndNodes );
         }
-    }
-
-    //ds filters multiple descriptors
-    const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > _getFilteredDescriptorsExhaustive( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors )
-    {
-        //ds unique descriptors (already add the front one first -> must be unique)
-        std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsUNIQUE( 1, p_vecDescriptors.front( ) );
-
-        //ds loop over current ones
-        for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptor: p_vecDescriptors )
-        {
-            //ds check if matched
-            bool bNotFound = true;
-
-            //ds check uniques
-            for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptorUNIQUE: vecDescriptorsUNIQUE )
-            {
-                //ds assuming key frame identity
-                assert( cDescriptorUNIQUE.uIDKeyFrame == cDescriptor.uIDKeyFrame );
-
-                //ds if the actual descriptor is identical - and the key frame ID as well
-                if( 0 == CBNode< uMaximumDepth, uDescriptorSizeBits >::getDistanceHamming( cDescriptorUNIQUE.vecData, cDescriptor.vecData ) )
-                {
-                    //ds already added to the unique vector - no further adding required
-                    bNotFound = false;
-                    break;
-                }
-            }
-
-            //ds check if we failed to match the descriptor against the unique ones
-            if( bNotFound )
-            {
-                vecDescriptorsUNIQUE.push_back( cDescriptor );
-            }
-        }
-
-        assert( 0 < vecDescriptorsUNIQUE.size( ) );
-        assert( vecDescriptorsUNIQUE.size( ) <= p_vecDescriptors.size( ) );
-
-        //ds exchange internal version against unqiue
-        return vecDescriptorsUNIQUE;
     }
 
 };

@@ -917,8 +917,17 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #elif defined USING_BTREE
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_btree_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_btree_"+strMinimumRelativeMatches+".txt" );
+#if defined SPLIT_BALANCED
+
+    const std::string strOutFileTiming( "logs/matching_time_closures_bbtree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_bbtree_"+strMinimumRelativeMatches+".txt" );
+
+#else
+
+    const std::string strOutFileTiming( "logs/matching_time_closures_ubtree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_ubtree_"+strMinimumRelativeMatches+".txt" );
+
+#endif
 
     //ds query descriptors
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolQUERY = p_pKeyFrameQUERY->vecDescriptorPool;
@@ -1219,7 +1228,11 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         if( dRelativeMatchesBest < dRelativeMatches )
         {
             dRelativeMatchesBest   = dRelativeMatches;
+
+#if defined USING_BITREE
             m_uIDBestKeyFrameQUERY = uIDREFERENCE;
+#endif
+
         }
 
         //ds if we have a sufficient amount of matches

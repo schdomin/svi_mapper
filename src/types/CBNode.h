@@ -4,6 +4,8 @@
 #include <vector>
 #include "CDescriptorBRIEF.h"
 
+//#define SPLIT_BALANCED
+
 
 
 template< uint64_t uMaximumDepth = 50, uint32_t uDescriptorSizeBits = 256 >
@@ -38,6 +40,8 @@ public:
             uOnesTotal     = 0;
             dPartitioning  = 1.0;
 
+#ifdef SPLIT_BALANCED
+
             //ds we have to find the split for this node - scan all index
             for( uint32_t uIndexBit = 0; uIndexBit < uDescriptorSizeBits; ++uIndexBit )
             {
@@ -65,6 +69,47 @@ public:
                     }
                 }
             }
+
+#else
+
+            //ds we have to find the split for this node - scan all index
+            for( uint32_t uIndexBit = 0; uIndexBit < uDescriptorSizeBits; ++uIndexBit )
+            {
+                //ds if this index is available in the mask
+                if( matMask[uIndexBit] )
+                {
+                    //ds temporary set bit count
+                    uint32_t uNumberOfSetBits = 0;
+
+                    //ds compute fraction
+                    const double dOnesFraction = _getOnesFraction( uIndexBit, vecDescriptors, uNumberOfSetBits );
+                    assert( 0.0 <= dOnesFraction );
+                    assert( 1.0 >= dOnesFraction );
+
+                    //ds if we have at least a minimal split
+                    if( 0.0 < dOnesFraction && 1.0 > dOnesFraction )
+                    {
+                        //ds compute distance for this index - we want to have a minimal or maximal ones fraction
+                        const double fPartitioningCurrent = std::min( dOnesFraction, 1.0-dOnesFraction );
+
+                        //ds if better
+                        if( dPartitioning > fPartitioningCurrent )
+                        {
+                            dPartitioning  = fPartitioningCurrent;
+                            uOnesTotal     = uNumberOfSetBits;
+                            uIndexSplitBit = uIndexBit;
+
+                            //ds finalize loop if maximum target is reached
+                            if( 0.0 == dPartitioning )
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+#endif
 
             //ds if best was found - we can spawn leaves
             if( -1 != uIndexSplitBit && uMaximumDepth > uDepth )
@@ -172,7 +217,7 @@ private:
     //ds helpers
     const double _getOnesFraction( const uint64_t& p_uIndexSplitBit, const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors, uint32_t& p_uOnesTotal ) const
     {
-        assert( 0 != p_vecDescriptors.size( ) );
+        assert( 0 < p_vecDescriptors.size( ) );
 
         //ds count
         uint64_t uNumberOfOneBits = 0;
@@ -185,6 +230,7 @@ private:
 
         //ds set total
         p_uOnesTotal = uNumberOfOneBits;
+        assert( p_uOnesTotal <= p_vecDescriptors.size( ) );
 
         //ds return ratio
         return ( static_cast< float >( uNumberOfOneBits )/p_vecDescriptors.size( ) );
@@ -281,6 +327,47 @@ public:
     {
         //ds count set bits
         return ( p_vecDescriptorQuery ^ p_vecDescriptorReference ).count( );
+    }
+
+    //ds filters multiple descriptors
+    inline static const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > getFilteredDescriptorsExhaustive( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors )
+    {
+        //ds unique descriptors (already add the front one first -> must be unique)
+        std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsUNIQUE( 1, p_vecDescriptors.front( ) );
+
+        //ds loop over current ones
+        for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptor: p_vecDescriptors )
+        {
+            //ds check if matched
+            bool bNotFound = true;
+
+            //ds check uniques
+            for( const CDescriptorBRIEF< uDescriptorSizeBits >& cDescriptorUNIQUE: vecDescriptorsUNIQUE )
+            {
+                //ds assuming key frame identity
+                assert( cDescriptorUNIQUE.uIDKeyFrame == cDescriptor.uIDKeyFrame );
+
+                //ds if the actual descriptor is identical - and the key frame ID as well
+                if( 0 == CBNode< uMaximumDepth, uDescriptorSizeBits >::getDistanceHamming( cDescriptorUNIQUE.vecData, cDescriptor.vecData ) )
+                {
+                    //ds already added to the unique vector - no further adding required
+                    bNotFound = false;
+                    break;
+                }
+            }
+
+            //ds check if we failed to match the descriptor against the unique ones
+            if( bNotFound )
+            {
+                vecDescriptorsUNIQUE.push_back( cDescriptor );
+            }
+        }
+
+        assert( 0 < vecDescriptorsUNIQUE.size( ) );
+        assert( vecDescriptorsUNIQUE.size( ) <= p_vecDescriptors.size( ) );
+
+        //ds exchange internal version against unqiue
+        return vecDescriptorsUNIQUE;
     }
 
 };

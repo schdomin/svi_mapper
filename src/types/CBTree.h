@@ -12,8 +12,9 @@ class CBTree
 //ds ctor/dtor
 public:
 
-    //ds construct tree upon allocation
-    CBTree( const uint64_t& p_uID, const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors ): uID( p_uID ), m_pRoot( new CBNode< uMaximumDepth, uDescriptorSizeBits >( p_vecDescriptors ) )
+    //ds construct tree upon allocation on filtered descriptors
+    CBTree( const uint64_t& p_uID, const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors ): uID( p_uID ),
+                                                                                                                     m_pRoot( new CBNode< uMaximumDepth, uDescriptorSizeBits >( CBNode< uMaximumDepth, uDescriptorSizeBits >::getFilteredDescriptorsExhaustive( p_vecDescriptors ) ) )
     {
         //m_vecEndNodes.clear( );
         assert( 0 != m_pRoot );
