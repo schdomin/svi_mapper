@@ -4,7 +4,7 @@
 #include <vector>
 #include "CDescriptorBRIEF.h"
 
-//#define SPLIT_BALANCED
+#define SPLIT_BALANCED
 
 
 
@@ -296,7 +296,7 @@ private:
 //ds format
 public:
 
-    //ds converts descriptors from cv::Mat to Eigen::Matrix
+    //ds converts descriptors from cv::Mat to the current descriptor vector format
     inline static const CDescriptorVector getDescriptorVector( const cv::Mat& p_cDescriptor )
     {
         //ds return vector

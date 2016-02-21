@@ -4,24 +4,29 @@
 #include "CLandmark.h"
 #include "TypesCloud.h"
 #include "../utility/CLogger.h"
+#include "CPDescriptorBRIEF.h"
 
 
 
 //TODO templatify KeyFrame for maximum generics
 #define MAXIMUM_DISTANCE_HAMMING 25
+#define MAXIMUM_DISTANCE_HAMMING_PROBABILITY 50
 #define BTREE_MAXIMUM_DEPTH 256
-#define DESCRIPTOR_SIZE_BITS 256
-//#define DESCRIPTOR_SIZE_BITS 512
-#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
 
 //#define USING_BTREE
 //#define USING_BF
 //#define USING_LSH
 //#define USING_BOW
-#define USING_BITREE
-#if defined USING_BITREE
-#define REBUILD_BITREE
+//#define USING_BITREE
+//#if defined USING_BITREE
+//#define REBUILD_BITREE
+//#endif
+//#define USING_BPTREE
+#define USING_BPITREE
+#if defined USING_BPITREE
+#define REBUILD_BPITREE
 #endif
+
 
 
 #if defined USING_BTREE
@@ -37,6 +42,14 @@
 #include "DUtils/DUtils.h"
 #include "DUtilsCV/DUtilsCV.h" // defines macros CVXX
 #include "DVision/DVision.h"
+#endif
+
+#if defined USING_BPTREE
+#include "CBPTree.h"
+#endif
+
+#if defined USING_BPITREE
+#include "CBPITree.h"
 #endif
 
 
@@ -116,6 +129,8 @@ public:
     const std::vector< boost::dynamic_bitset< > > vecDescriptorPool;
     DBoW2::BowVector vecDescriptorPoolB;
     DBoW2::FeatureVector vecDescriptorPoolF;
+#elif defined USING_BPTREE or defined USING_BPITREE
+    const std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
 #else
     const CDescriptors vecDescriptorPool;
 #endif
@@ -130,6 +145,8 @@ public:
     const std::shared_ptr< cv::BFMatcher > m_pMatcherBF;
 #elif defined USING_LSH
     const std::shared_ptr< cv::FlannBasedMatcher > m_pMatcherLSH;
+#elif defined USING_BPTREE
+    const std::shared_ptr< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBPTree;
 #endif
 
 private:
@@ -141,7 +158,6 @@ private:
 public:
 
     void saveCloudToFile( ) const;
-    std::shared_ptr< const std::vector< CMatchCloud > > getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloudQuery ) const;
 
     //ds offline loading
     std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > getCloudFromFile( const std::string& p_strFile );
@@ -155,6 +171,8 @@ public:
     const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #elif defined USING_BOW
     const std::vector< boost::dynamic_bitset< > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#elif defined USING_BPTREE or defined USING_BPITREE
+    const std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #else
     const CDescriptors getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #endif

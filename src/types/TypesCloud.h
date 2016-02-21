@@ -25,18 +25,21 @@ struct CDescriptorVectorPoint3DWORLD
     const cv::Point2d ptUVLEFT;
     const cv::Point2d ptUVRIGHT;
     const std::vector< CDescriptor > vecDescriptors;
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecPDescriptorBRIEF;
 
     CDescriptorVectorPoint3DWORLD( const UIDLandmark& p_uID,
                              const CPoint3DWORLD& p_vecPointXYZWORLD,
                              const CPoint3DCAMERA& p_vecPointXYZCAMERA,
                              const cv::Point2d& p_ptUVLEFT,
                              const cv::Point2d& p_ptUVRIGHT,
-                             const std::vector< CDescriptor >& p_vecDescriptors ): uID( p_uID ),
-                                                     vecPointXYZWORLD( p_vecPointXYZWORLD ),
-                                                     vecPointXYZCAMERA( p_vecPointXYZCAMERA ),
-                                                     ptUVLEFT( p_ptUVLEFT ),
-                                                     ptUVRIGHT( p_ptUVRIGHT ),
-                                                     vecDescriptors( p_vecDescriptors )
+                             const std::vector< CDescriptor >& p_vecDescriptors,
+                             const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >& p_vecPDescriptorBRIEF ): uID( p_uID ),
+                                                                                                              vecPointXYZWORLD( p_vecPointXYZWORLD ),
+                                                                                                              vecPointXYZCAMERA( p_vecPointXYZCAMERA ),
+                                                                                                              ptUVLEFT( p_ptUVLEFT ),
+                                                                                                              ptUVRIGHT( p_ptUVRIGHT ),
+                                                                                                              vecDescriptors( p_vecDescriptors ),
+                                                                                                              vecPDescriptorBRIEF( p_vecPDescriptorBRIEF )
     {
         //ds nothing to do
     }

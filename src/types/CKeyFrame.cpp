@@ -34,6 +34,8 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                                                 ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
 #elif defined USING_LSH
                                                                                 ,m_pMatcherLSH( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) )
+#elif defined USING_BPTREE
+                                                                                ,m_pBPTree( std::make_shared< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
 #endif
 {
 #if defined USING_BF
@@ -78,13 +80,20 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                         ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
 #elif defined USING_LSH
                                                         ,m_pMatcherLSH( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) )
+#elif defined USING_BPTREE
+                                                        ,m_pBPTree( std::make_shared< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
 #endif
 {
+
 #if defined USING_BF
+
     m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
+
 #elif defined USING_LSH
+
     m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
     m_pMatcherLSH->train( );
+
 #endif
 
     assert( !vecCloud->empty( ) );
@@ -116,13 +125,20 @@ CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.
                                                       ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
 #elif defined USING_LSH
                                                       ,m_pMatcherLSH( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) )
+#elif defined USING_BPTREE
+                                                      ,m_pBPTree( std::make_shared< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
 #endif
 {
+
 #if defined USING_BF
+
     m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
+
 #elif defined USING_LSH
+
     m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
     m_pMatcherLSH->train( );
+
 #endif
 
     assert( 0 != vecCloud );
@@ -192,94 +208,6 @@ void CKeyFrame::saveCloudToFile( ) const
     }
 
     ofCloud.close( );
-}
-
-std::shared_ptr< const std::vector< CMatchCloud > > CKeyFrame::getMatchesVisualSpatial( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloudQuery ) const
-{
-    std::shared_ptr< std::vector< CMatchCloud > > vecMatches( std::make_shared< std::vector< CMatchCloud > >( ) );
-
-    /*ds treated points
-    std::set< UIDLandmark > vecMatchedIDs;
-
-    //ds try to match the query into the training
-    for( const CDescriptorVectorPoint3DWORLD& cPointQuery: *p_vecCloudQuery )
-    {
-        //ds current matching distance
-        double dMatchingDistanceBest = CKeyFrame::m_dCloudMatchingMatchingDistanceCutoff;
-        std::vector< CDescriptorVectorPoint3DWORLD >::const_iterator itPointReferenceBest = vecCloud->end( );
-
-        //ds match this point against all training remaining points
-        for( std::vector< CDescriptorVectorPoint3DWORLD >::const_iterator itPointReference = vecCloud->begin( ); itPointReference != vecCloud->end( ); ++itPointReference )
-        {
-            //ds if not already added
-            if( vecMatchedIDs.end( ) == vecMatchedIDs.find( itPointReference->uID ) )
-            {
-                //ds compute current matching distance against training point - EUCLIDIAN
-                const double dMatchingDistanceEuclidian = CKeyFrame::m_dCloudMatchingWeightEuclidian*( cPointQuery.vecPointXYZCAMERA-itPointReference->vecPointXYZCAMERA ).squaredNorm( );
-
-                //ds check if euclidian by itself is within search range
-                if( dMatchingDistanceBest > dMatchingDistanceEuclidian )
-                {
-                    //ds get start and end iterators of training descriptors
-                    std::vector< CDescriptor >::const_iterator itDescriptorTrainStart( itPointReference->vecDescriptors.begin( ) );
-                    std::vector< CDescriptor >::const_iterator itDescriptorTrainEnd( itPointReference->vecDescriptors.end( )-1 );
-
-                    double dMatchingDistanceHammingForward   = 0.0;
-                    double dMatchingDistanceHammingBackwards = 0.0;
-                    UIDDescriptor uDescriptorMatchings       = 0;
-
-                    //ds compute descriptor matching in ascending versus descending order
-                    for( const CDescriptor& cDescriptorQuery: cPointQuery.vecDescriptors )
-                    {
-                        dMatchingDistanceHammingForward   += cv::norm( cDescriptorQuery, *itDescriptorTrainStart, cv::NORM_HAMMING );
-                        dMatchingDistanceHammingBackwards += cv::norm( cDescriptorQuery, *itDescriptorTrainEnd, cv::NORM_HAMMING );
-                        ++uDescriptorMatchings;
-
-                        //ds move forward respective backwards
-                        ++itDescriptorTrainStart;
-
-                        //ds check if descriptor arrays overlap
-                        if( itPointReference->vecDescriptors.end( ) == itDescriptorTrainStart || itPointReference->vecDescriptors.begin( ) == itDescriptorTrainEnd )
-                        {
-                            break;
-                        }
-
-                        //ds since begin returns still a valid element whereas end does not
-                        --itDescriptorTrainEnd;
-                    }
-
-                    //ds average matchings
-                    dMatchingDistanceHammingForward   /= uDescriptorMatchings;
-                    dMatchingDistanceHammingBackwards /= uDescriptorMatchings;
-
-                    //std::printf( "matching forward: %f backwards: %f (matchings: %u)\n", dMatchingDistanceHammingForward, dMatchingDistanceHammingBackwards, uDescriptorMatchings );
-
-                    //ds descriptor distance (take the better one)
-                    const double dMatchingDistanceDescriptor = std::min( dMatchingDistanceHammingForward, dMatchingDistanceHammingBackwards );
-
-                    //ds check if better (and in cutoff range)
-                    if( dMatchingDistanceBest > dMatchingDistanceEuclidian+dMatchingDistanceDescriptor )
-                    {
-                        dMatchingDistanceBest = dMatchingDistanceEuclidian+dMatchingDistanceDescriptor;
-                        itPointReferenceBest  = itPointReference;
-                        //std::printf( "matching distance euclidian: %5.2f descriptor: %5.2f\n", dMatchingDistanceEuclidian, dMatchingDistanceDescriptor );
-                    }
-                }
-            }
-        }
-
-        //ds check if we found a match
-        if( itPointReferenceBest != vecCloud->end( ) )
-        {
-            //ds add the match
-            vecMatches->push_back( CMatchCloud( cPointQuery, CDescriptorVectorPoint3DWORLD( *itPointReferenceBest ), dMatchingDistanceBest ) );
-            vecMatchedIDs.insert( itPointReferenceBest->uID );
-        }
-
-        //std::printf( "(main) best match for query: %03lu -> train: %03lu (matching distance: %9.4f, descriptor matchings: %03lu)\n", cPointQuery.uID, uIDQueryBest, dMatchingDistanceBest, uDescriptorMatchingsBest );
-    }*/
-
-    return vecMatches;
 }
 
 std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CKeyFrame::getCloudFromFile( const std::string& p_strFile )
@@ -359,8 +287,8 @@ std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CKeyFrame
             vecDescriptors[v] = matDescriptor;
         }
 
-        //ds set vector
-        vecPoints->push_back( new CDescriptorVectorPoint3DWORLD( u, vecPointXYZWORLD, vecPointXYZCAMERA, ptUVLEFT, ptUVRIGHT, vecDescriptors ) );
+        //ds set vector TODO update implementation
+        vecPoints->push_back( new CDescriptorVectorPoint3DWORLD( u, vecPointXYZWORLD, vecPointXYZCAMERA, ptUVLEFT, ptUVRIGHT, vecDescriptors, Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) ) );
     }
 
     return vecPoints;
@@ -392,6 +320,7 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
     //ds done
     return uSizeBytes;
 }
+
 #if defined USING_BTREE and defined USING_BOW
 
 const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPoolBTree( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
@@ -536,6 +465,27 @@ const std::vector< boost::dynamic_bitset< > > CKeyFrame::getDescriptorPool( cons
     return vecDescriptorPool;
 }
 
+#elif defined USING_BPTREE or defined USING_BPITREE
+
+const std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
+{
+    //ds must have same size as measurements (=points)
+    std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolPBRIEF;
+    vecDescriptorPoolPBRIEF.reserve( p_vecCloud->size( ) );
+
+    //ds fill the pool - looping with an index as we need the position in the cloud for later retrieval
+    for( uint64_t uIDPointInCloud = 0; uIDPointInCloud < p_vecCloud->size( ); ++uIDPointInCloud )
+    {
+        //ds map descriptor pool to points for later retrieval
+        mapDescriptorToPoint.insert( std::make_pair( uIDPointInCloud, p_vecCloud->at( uIDPointInCloud ) ) );
+
+        //ds add to pool
+        vecDescriptorPoolPBRIEF.push_back( CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( uIDPointInCloud, p_vecCloud->at( uIDPointInCloud )->vecPDescriptorBRIEF, uID ) );
+    }
+
+    return vecDescriptorPoolPBRIEF;
+}
+
 #else
 
 const CDescriptors CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
@@ -562,4 +512,5 @@ const CDescriptors CKeyFrame::getDescriptorPool( const std::shared_ptr< const st
 
     return vecDescriptorPool;
 }
+
 #endif

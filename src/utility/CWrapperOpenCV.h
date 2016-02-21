@@ -142,6 +142,31 @@ public:
         return Eigen::Vector2d( p_ptA.x-p_vecB.x( ), p_ptA.y-p_vecB.y( ) );
     }
 
+    //ds converts descriptors from cv::Mat to the current descriptor vector format
+    inline static const Eigen::Matrix< double, 256, 1 > getDescriptorVector( const cv::Mat& p_cDescriptor )
+    {
+        //ds return vector
+        Eigen::Matrix< double, 256, 1 > vecDescriptor;
+
+        //ds compute bytes (as  opencv descriptors are bytewise)
+        const uint32_t uDescriptorSizeBytes = 32;
+
+        //ds loop over all bytes
+        for( uint32_t u = 0; u < uDescriptorSizeBytes; ++u )
+        {
+            //ds get minimal datafrom cv::mat
+            const uchar chValue = p_cDescriptor.at< uchar >( u );
+
+            //ds get bitstring
+            for( uint8_t v = 0; v < 8; ++v )
+            {
+                vecDescriptor[u*8+v] = ( chValue >> v ) & 1;
+            }
+        }
+
+        return vecDescriptor;
+    }
+
 };
 
 #endif //#define CWRAPPEROPENCV_H_

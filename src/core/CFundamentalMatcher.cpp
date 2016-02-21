@@ -129,7 +129,8 @@ const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CFu
                                                                     pLandmark->getLastPointXYZLEFT( ),
                                                                     pLandmark->getLastDetectionLEFT( ),
                                                                     pLandmark->getLastDetectionRIGHT( ),
-                                                                    pLandmark->vecDescriptorsLEFT ) );
+                                                                    pLandmark->vecDescriptorsLEFT,
+                                                                    pLandmark->getPDescriptorBRIEFLEFT( ) ) );
         }
     }
 

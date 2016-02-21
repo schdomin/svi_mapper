@@ -93,6 +93,9 @@ void CLandmark::addMeasurement( const UIDFrame& p_uFrame,
     //ds update mean
     vecPointXYZMean = ( vecPointXYZMean+vecXYZWORLD )/2.0;
 
+    //ds add accumulated bit count
+    m_vecSetBitsAccumulatedLEFT += CWrapperOpenCV::getDescriptorVector( p_matDescriptorLEFT );
+
     //ds add the measurement to structure
     m_vecMeasurements.push_back( new CMeasurementLandmark( uID,
                                                            p_ptUVLEFT,

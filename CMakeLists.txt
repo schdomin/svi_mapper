@@ -158,10 +158,10 @@ target_link_libraries(tracker_svi ${LIBRARIES_GENERAL} ${LIBRARIES_VISUALIZATION
 #target_link_libraries(compute_descriptors_holidays ${OpenCV_LIBRARIES})
 #add_executable(match_clouds_holidays src/runnable/match_clouds_holidays.cpp src/types/CKeyFrame.cpp src/utility/CLogger.cpp)
 #target_link_libraries(match_clouds_holidays ${OpenCV_LIBRARIES})
-add_executable(create_vocabulary_dbow2 src/runnable/create_vocabulary_dbow2.cpp src/utility/CLogger.cpp)
-target_link_libraries(create_vocabulary_dbow2 ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY} ${DLIB_LIBRARY} ${DBOW2_LIBRARY})
-add_executable(republisher_kitti src/runnable/republisher_kitti.cpp src/utility/CLogger.cpp)
-target_link_libraries(republisher_kitti ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY} ${DLIB_LIBRARY})
+#add_executable(create_vocabulary_dbow2 src/runnable/create_vocabulary_dbow2.cpp src/utility/CLogger.cpp)
+#target_link_libraries(create_vocabulary_dbow2 ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY} ${DLIB_LIBRARY} ${DBOW2_LIBRARY})
+#add_executable(republisher_kitti src/runnable/republisher_kitti.cpp src/utility/CLogger.cpp)
+#target_link_libraries(republisher_kitti ${OpenCV_LIBRARIES} ${TXT_IO_LIBRARY} ${DLIB_LIBRARY})
 
 #ds list binaries UGLY GULY
 message("stereo_fps")

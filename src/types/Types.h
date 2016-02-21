@@ -3,6 +3,10 @@
 
 #include "Typedefs.h"
 
+#define DESCRIPTOR_SIZE_BITS 256
+//#define DESCRIPTOR_SIZE_BITS 512
+#define DESCRIPTOR_SIZE_BYTES DESCRIPTOR_SIZE_BITS/8
+
 
 
 struct CMeasurementLandmark
@@ -29,16 +33,16 @@ struct CMeasurementLandmark
                           const MatrixProjection& p_matProjectionWORLDtoLEFT,
                           const MatrixProjection& p_matProjectionWORLDtoRIGHT,
                           const uint32_t& p_uOptimizations ): uID( p_uID ),
-                                                                                 ptUVLEFT( p_ptUVLEFT ),
-                                                                                 ptUVRIGHT( p_ptUVRIGHT ),
-                                                                                 fDisparity( p_ptUVLEFT.x-p_ptUVRIGHT.x ),
-                                                                                 vecPointXYZLEFT( p_vecPointXYZ ),
-                                                                                 vecPointXYZWORLD( p_vecPointXYZWORLD ),
-                                                                                 vecPointXYZWORLDOptimized( p_vecPointXYZWORLDOptimized ),
-                                                                                 matTransformationWORLDtoLEFT( p_matTransformationWORLDtoLEFT ),
-                                                                                 matProjectionWORLDtoLEFT( p_matProjectionWORLDtoLEFT ),
-                                                                                 matProjectionWORLDtoRIGHT( p_matProjectionWORLDtoRIGHT ),
-                                                                                 uOptimizations( p_uOptimizations )
+                                                              ptUVLEFT( p_ptUVLEFT ),
+                                                              ptUVRIGHT( p_ptUVRIGHT ),
+                                                              fDisparity( p_ptUVLEFT.x-p_ptUVRIGHT.x ),
+                                                              vecPointXYZLEFT( p_vecPointXYZ ),
+                                                              vecPointXYZWORLD( p_vecPointXYZWORLD ),
+                                                              vecPointXYZWORLDOptimized( p_vecPointXYZWORLDOptimized ),
+                                                              matTransformationWORLDtoLEFT( p_matTransformationWORLDtoLEFT ),
+                                                              matProjectionWORLDtoLEFT( p_matProjectionWORLDtoLEFT ),
+                                                              matProjectionWORLDtoRIGHT( p_matProjectionWORLDtoRIGHT ),
+                                                              uOptimizations( p_uOptimizations )
     {
         //ds input validation
         assert( ptUVLEFT.y == ptUVRIGHT.y );

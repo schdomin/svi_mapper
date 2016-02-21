@@ -73,6 +73,9 @@ private:
     //ds debug logging
     //std::FILE* m_pFilePositionOptimization;
 
+    //ds accumulated descriptor probability
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > m_vecSetBitsAccumulatedLEFT = 0.5*Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Ones( );
+
 //ds public for logging purposes
 public:
 
@@ -124,6 +127,9 @@ public:
 
     //ds data structure size
     const uint64_t getSizeBytes( ) const;
+
+    //ds probability descriptor
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > getPDescriptorBRIEFLEFT( ){ return m_vecSetBitsAccumulatedLEFT/vecDescriptorsLEFT.size( ); }
 
 private:
 

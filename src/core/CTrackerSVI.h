@@ -116,14 +116,24 @@ private:
     Eigen::MatrixXd m_matClosureMap;
 
 #if defined USING_BOW
+
     const std::shared_ptr< BriefDatabase > m_pBoWDatabase;
+
 #endif
 
 #if defined USING_BITREE
-    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
+
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBITree;
     std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > m_vecActiveDescriptorPoolQUERY;
     bool m_bNewDescriptorPoolAvailable = false;
     UIDKeyFrame m_uIDBestKeyFrameQUERY = 0;
+
+#endif
+
+#if defined USING_BPITREE
+
+    const std::shared_ptr< CBPITree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBPITree;
+
 #endif
 
 //ds accessors
@@ -146,7 +156,7 @@ public:
     const double getDurationTotalSecondsOptimization( ) const { return m_cOptimizer.getDurationTotalSecondsOptimization( ); }
 
 #if defined USING_BITREE
-    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > getBITree( ) const { return m_pBTree; }
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > getBITree( ) const { return m_pBITree; }
     const bool isNewDescriptorPoolAvailable( ) const { return m_bNewDescriptorPoolAvailable; }
     const std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > getActiveDescriptorPoolQUERY( ){ m_bNewDescriptorPoolAvailable = false; return m_vecActiveDescriptorPoolQUERY; }
     const UIDKeyFrame getBestIDQUERY( ) const { return m_uIDBestKeyFrameQUERY; }
