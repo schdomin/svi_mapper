@@ -22,6 +22,7 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     CTrackerGT( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
                     const EPlaybackMode& p_eMode,
+                    const double& p_dMinimumRelativeMatchesLoopClosure = 0.5,
                     const uint32_t& p_uWaitKeyTimeoutMS = 1 );
     ~CTrackerGT( );
 
@@ -79,7 +80,7 @@ private:
 
     //ds loop closing
     const int64_t m_uMinimumLoopClosingKeyFrameDistance                              = 20; //20
-    const double m_dMinimumRelativeMatchesLoopClosure                                = 0.5;
+    const double m_dMinimumRelativeMatchesLoopClosure;
     const std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFrameWaitingQueue    = 1;
     std::vector< CKeyFrame* >::size_type m_uLoopClosingKeyFramesInQueue              = 0;
     std::vector< CKeyFrame* >::size_type m_uIDLoopClosureOptimizedLAST               = 0;
@@ -104,13 +105,29 @@ private:
     const std::string m_strVersionInfo;
     double m_dDurationTotalSecondsLoopClosing = 0.0;
     Eigen::MatrixXd m_matClosureMap;
+    Eigen::MatrixXd m_matClosureMapGT;
+
+    uint64_t m_uTotalNumberOfVerifiedClosures = 0;
 
 #if defined USING_BOW
+
     const std::shared_ptr< BriefDatabase > m_pBoWDatabase;
+
 #endif
 
-#if defined USING_BTREE_INDEXED
-    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
+#if defined USING_BITREE
+
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBITree;
+    std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > m_vecActiveDescriptorPoolQUERY;
+    bool m_bNewDescriptorPoolAvailable = false;
+    UIDKeyFrame m_uIDBestKeyFrameQUERY = 0;
+
+#endif
+
+#if defined USING_BPITREE
+
+    const std::shared_ptr< CBPITree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBPITree;
+
 #endif
 
 //ds accessors
@@ -131,6 +148,13 @@ public:
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_cMatcher.getDurationTotalSecondsEpipolarTracking( ); }
     const double getDurationTotalSecondsLoopClosing( ) const { return m_dDurationTotalSecondsLoopClosing; }
     const double getDurationTotalSecondsOptimization( ) const { return m_cOptimizer.getDurationTotalSecondsOptimization( ); }
+
+#if defined USING_BITREE
+    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > getBITree( ) const { return m_pBITree; }
+    const bool isNewDescriptorPoolAvailable( ) const { return m_bNewDescriptorPoolAvailable; }
+    const std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > getActiveDescriptorPoolQUERY( ){ m_bNewDescriptorPoolAvailable = false; return m_vecActiveDescriptorPoolQUERY; }
+    const UIDKeyFrame getBestIDQUERY( ) const { return m_uIDBestKeyFrameQUERY; }
+#endif
 
 //ds helpers
 private:

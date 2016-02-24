@@ -18,11 +18,34 @@ public:
     {
         //m_vecEndNodes.clear( );
         assert( 0 != m_pRoot );
-        //std::printf( "(CBTree) allocated tree [%06lu] with descriptors: %lu\n", p_uID, p_vecDescriptors.size( ) );
+    }
 
-        //ds get nodes for information
-        //_setEndNodesRecursive( m_pRoot, m_vecEndNodes );
-        //std::printf( "(CBTree)                           with end nodes: %lu(%3.1f)\n", m_vecEndNodes.size( ), static_cast< double >( m_vecEndNodes.size( ) )/p_vecDescriptors.size( ) );
+    //ds construct tree upon allocation on filtered descriptors
+    CBTree( const uint64_t& p_uID,
+            const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors,
+            std::bitset< uDescriptorSizeBits > p_vecBitMask ): uID( p_uID ),
+                                                               m_pRoot( new CBNode< uMaximumDepth, uDescriptorSizeBits >( CBNode< uMaximumDepth, uDescriptorSizeBits >::getFilteredDescriptorsExhaustive( p_vecDescriptors ), p_vecBitMask ) )
+    {
+        std::cerr << "created with available bits: " << p_vecBitMask.count( ) << std::endl;
+        assert( 0 != m_pRoot );
+    }
+
+    //ds construct tree with fixed split order
+    CBTree( const uint64_t& p_uID,
+            const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors,
+            std::vector< uint32_t > p_vecSplitOrder ): uID( p_uID ),
+                                                       m_pRoot( new CBNode< uMaximumDepth, uDescriptorSizeBits >( CBNode< uMaximumDepth, uDescriptorSizeBits >::getFilteredDescriptorsExhaustive( p_vecDescriptors ), p_vecSplitOrder ) )
+    {
+        assert( 0 != m_pRoot );
+    }
+
+    //ds construct tree with bit statistics info
+    CBTree( const UIDKeyFrame& p_uID,
+            const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptors,
+            const std::map< UIDLandmark, CBitStatistics >& p_mapBitStatistics ): uID( p_uID ),
+                                                                                 m_pRoot( new CBNode< uMaximumDepth, uDescriptorSizeBits >( CBNode< uMaximumDepth, uDescriptorSizeBits >::getFilteredDescriptorsExhaustive( p_vecDescriptors ), p_mapBitStatistics ) )
+    {
+        assert( 0 != m_pRoot );
     }
 
     //ds free all nodes in the tree

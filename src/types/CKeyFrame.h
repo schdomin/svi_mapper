@@ -13,19 +13,19 @@
 #define MAXIMUM_DISTANCE_HAMMING_PROBABILITY 50
 #define BTREE_MAXIMUM_DEPTH 256
 
-//#define USING_BTREE
+#define USING_BTREE
 //#define USING_BF
 //#define USING_LSH
 //#define USING_BOW
-//#define USING_BITREE
-//#if defined USING_BITREE
-//#define REBUILD_BITREE
-//#endif
+/*#define USING_BITREE
+#if defined USING_BITREE
+#define REBUILD_BITREE
+#endif*/
 //#define USING_BPTREE
-#define USING_BPITREE
-#if defined USING_BPITREE
-#define REBUILD_BPITREE
-#endif
+//#define USING_BPITREE
+//#if defined USING_BPITREE
+//#define REBUILD_BPITREE
+//#endif
 
 
 
@@ -140,6 +140,7 @@ public:
     std::vector< const CMatchICP* > vecLoopClosures;
 
 #if defined USING_BTREE
+    //std::bitset< DESCRIPTOR_SIZE_BITS > vecBitMask;
     const std::shared_ptr< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBTree;
 #elif defined USING_BF
     const std::shared_ptr< cv::BFMatcher > m_pMatcherBF;
@@ -154,6 +155,8 @@ private:
     //ds cloud matching
     static constexpr double m_dCloudMatchingWeightEuclidian        = 10.0;
     static constexpr double m_dCloudMatchingMatchingDistanceCutoff = 75.0;
+
+    std::random_device m_cRandomDevice;
 
 public:
 
@@ -175,6 +178,13 @@ public:
     const std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
 #else
     const CDescriptors getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+#endif
+
+#if defined USING_BTREE or defined USING_BITREE
+    const std::bitset< DESCRIPTOR_SIZE_BITS > getBitMaskFiltered( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    std::vector< uint32_t > getSplitOrder( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud );
+    const std::vector< Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > > getBitProbabilities( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud ) const;
+    const std::map< UIDLandmark, CBitStatistics > getBitStatistics( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud ) const;
 #endif
 
 };

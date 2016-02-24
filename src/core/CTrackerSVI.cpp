@@ -138,6 +138,8 @@ CTrackerSVI::~CTrackerSVI( )
     }
     std::printf( "[0][%06lu]<CTrackerSVI>(~CTrackerSVI) deallocated key frames: %lu (%.0fMB)\n", m_uFrameCount, m_vecKeyFrames->size( ), uSizeBytesKeyFrames/1e6 );
     std::printf( "[0][%06lu]<CTrackerSVI>(~CTrackerSVI) instance deallocated\n", m_uFrameCount );
+
+    std::printf( "CLOSURES: %lu\n", m_uTotalNumberOfVerifiedClosures );
 }
 
 void CTrackerSVI::process( const std::shared_ptr< txt_io::PinholeImageMessage > p_pImageLEFT,
@@ -929,8 +931,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #if defined SPLIT_BALANCED
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_bbtree_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_bbtree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileTiming( "logs/matching_time_closures_btree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_btree_"+strMinimumRelativeMatches+".txt" );
 
 #else
 
@@ -1232,16 +1234,26 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #if defined REBUILD_BITREE
 #if defined SPLIT_BALANCED
-    const std::string strOutFileTiming( "logs/matching_time_closures_rbitree_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_rbitree_"+strMinimumRelativeMatches+".txt" );
+#if defined SHUFFLE_DESCRIPTORS
+    const std::string strOutFileTiming( "logs/matching_time_closures_rsbitree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_rsbitree_"+strMinimumRelativeMatches+".txt" );
+#else
+    const std::string strOutFileTiming( "logs/matching_time_closures_rsbitree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_rsbitree_"+strMinimumRelativeMatches+".txt" );
+#endif
 #else
     const std::string strOutFileTiming( "logs/matching_time_closures_rubitree_"+strMinimumRelativeMatches+".txt" );
     const std::string strOutFileClosureMap( "logs/closure_map_rubitree_"+strMinimumRelativeMatches+".txt" );
 #endif
 #else
 #if defined SPLIT_BALANCED
+#if defined SHUFFLE_DESCRIPTORS
+    const std::string strOutFileTiming( "logs/matching_time_closures_sbitree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_sbitree_"+strMinimumRelativeMatches+".txt" );
+#else
     const std::string strOutFileTiming( "logs/matching_time_closures_bitree_"+strMinimumRelativeMatches+".txt" );
     const std::string strOutFileClosureMap( "logs/closure_map_bitree_"+strMinimumRelativeMatches+".txt" );
+#endif
 #else
     const std::string strOutFileTiming( "logs/matching_time_closures_ubitree_"+strMinimumRelativeMatches+".txt" );
     const std::string strOutFileClosureMap( "logs/closure_map_ubitree_"+strMinimumRelativeMatches+".txt" );
@@ -1328,8 +1340,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
             //ds stats
             matClosureMapNew( m_vecKeyFrames->size( ), uIDREFERENCE ) = 1.0;
             matClosureMapNew( uIDREFERENCE, m_vecKeyFrames->size( ) ) = 1.0;
-            std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
-                         m_uFrameCount, p_pKeyFrameQUERY->uID, uIDREFERENCE, dRelativeMatches, vecPotentialClosures[uIDREFERENCE].size( ), p_pKeyFrameQUERY->vecCloud->size( ) );
+            /*std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
+                         m_uFrameCount, p_pKeyFrameQUERY->uID, uIDREFERENCE, dRelativeMatches, vecPotentialClosures[uIDREFERENCE].size( ), p_pKeyFrameQUERY->vecCloud->size( ) );*/
 
             //ds spatial matches for ICP loop closure computation
             std::vector< CMatchCloud > vecMatchesForICP;
@@ -1378,6 +1390,12 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds save file
     ofLogfilePPL.close( );
 
+    //ds prepare gt map
+    Eigen::MatrixXd matClosureMapGT( m_matClosureMapGT.rows( )+1, m_matClosureMapGT.cols( )+1 );
+    matClosureMapGT.setZero( );
+    matClosureMapGT.block( 0, 0, m_matClosureMapGT.rows( ), m_matClosureMapGT.cols( ) ) = m_matClosureMapGT;
+    matClosureMapGT( m_vecKeyFrames->size( ), m_vecKeyFrames->size( ) ) = 1.0;
+
     //ds solution vector
     std::vector< const CKeyFrame::CMatchICP* > vecLoopClosures;
 
@@ -1404,8 +1422,9 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         const double dErrorDeltaForConvergence      = 1e-5;
         double dErrorSquaredTotalPrevious           = 0.0;
         const double dMaximumErrorForInlier         = 0.25; //0.25
-        const double dMaximumErrorAverageForClosure = 0.2; //0.1
+        const double dMaximumErrorAverageForClosure = 0.17; //0.1
         const uint32_t uMaximumIterations           = 1000;
+        const uint32_t uMinimumInliers              = 18;
 
         //ds LS setup
         Eigen::Matrix< double, 6, 6 > matH;
@@ -1484,10 +1503,14 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
                 const double dErrorAverage = dErrorSquaredTotal/vecMatches.size( );
 
                 //ds if the solution is acceptable
-                if( dMaximumErrorAverageForClosure > dErrorAverage && 0 < uInliers )
+                if( dMaximumErrorAverageForClosure > dErrorAverage && uMinimumInliers < uInliers )
                 {
-                    //std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] (matches: %3lu, iterations: %2u, average error: %5.3f, inliers: %2u)\n",
-                    //             p_pKeyFrameQUERY->uID, pKeyFrameREFERENCE->uID, vecMatches.size( ), uLS, dErrorAverage, uInliers );
+                    //ds add it to the ground truth
+                    matClosureMapGT( m_vecKeyFrames->size( ), pKeyFrameREFERENCE->uID ) = 1.0;
+                    matClosureMapGT( pKeyFrameREFERENCE->uID, m_vecKeyFrames->size( ) ) = 1.0;
+
+                    std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] (matches: %3lu, iterations: %2u, average error: %5.3f, inliers: %2u)\n",
+                                 p_pKeyFrameQUERY->uID, pKeyFrameREFERENCE->uID, vecMatches.size( ), uLS, dErrorAverage, uInliers );
                     //vecLoopClosures.push_back( new CKeyFrame::CMatchICP( pKeyFrameREFERENCE, matTransformationToClosure, vecMatches ) );
                     ++uNumberOfClosedKeyFrames;
                     break;
@@ -1512,6 +1535,26 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         }
     }
 
+    //ds update stats
+    m_matClosureMapGT.swap( matClosureMapGT );
+
+    /*ds write stats to file (every time)
+    std::ofstream ofLogfileGT( "logs/closure_map_gt.txt", std::ofstream::out );
+
+    //ds loop over eigen matrix and dump the values
+    for( int64_t u = 0; u < m_matClosureMapGT.rows( ); ++u )
+    {
+        for( int64_t v = 0; v < m_matClosureMapGT.cols( ); ++v )
+        {
+            ofLogfileGT << m_matClosureMapGT( u, v ) << " ";
+        }
+
+        ofLogfileGT << "\n";
+    }
+
+    //ds save file
+    ofLogfileGT.close( );*/
+
     if( 0 < vecClosuresToCompute.size( ) )
     {
         const double dSuccessRateICP = static_cast< double >( uNumberOfClosedKeyFrames )/vecClosuresToCompute.size( );
@@ -1529,6 +1572,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         ofLogfileTiming << p_pKeyFrameQUERY->uID << " " << dDurationMatchingSeconds << " " << vecClosuresToCompute.size( ) << " " << 0.0 << " " << dRelativeMatchesBest << " " << 0.0 << "\n";
         ofLogfileTiming.close( );
     }
+
+    m_uTotalNumberOfVerifiedClosures += uNumberOfClosedKeyFrames;
 
 #if defined USING_BOW
 

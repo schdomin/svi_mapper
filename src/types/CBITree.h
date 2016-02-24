@@ -15,7 +15,13 @@ public:
     //ds construct empty tree upon allocation
     CBITree( ): m_pRoot( 0 )
     {
-        //ds nothing to do
+#if defined REBUILD_BITREE
+
+        m_vecTotalDescriptors.clear( );
+        m_mapBitStatistics.clear( );
+        m_vecNewDescriptorsBuffer.clear( );
+
+#endif
     }
 
     //ds free all nodes in the tree
@@ -32,6 +38,9 @@ private:
 #if defined REBUILD_BITREE
 
     std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > m_vecTotalDescriptors;
+    std::map< UIDLandmark, CBitStatistics > m_mapBitStatistics;
+    std::vector< std::pair< std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >, std::map< UIDLandmark, CBitStatistics > > > m_vecNewDescriptorsBuffer;
+    const uint32_t uMiniumBatchSizeForRebuild = 0;
 
 #else
 
@@ -179,6 +188,79 @@ public:
 #endif
 
     }
+
+#if defined REBUILD_BITREE
+
+    void add( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptorsNEW, const std::map< UIDLandmark, CBitStatistics >& p_mapBitStatistics )
+    {
+        assert( 0 < p_vecDescriptorsNEW.size( ) );
+
+        //ds get filtered descriptors
+        const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > > vecDescriptorsNEWFiltered( CBNode< uMaximumDepth, uDescriptorSizeBits >::getFilteredDescriptorsExhaustive( p_vecDescriptorsNEW ) );
+
+        //ds add to buffer
+        m_vecNewDescriptorsBuffer.push_back( std::make_pair( vecDescriptorsNEWFiltered, p_mapBitStatistics ) );
+
+        //ds if size is sufficient
+        if( uMiniumBatchSizeForRebuild < m_vecNewDescriptorsBuffer.size( ) )
+        {
+            const double dTimeStartSeconds = CTimer::getTimeSeconds( );
+
+            //ds displant current tree
+            displant( );
+
+            uint64_t NumberOfUpdatedLandmarks = 0;
+            const uint64_t uInitialNumberOfDescriptors = m_vecTotalDescriptors.size( );
+
+            //ds loop over descriptor pools to add
+            for( const std::pair< std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >, std::map< UIDLandmark, CBitStatistics > >& prNewDescriptors: m_vecNewDescriptorsBuffer )
+            {
+                //ds add the descriptors to the complete pool
+                for( const CDescriptorBRIEF< uDescriptorSizeBits >& p_cDescriptor: prNewDescriptors.first )
+                {
+                    m_vecTotalDescriptors.push_back( p_cDescriptor );
+                }
+
+                //ds update statistics
+                for( const std::pair< UIDLandmark, CBitStatistics >& prBitStatistics: prNewDescriptors.second )
+                {
+                    //ds try to insert into existing element
+                    std::pair< std::map< UIDLandmark, CBitStatistics >::iterator, bool > prInsertion( m_mapBitStatistics.insert( prBitStatistics ) );
+
+                    if( false == prInsertion.second )
+                    {
+                        //ds update element
+                        prInsertion.first->second = prBitStatistics.second;
+                        ++NumberOfUpdatedLandmarks;
+                    }
+                }
+            }
+
+            //ds grow new tree on descriptors
+            m_pRoot = new CBNode< uMaximumDepth, uDescriptorSizeBits >( m_vecTotalDescriptors, m_mapBitStatistics );
+
+            //ds tree stats
+            uint64_t uDepth            = 0;
+            uint64_t uNumberOfEndNodes = 0;
+            _setInfoRecursive( m_pRoot, uDepth, uNumberOfEndNodes );
+
+            //ds log aggregation
+            std::ofstream ofLogFile( "logs/growth_rbitree.txt", std::ofstream::out | std::ofstream::app );
+            ofLogFile << m_vecNewDescriptorsBuffer.front( ).first.front( ).uIDKeyFrame
+                      << " " << m_vecTotalDescriptors.size( )-uInitialNumberOfDescriptors
+                      << " " << NumberOfUpdatedLandmarks
+                      << " " << uDepth
+                      << " " << static_cast< double >( m_vecTotalDescriptors.size( ) )/uNumberOfEndNodes
+                      << " " << m_vecTotalDescriptors.size( )
+                      << " " << uNumberOfEndNodes
+                      << " " << CTimer::getTimeSeconds( )-dTimeStartSeconds << "\n";
+            ofLogFile.close( );
+
+            m_vecNewDescriptorsBuffer.clear( );
+        }
+    }
+
+#endif
 
     void match( const std::vector< CDescriptorBRIEF< uDescriptorSizeBits > >& p_vecDescriptorsQUERY, const UIDKeyFrame& p_uIDQUERY, std::vector< cv::DMatch >& p_vecMatches ) const
     {

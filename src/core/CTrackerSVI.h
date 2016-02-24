@@ -114,6 +114,9 @@ private:
     const std::string m_strVersionInfo;
     double m_dDurationTotalSecondsLoopClosing = 0.0;
     Eigen::MatrixXd m_matClosureMap;
+    Eigen::MatrixXd m_matClosureMapGT;
+
+    uint64_t m_uTotalNumberOfVerifiedClosures = 0;
 
 #if defined USING_BOW
 

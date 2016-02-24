@@ -17,7 +17,8 @@ void setParametersNaive( const int& p_iArgc,
                          char** const p_pArgv,
                          std::string& p_strMode,
                          std::string& p_strInfileCameraIMUMessages,
-                         std::string& p_strInfileGroundTruth );
+                         std::string& p_strInfileGroundTruth,
+                         double& p_dMinimumRelativeMatchesLoopClosure );
 
 void printHelp( );
 
@@ -29,13 +30,14 @@ int32_t main( int32_t argc, char **argv )
     std::string strMode              = "benchmark";
     std::string strInfileMessageDump = "";
     std::string strInfileGroundTruth = "";
-    std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
-    std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
-    //std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_11_camera_left.txt";
-    //std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_11_camera_right.txt";
+    //std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
+    //std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
+    std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_11_camera_left.txt";
+    std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_11_camera_right.txt";
+    double dMinimumRelativeMatchesLoopClosure = 0.5;
 
     //ds get params
-    setParametersNaive( argc, argv, strMode, strInfileMessageDump, strInfileGroundTruth );
+    setParametersNaive( argc, argv, strMode, strInfileMessageDump, strInfileGroundTruth, dMinimumRelativeMatchesLoopClosure );
 
     //ds escape here on failure
     if( strInfileMessageDump.empty( ) )
@@ -149,6 +151,7 @@ int32_t main( int32_t argc, char **argv )
     //ds allocate the tracker
     CTrackerGT cTracker( CParameterBase::pCameraSTEREO,
                          eMode,
+                         dMinimumRelativeMatchesLoopClosure,
                          uWaitKeyTimeout );
     try
     {
@@ -301,7 +304,8 @@ void setParametersNaive( const int& p_iArgc,
                          char** const p_pArgv,
                          std::string& p_strMode,
                          std::string& p_strInfileCameraIMUMessages,
-                         std::string& p_strInfileGroundTruth )
+                         std::string& p_strInfileGroundTruth,
+                         double& p_dMinimumRelativeMatchesLoopClosure )
 {
     //ds attribute names (C style for printf)
     const char* arrParameter1 = "-mode";
@@ -311,6 +315,7 @@ void setParametersNaive( const int& p_iArgc,
     const char* arrParameter5 = "-help";
     const char* arrParameter6 = "--help";
     const char* arrParameter7 = "-gt";
+    const char* arrParameter8 = "-lc";
 
     try
     {
@@ -336,6 +341,7 @@ void setParametersNaive( const int& p_iArgc,
         const std::vector< std::string >::const_iterator itParameter5( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter5 ) );
         const std::vector< std::string >::const_iterator itParameter6( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter6 ) );
         const std::vector< std::string >::const_iterator itParameter7( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter7 ) );
+        const std::vector< std::string >::const_iterator itParameter8( std::find( vecCommandLineArguments.begin( ), vecCommandLineArguments.end( ), arrParameter8 ) );
 
         //ds check for help parameters first
         if( vecCommandLineArguments.end( ) != itParameter3 ||
@@ -352,6 +358,7 @@ void setParametersNaive( const int& p_iArgc,
         if( vecCommandLineArguments.end( ) != itParameter1 ){ p_strMode                    = *( itParameter1+1 ); }
         if( vecCommandLineArguments.end( ) != itParameter2 ){ p_strInfileCameraIMUMessages = *( itParameter2+1 ); }
         if( vecCommandLineArguments.end( ) != itParameter7 ){ p_strInfileGroundTruth       = *( itParameter7+1 ); }
+        if( vecCommandLineArguments.end( ) != itParameter8 ){ p_dMinimumRelativeMatchesLoopClosure = std::stod( *( itParameter8+1 ) ); }
     }
     catch( const std::invalid_argument& p_cException )
     {

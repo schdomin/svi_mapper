@@ -1,6 +1,13 @@
 #include "CLandmark.h"
 #include "utility/CWrapperOpenCV.h"
 #include "vision/CMiniVisionToolbox.h"
+#include <fstream>
+#include <random>
+#include <bitset>
+
+//#define NUMBER_OF_NOISY_BITS 26
+
+
 
 CLandmark::CLandmark( const UIDLandmark& p_uID,
            const CDescriptor& p_matDescriptorLEFT,
@@ -28,6 +35,7 @@ CLandmark::CLandmark( const UIDLandmark& p_uID,
 {
     vecDescriptorsLEFT.clear( );
     vecDescriptorsRIGHT.clear( );
+    //vecDescriptorsLEFTNoisy.clear( );
     m_vecMeasurements.clear( );
 
     //ds construct filestring and open dump file
@@ -83,6 +91,37 @@ void CLandmark::addMeasurement( const UIDFrame& p_uFrame,
     assert( p_ptUVLEFT.y == p_ptUVRIGHT.y );
     assert( 0 < p_vecXYZLEFT.z( ) );
 
+    //ds probability counting
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecDescriptorLEFT( CWrapperOpenCV::getDescriptorVector< double >( p_matDescriptorLEFT ) );
+
+    //ds if we have at least one descriptor: TODO refactor, this if case is unecessary expensive
+    if( 0 < vecDescriptorsLEFT.size( ) )
+    {
+        //ds buffer last descriptor
+        const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecDescriptorLEFTLAST( CWrapperOpenCV::getDescriptorVector< double >( vecDescriptorsLEFT.back( ) ) );
+
+        //ds bit volatility counting
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            //ds if the bit matches the previous one
+            if( vecDescriptorLEFTLAST[u] == vecDescriptorLEFT[u] )
+            {
+                ++m_vecBitPermanenceActive[u];
+            }
+            else
+            {
+                //ds reset active count
+                m_vecBitPermanenceActive[u] = 0;
+            }
+
+            //ds check if we have to update the count
+            if( m_vecBitPermanenceMaximum[u] < m_vecBitPermanenceActive[u] )
+            {
+                m_vecBitPermanenceMaximum[u] = m_vecBitPermanenceActive[u];
+            }
+        }
+    }
+
     //ds add to history
     vecDescriptorsLEFT.push_back( p_matDescriptorLEFT );
     vecDescriptorsRIGHT.push_back( p_matDescriptorRIGHT );
@@ -93,8 +132,87 @@ void CLandmark::addMeasurement( const UIDFrame& p_uFrame,
     //ds update mean
     vecPointXYZMean = ( vecPointXYZMean+vecXYZWORLD )/2.0;
 
-    //ds add accumulated bit count
-    m_vecSetBitsAccumulatedLEFT += CWrapperOpenCV::getDescriptorVector( p_matDescriptorLEFT );
+
+
+
+    //ds get a noisy descriptor
+    //const CDescriptor vecDescriptorLEFTNoisy( _getDescriptorWithAddedNoise( p_matDescriptorLEFT ) );
+    //vecDescriptorsLEFTNoisy.push_back( vecDescriptorLEFTNoisy );
+
+    //ds logging
+    //if( 100 == vecDescriptorsLEFT.size( ) )
+    //{
+        /*ds create logging matrix: rows -> bits, cols -> descriptor numbers
+        Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 400 > matDescriptorEvolution;
+
+        //ds fill matrix: columnswise per descriptor
+        for( uint32_t u = 0; u < 400; ++u )
+        {
+            //ds buffer descriptor
+            const Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 1 > cDescriptor( CWrapperOpenCV::getDescriptorVector< bool >( vecDescriptorsLEFT[u] ) );
+
+            //ds fill column
+            for( uint32_t v = 0; v < DESCRIPTOR_SIZE_BITS; ++v )
+            {
+                matDescriptorEvolution(v,u) = cDescriptor(v);
+            }
+        }*/
+
+        /*ds write stats to file
+        std::ofstream ofLogfile( "logs/bit_evolution_"+std::to_string( uID )+".txt", std::ofstream::out );
+
+        //ds loop over eigen matrix and dump the values
+        for( int64_t u = 0; u < matDescriptorEvolution.rows( ); ++u )
+        {
+            for( int64_t v = 0; v < matDescriptorEvolution.cols( ); ++v )
+            {
+                ofLogfile << matDescriptorEvolution( u, v ) << " ";
+            }
+
+            ofLogfile << "\n";
+        }
+
+        //ds save file
+        ofLogfile.close( );*/
+
+        /*ds write stats to file
+        std::ofstream ofLogfile( "logs/bit_mean_permanence_"+std::to_string( uID )+".txt", std::ofstream::out );
+
+        //ds buffer values
+        const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitProbabilities = getPDescriptorBRIEFLEFT( );
+        const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitPermanence    = getBitPermanenceLEFT( );
+
+        //ds get probabilities to vector for sorting
+        std::vector< std::pair< uint32_t, double > > vecBitProbabilitiesSorted( DESCRIPTOR_SIZE_BITS );
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            vecBitProbabilitiesSorted[u] = std::make_pair( u, vecBitProbabilities[u] );
+        }
+
+        //ds sort vector descending
+        std::sort( vecBitProbabilitiesSorted.begin( ), vecBitProbabilitiesSorted.end( ), []( const std::pair< uint32_t, double > &prLHS, const std::pair< uint32_t, double > &pRHS ){ return prLHS.second > pRHS.second; } );
+
+        //ds loop over sorted vector and dump the values parallel into columns
+        for( const std::pair< uint32_t, double >& prBitProbability: vecBitProbabilitiesSorted )
+        {
+            ofLogfile << prBitProbability.second << " " << vecBitPermanence[prBitProbability.first] << " " << prBitProbability.second+vecBitPermanence[prBitProbability.first] << "\n";
+        }
+
+        //ds save file
+        ofLogfile.close( );*/
+    //}
+
+    //ds if acceptable
+    //if( 129 > CWrapperOpenCV::getDistanceHammingProbability( vecPDescriptorLEFT, getPDescriptorBRIEFLEFT( ) ) )
+    //{
+        //ds add accumulated bit count
+        m_vecSetBitsAccumulatedLEFT += vecDescriptorLEFT;
+        ++m_uNumberOfBitsAccumulated;
+    /*}
+    else
+    {
+        std::cerr << uID << " " << CWrapperOpenCV::getDistanceHammingProbability( vecPDescriptorLEFT, getPDescriptorBRIEFLEFT( ) ) << std::endl;
+    }*/
 
     //ds add the measurement to structure
     m_vecMeasurements.push_back( new CMeasurementLandmark( uID,
@@ -474,4 +592,68 @@ const CPoint3DWORLD CLandmark::_getOptimizedLandmarkIDWA( )
 
     //ds return
     return vecPointXYZWORLD;
+}
+
+const CDescriptor CLandmark::_getDescriptorWithAddedNoise( const CDescriptor& p_vecDescriptor ) const
+{
+
+#if defined NUMBER_OF_NOISY_BITS
+
+    //ds set up random generator if necessary
+    std::random_device cRandomDevice;
+    std::mt19937 cGenerator( cRandomDevice( ) );
+    std::uniform_int_distribution< > cDistributionBit( 0, DESCRIPTOR_SIZE_BITS-1 );
+    std::uniform_int_distribution< > cDistributionValue( 0, 1 );
+
+#endif
+
+    //ds get it to bitset representation
+    std::bitset< DESCRIPTOR_SIZE_BITS > vecDescriptor;
+
+    //ds compute bytes (as  opencv descriptors are bytewise)
+    const uint32_t uDescriptorSizeBytes = DESCRIPTOR_SIZE_BITS/8;
+
+    //ds loop over all bytes
+    for( uint32_t u = 0; u < uDescriptorSizeBytes; ++u )
+    {
+        //ds get minimal datafrom cv::mat
+        const uchar chValue = p_vecDescriptor.at< uchar >( u );
+
+        //ds get bitstring
+        for( uint8_t v = 0; v < 8; ++v )
+        {
+            vecDescriptor[u*8+v] = ( chValue >> v ) & 1;
+        }
+    }
+
+#if defined NUMBER_OF_NOISY_BITS
+
+    //ds sample flip bits
+    for( uint32_t u = 0; u < NUMBER_OF_NOISY_BITS; ++u )
+    {
+        vecDescriptor[cDistributionBit( cGenerator )] = cDistributionValue( cGenerator );
+    }
+
+#endif
+
+    //ds new descriptor
+    CDescriptor vecDescriptorOpenCV( p_vecDescriptor.clone( ) );
+
+    //ds convert back to opencv - loop over all bytes
+    for( uint32_t u = 0; u < uDescriptorSizeBytes; ++u )
+    {
+        //ds get minimal datafrom cv::mat
+        uchar chValue = 0;
+
+        //ds get bitstring
+        for( uint8_t v = 0; v < 8; ++v )
+        {
+            chValue |= vecDescriptor[u*8+v] << (7 - v);
+        }
+
+        vecDescriptorOpenCV.at< uchar >( u ) = chValue;
+    }
+
+    return vecDescriptorOpenCV;
+
 }

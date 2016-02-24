@@ -56,6 +56,7 @@ public:
     //ds needed for cloud matching
     std::vector< CDescriptor > vecDescriptorsLEFT;
     std::vector< CDescriptor > vecDescriptorsRIGHT;
+    //std::vector< CDescriptor > vecDescriptorsLEFTNoisy;
 
 private:
 
@@ -75,6 +76,9 @@ private:
 
     //ds accumulated descriptor probability
     Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > m_vecSetBitsAccumulatedLEFT = 0.5*Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Ones( );
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > m_vecBitPermanenceMaximum   = Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( );
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > m_vecBitPermanenceActive    = Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( );
+    uint64_t m_uNumberOfBitsAccumulated = 1;
 
 //ds public for logging purposes
 public:
@@ -129,7 +133,9 @@ public:
     const uint64_t getSizeBytes( ) const;
 
     //ds probability descriptor
-    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > getPDescriptorBRIEFLEFT( ){ return m_vecSetBitsAccumulatedLEFT/vecDescriptorsLEFT.size( ); }
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > getPDescriptorBRIEFLEFT( ) const { return m_vecSetBitsAccumulatedLEFT/m_uNumberOfBitsAccumulated; }
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > getBitPermanenceLEFT( ) const { return m_vecBitPermanenceMaximum/m_uNumberOfBitsAccumulated; }
+    const CBitStatistics getBitStatisticsLEFT( ) const { return CBitStatistics( getPDescriptorBRIEFLEFT( ), getBitPermanenceLEFT( ) ); }
 
 private:
 
@@ -137,6 +143,9 @@ private:
     const CPoint3DWORLD _getOptimizedLandmarkLEFT3D( const UIDFrame& p_uFrame, const CPoint3DWORLD& p_vecInitialGuess );
     const CPoint3DWORLD _getOptimizedLandmarkSTEREOUV( const UIDFrame& p_uFrame, const CPoint3DWORLD& p_vecInitialGuess );
     const CPoint3DWORLD _getOptimizedLandmarkIDWA( );
+
+    //ds noise generation
+    const CDescriptor _getDescriptorWithAddedNoise( const CDescriptor& p_vecDescriptor ) const;
 
 };
 

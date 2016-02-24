@@ -143,10 +143,10 @@ public:
     }
 
     //ds converts descriptors from cv::Mat to the current descriptor vector format
-    inline static const Eigen::Matrix< double, 256, 1 > getDescriptorVector( const cv::Mat& p_cDescriptor )
+    template< typename tType > inline static const Eigen::Matrix< tType, 256, 1 > getDescriptorVector( const cv::Mat& p_cDescriptor )
     {
         //ds return vector
-        Eigen::Matrix< double, 256, 1 > vecDescriptor;
+        Eigen::Matrix< tType, 256, 1 > vecDescriptor;
 
         //ds compute bytes (as  opencv descriptors are bytewise)
         const uint32_t uDescriptorSizeBytes = 32;
@@ -165,6 +165,24 @@ public:
         }
 
         return vecDescriptor;
+    }
+
+    //ds computes Hamming distance for Eigen::Matrix descriptors
+    inline static const uint32_t getDistanceHammingProbability( const Eigen::Matrix< double, 256, 1 >& p_vecDescriptorQuery,
+                                                                const Eigen::Matrix< double, 256, 1 >& p_vecDescriptorReference )
+    {
+        //ds score
+        double dProbableHammingDistance = 0.0;
+
+        //ds for all elements
+        for( uint32_t u = 0; u < 256; ++u )
+        {
+            //ds D(p1, p2)= sum_i dist(p1[i],p2[i]) -> dist(p1[i],p2[2]) is p(p1[i]=1)*p(p2[i]=0)+p(p1[i]=0)*p(p2[i]=1)=p(p1[i]=1)*(1-p(p2[i]=1))+(1-p(p1[i]=1))*p(p2[i]=1)
+            dProbableHammingDistance += p_vecDescriptorQuery[u] + p_vecDescriptorReference[u] - 2*p_vecDescriptorQuery[u]*p_vecDescriptorReference[u];
+        }
+
+        //ds return the distance
+        return dProbableHammingDistance;
     }
 
 };

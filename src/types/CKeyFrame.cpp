@@ -29,6 +29,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
 #if defined USING_BTREE and defined USING_BOW
                                                                                 ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree ) )
 #elif defined USING_BTREE
+                                                                                //,vecBitMask( getBitMaskFiltered( vecCloud ) )
                                                                                 ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
 #elif defined USING_BF
                                                                                 ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
@@ -75,6 +76,7 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
 #if defined USING_BTREE and defined USING_BOW
                                                         ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree ) )
 #elif defined USING_BTREE
+                                                        //,vecBitMask( getBitMaskFiltered( vecCloud ) )
                                                         ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
 #elif defined USING_BF
                                                         ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
@@ -98,6 +100,43 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
 
     assert( !vecCloud->empty( ) );
 
+    /*ds logging
+    if( 4 == uID || 54 == uID || 36 == uID )
+    {
+        //ds create logging matrix: rows -> bits, cols -> points
+        Eigen::MatrixXd matProbabilities( DESCRIPTOR_SIZE_BITS, vecCloud->size( ) );
+
+        //ds fill the matrix
+        for( uint32_t u = 0; u < vecCloud->size( ); ++u )
+        {
+            //ds buffer probabilities
+            const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecPDescriptor( vecCloud->at( u )->vecPDescriptorBRIEF );
+
+            //ds fill column
+            for( uint32_t v = 0; v < DESCRIPTOR_SIZE_BITS; ++v )
+            {
+                matProbabilities(v,u) = vecPDescriptor(v);
+            }
+        }
+
+        //ds write stats to file
+        std::ofstream ofLogfile( "logs/bit_probability_map_"+std::to_string( uID )+"_"+std::to_string( DESCRIPTOR_SIZE_BITS )+"x"+std::to_string( vecCloud->size( ) )+".txt", std::ofstream::out );
+
+        //ds loop over eigen matrix and dump the values
+        for( int64_t u = 0; u < matProbabilities.rows( ); ++u )
+        {
+            for( int64_t v = 0; v < matProbabilities.cols( ); ++v )
+            {
+                ofLogfile << matProbabilities( u, v ) << " ";
+            }
+
+            ofLogfile << "\n";
+        }
+
+        //ds save file
+        ofLogfile.close( );
+    }*/
+
     //ds save the cloud to a file
     //saveCloudToFile( );
 }
@@ -120,6 +159,7 @@ CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.
 #if defined USING_BTREE and defined USING_BOW
                                                       ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree ) )
 #elif defined USING_BTREE
+                                                      //,vecBitMask( getBitMaskFiltered( vecCloud ) )
                                                       ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
 #elif defined USING_BF
                                                       ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
@@ -288,7 +328,7 @@ std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CKeyFrame
         }
 
         //ds set vector TODO update implementation
-        vecPoints->push_back( new CDescriptorVectorPoint3DWORLD( u, vecPointXYZWORLD, vecPointXYZCAMERA, ptUVLEFT, ptUVRIGHT, vecDescriptors, Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) ) );
+        //vecPoints->push_back( new CDescriptorVectorPoint3DWORLD( u, vecPointXYZWORLD, vecPointXYZCAMERA, ptUVLEFT, ptUVRIGHT, vecDescriptors ) );
     }
 
     return vecPoints;
@@ -394,7 +434,7 @@ const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDesc
         {
             //ds map descriptor pool to points for later retrieval
             mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
-            vecDescriptorPool.push_back( CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( vecDescriptorPool.size( ), CBNode< BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS >::getDescriptorVector( cDescriptor ) ) );
+            vecDescriptorPool.push_back( CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( vecDescriptorPool.size( ), CBNode< BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS >::getDescriptorVector( cDescriptor ), uID, pPointWithDescriptors->uID ) );
         }
     }
 
@@ -420,6 +460,14 @@ const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDesc
         }
     }
 
+#if defined SHUFFLE_DESCRIPTORS
+
+    //ds shuffle complete vector
+    std::random_shuffle( vecDescriptorPool.begin( ), vecDescriptorPool.end( ) );
+
+#endif
+
+    //ds return const
     return vecDescriptorPool;
 }
 
@@ -511,6 +559,161 @@ const CDescriptors CKeyFrame::getDescriptorPool( const std::shared_ptr< const st
     }
 
     return vecDescriptorPool;
+}
+
+#endif
+
+#if defined USING_BTREE or defined USING_BITREE
+
+const std::bitset< DESCRIPTOR_SIZE_BITS > CKeyFrame::getBitMaskFiltered( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
+{
+    //ds noisy bit counting
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecNoisyBitCounts( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+    //ds loop over all points
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
+    {
+        //ds get descriptor probabilities
+        const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >& vecProbabilities( pPointWithDescriptors->cBitStatisticsLEFT.vecBitProbabilities );
+
+        //ds check if we have any noisy bits
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            //ds if the probability is around 50/50
+            if( 0.1 < vecProbabilities[u] && 0.9 > vecProbabilities[u] )
+            {
+                //ds register noisy bit position
+                vecNoisyBitCounts[u]=vecNoisyBitCounts[u]+1.0;
+            }
+        }
+    }
+
+    //ds get relative noise counts
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecNoisyBitCountsRelative( vecNoisyBitCounts/p_vecCloud->size( ) );
+
+    /*ds write stats to file
+    std::ofstream ofLogfile( "logs/noisy_bit_counts_"+std::to_string( uID )+".txt", std::ofstream::out );
+
+    //ds loop over the set
+    for( int32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        ofLogfile << u << " " << vecNoisyBitCountsRelative[u] << " " << vecNoisyBitCounts[u] << " " << p_vecCloud->size( ) << "\n";
+    }
+
+    //ds save file
+    ofLogfile.close( );*/
+
+    //ds allocate bitset and set all bits to available
+    std::bitset< DESCRIPTOR_SIZE_BITS > vecBitMask;
+    vecBitMask.set( );
+    assert( DESCRIPTOR_SIZE_BITS == vecBitMask.count( ) );
+
+    //ds disable selected bits
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        //ds if above threshold
+        if( 0.25 < vecNoisyBitCountsRelative[u] )
+        {
+            //ds label this bit noisy and disable it
+            vecBitMask[u] = false;
+        }
+    }
+
+    //ds exit
+    return vecBitMask;
+}
+
+std::vector< uint32_t > CKeyFrame::getSplitOrder( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
+{
+    //ds confident bits counting
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecAccumulatedProbabilities( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+    //ds loop over all points
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
+    {
+        vecAccumulatedProbabilities += pPointWithDescriptors->cBitStatisticsLEFT.vecBitProbabilities;
+    }
+
+    //ds get average
+    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecMean( vecAccumulatedProbabilities/p_vecCloud->size( ) );
+    std::vector< std::pair< uint32_t, double > > vecVariance( DESCRIPTOR_SIZE_BITS );
+
+    //ds compute variance
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        //ds buffer
+        double dVariance = 0.0;
+
+        for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
+        {
+            const double dDelta = pPointWithDescriptors->cBitStatisticsLEFT.vecBitProbabilities[u]-vecMean[u];
+            dVariance += dDelta*dDelta;
+        }
+
+        //ds compute variance
+        dVariance /= p_vecCloud->size( );
+
+        //ds add to structure
+        vecVariance[u] = std::make_pair( u, dVariance );
+    }
+
+    //ds sort vector descending
+    std::sort( vecVariance.begin( ), vecVariance.end( ), []( const std::pair< uint32_t, double > &prLHS, const std::pair< uint32_t, double > &pRHS ){ return prLHS.second > pRHS.second; } );
+
+    /*ds write stats to file
+    std::ofstream ofLogfileBitConfidence( "logs/bit_confidence_"+std::to_string( uID )+".txt", std::ofstream::out );
+
+    //ds loop over the set
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        ofLogfileBitConfidence << u << " " << vecVariance[u].second << "\n";
+    }
+
+    //ds save file
+    ofLogfileBitConfidence.close( );*/
+
+    //ds compute split vector
+    std::vector< uint32_t > vecSplitOrder( DESCRIPTOR_SIZE_BITS );
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        vecSplitOrder[u] = vecVariance[u].first;
+    }
+
+    return vecSplitOrder;
+}
+
+//ds TODO REFACTOR
+const std::vector< Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > > CKeyFrame::getBitProbabilities( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud ) const
+{
+    //ds result vector
+    std::vector< Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > > vecBitProbabilities;
+
+    //ds fill the pool
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
+    {
+        //ds add up descriptors
+        for( uint64_t u = 0; u < pPointWithDescriptors->vecDescriptors.size( ); ++u )
+        {
+            vecBitProbabilities.push_back( pPointWithDescriptors->cBitStatisticsLEFT.vecBitProbabilities );
+        }
+    }
+
+    return vecBitProbabilities;
+}
+
+const std::map< UIDLandmark, CBitStatistics > CKeyFrame::getBitStatistics( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud ) const
+{
+    //ds result map
+    std::map< UIDLandmark, CBitStatistics > mapBitStatistics;
+
+    //ds fill the map
+    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
+    {
+        mapBitStatistics.insert( std::make_pair( pPointWithDescriptors->uID, pPointWithDescriptors->cBitStatisticsLEFT ) );
+    }
+
+    assert( mapBitStatistics.size( ) == p_vecCloud->size( ) );
+    return mapBitStatistics;
 }
 
 #endif

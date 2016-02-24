@@ -80,4 +80,17 @@ struct CMatchTriangulation
     }
 };
 
+struct CBitStatistics
+{
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitProbabilities;
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitPermanences;
+
+    CBitStatistics( const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >& p_vecBitProbabilities,
+                    const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >& p_vecBitPermanences ): vecBitProbabilities( p_vecBitProbabilities ),
+                                                                                                   vecBitPermanences( p_vecBitPermanences )
+    {
+
+    }
+};
+
 #endif //TYPES_H
