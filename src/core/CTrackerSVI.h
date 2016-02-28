@@ -149,7 +149,7 @@ public:
     const UIDFrame getFrameCount( ) const { return m_uFrameCount; }
     const bool isShutdownRequested( ) const { return m_bIsShutdownRequested; }
     void finalize( );
-    void sanitizeFiletree( ){ /*m_cGraphOptimizer.clearFiles( );*/ }
+    void sanitizeFiletree( ){ m_cOptimizer.clearFilesUNIX( ); }
     const double getDistanceTraveled( ) const { return m_dDistanceTraveledMeters; }
     const double getTotalDurationOptimizationSeconds( ) const { return 0; /*m_cGraphOptimizer.getTotalOptimizationDurationSeconds( );*/ }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cMatcher.getDurationTotalSecondsStereoPosit( ); }

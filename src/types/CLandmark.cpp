@@ -139,14 +139,14 @@ void CLandmark::addMeasurement( const UIDFrame& p_uFrame,
     //const CDescriptor vecDescriptorLEFTNoisy( _getDescriptorWithAddedNoise( p_matDescriptorLEFT ) );
     //vecDescriptorsLEFTNoisy.push_back( vecDescriptorLEFTNoisy );
 
-    //ds logging
-    //if( 100 == vecDescriptorsLEFT.size( ) )
-    //{
-        /*ds create logging matrix: rows -> bits, cols -> descriptor numbers
-        Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 400 > matDescriptorEvolution;
+    /*ds logging
+    if( 100 == vecDescriptorsLEFT.size( ) )
+    {
+        //ds create logging matrix: rows -> bits, cols -> descriptor numbers
+        Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 100 > matDescriptorEvolution;
 
         //ds fill matrix: columnswise per descriptor
-        for( uint32_t u = 0; u < 400; ++u )
+        for( uint32_t u = 0; u < 100; ++u )
         {
             //ds buffer descriptor
             const Eigen::Matrix< bool, DESCRIPTOR_SIZE_BITS, 1 > cDescriptor( CWrapperOpenCV::getDescriptorVector< bool >( vecDescriptorsLEFT[u] ) );
@@ -156,24 +156,74 @@ void CLandmark::addMeasurement( const UIDFrame& p_uFrame,
             {
                 matDescriptorEvolution(v,u) = cDescriptor(v);
             }
-        }*/
+        }
 
-        /*ds write stats to file
-        std::ofstream ofLogfile( "logs/bit_evolution_"+std::to_string( uID )+".txt", std::ofstream::out );
+        //ds write stats to file
+        std::ofstream ofLogfileEvolutionMap( "logs/bit_evolution_map_"+std::to_string( uID )+".txt", std::ofstream::out );
+        std::ofstream ofLogfileEvolutionMeanVariance( "logs/bit_evolution_mean_variance_"+std::to_string( uID )+".txt", std::ofstream::out );
+        std::ofstream ofLogfileEvolutionMeanVarianceSorted( "logs/bit_evolution_mean_variance_"+std::to_string( uID )+"_sorted.txt", std::ofstream::out );
 
-        //ds loop over eigen matrix and dump the values
+        //ds mean vector
+        Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitMean( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+        //ds loop over eigen matrix and dump the first 50 values
         for( int64_t u = 0; u < matDescriptorEvolution.rows( ); ++u )
         {
             for( int64_t v = 0; v < matDescriptorEvolution.cols( ); ++v )
             {
-                ofLogfile << matDescriptorEvolution( u, v ) << " ";
+                ofLogfileEvolutionMap << matDescriptorEvolution( u, v ) << " ";
+                vecBitMean[u] += matDescriptorEvolution( u, v );
             }
+            ofLogfileEvolutionMap << "\n";
 
-            ofLogfile << "\n";
+            //ds compute mean
+            vecBitMean[u] /= matDescriptorEvolution.cols( );
         }
 
-        //ds save file
-        ofLogfile.close( );*/
+        //ds bit variance
+        Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitVariance( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+        //ds loop over eigen matrix and dump the first 50 values
+        for( int64_t u = 0; u < matDescriptorEvolution.rows( ); ++u )
+        {
+            for( int64_t v = 0; v < matDescriptorEvolution.cols( ); ++v )
+            {
+                vecBitVariance[u] += ( vecBitMean[u]-matDescriptorEvolution( u, v ) )*( vecBitMean[u]-matDescriptorEvolution( u, v ) );
+            }
+
+            //ds compute mean and plot it
+            vecBitVariance[u] /= matDescriptorEvolution.cols( );
+
+            ofLogfileEvolutionMeanVariance << u << " " << vecBitMean[u] << " " << vecBitVariance[u] << "\n";
+        }
+
+        //ds save files
+        ofLogfileEvolutionMap.close( );
+        ofLogfileEvolutionMeanVariance.close( );
+
+        //ds get probabilities to vector for sorting
+        std::vector< std::pair< uint32_t, double > > vecBitMeanSorted( DESCRIPTOR_SIZE_BITS );
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            vecBitMeanSorted[u] = std::make_pair( u, vecBitMean[u] );
+        }
+
+        //ds sort vector descending
+        std::sort( vecBitMeanSorted.begin( ), vecBitMeanSorted.end( ), []( const std::pair< uint32_t, double > &prLHS, const std::pair< uint32_t, double > &pRHS ){ return prLHS.second > pRHS.second; } );
+
+        //ds loop over sorted vector and dump the values parallel into columns
+        for( const std::pair< uint32_t, double >& prBitMean: vecBitMeanSorted )
+        {
+            ofLogfileEvolutionMeanVarianceSorted << prBitMean.first << " " << prBitMean.second << " " << vecBitVariance[prBitMean.first] << "\n";
+        }
+
+        //ds close
+        ofLogfileEvolutionMeanVarianceSorted.close( );
+    }*/
+
+
+
+
 
         /*ds write stats to file
         std::ofstream ofLogfile( "logs/bit_mean_permanence_"+std::to_string( uID )+".txt", std::ofstream::out );

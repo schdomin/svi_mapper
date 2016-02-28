@@ -106,9 +106,56 @@ CTrackerSVI::~CTrackerSVI( )
     //ds total data structure size
     uint64_t uSizeBytesLandmarks = 0;
 
+    /*ds main mean probabilities vector;
+    std::vector< std::vector< std::pair< uint32_t, double > > > vecBitProbabilitiesTotalSorted;
+    std::vector< Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > > vecBitProbabilitiesTotalUnsorted;
+    std::vector< Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > > vecBitProbabilitiesTotalUnsortedFull;*/
+
     //ds free all landmarks
     for( const CLandmark* pLandmark: *m_vecLandmarks )
     {
+        /*ds if we got more than 100 measurements
+        if( 100 <  pLandmark->getNumberOfMeasurements( ) )
+        {
+            //ds get the mean
+            const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitProbabilities = pLandmark->getPDescriptorBRIEFLEFT( );
+
+            //ds add before sorting
+            vecBitProbabilitiesTotalUnsorted.push_back( vecBitProbabilities );
+
+            for( uint32_t u = 0; u < pLandmark->getNumberOfMeasurements( ); ++u )
+            {
+                //ds add before sorting
+                vecBitProbabilitiesTotalUnsortedFull.push_back( vecBitProbabilities );
+            }
+
+            //ds get probabilities to vector for sorting
+            std::vector< std::pair< uint32_t, double > > vecBitProbabilitiesSorted( DESCRIPTOR_SIZE_BITS );
+            for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+            {
+                vecBitProbabilitiesSorted[u] = std::make_pair( u, vecBitProbabilities[u] );
+            }
+
+            //ds sort vector descending
+            std::sort( vecBitProbabilitiesSorted.begin( ), vecBitProbabilitiesSorted.end( ), []( const std::pair< uint32_t, double > &prLHS, const std::pair< uint32_t, double > &pRHS ){ return prLHS.second > pRHS.second; } );
+
+            //ds add
+            vecBitProbabilitiesTotalSorted.push_back( vecBitProbabilitiesSorted );
+        }*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         //ds write final state to file before deleting
         //CLogger::CLogLandmarkFinal::addEntry( pLandmark );
 
@@ -125,6 +172,144 @@ CTrackerSVI::~CTrackerSVI( )
         delete pLandmark;
     }
     std::printf( "[0][%06lu]<CTrackerSVI>(~CTrackerSVI) deallocated landmarks: %lu (%.0fMB)\n", m_uFrameCount, m_vecLandmarks->size( ), uSizeBytesLandmarks/1e6 );
+
+    /*std::cerr << "total probability measurements: " << vecBitProbabilitiesTotalSorted.size( ) << std::endl;
+
+    //ds write stats to file
+    std::ofstream ofLogfile( "logs/bit_mean_variance_"+std::to_string( vecBitProbabilitiesTotalSorted.size( ) )+"_unlocked.txt", std::ofstream::out );
+
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecMean( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+    //ds compute mean
+    for( const std::vector< std::pair< uint32_t, double > > vecBitProbabilitiesSorted: vecBitProbabilitiesTotalSorted )
+    {
+        //ds just add the bit means
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            vecMean[u] += vecBitProbabilitiesSorted[u].second;
+        }
+    }
+
+    //ds derive mean
+    vecMean /= vecBitProbabilitiesTotalSorted.size( );
+
+    //ds variance
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecVariance( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+    //ds loop again over the vectors
+    for( const std::vector< std::pair< uint32_t, double > > vecBitProbabilitiesSorted: vecBitProbabilitiesTotalSorted )
+    {
+        //ds just get the bit means
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            vecVariance[u] += ( vecBitProbabilitiesSorted[u].second-vecMean[u] )*( vecBitProbabilitiesSorted[u].second-vecMean[u] );
+        }
+    }
+
+    //ds derive variance
+    vecVariance /= vecBitProbabilitiesTotalSorted.size( );
+
+    //ds loop over eigen matrix and dump the values
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        ofLogfile << vecMean[u] << " " << vecVariance[u] << "\n";
+    }
+
+    //ds save file
+    ofLogfile.close( );*/
+
+    /*std::ofstream ofLogfileMeanSortedLOCKED( "logs/bit_mean_variance_"+std::to_string( vecBitProbabilitiesTotalSorted.size( ) )+"_locked.txt", std::ofstream::out );
+
+    //ds derive unsorted mean
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecMeanUnsorted( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+    for( const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitProbabilitiesUnsorted: vecBitProbabilitiesTotalUnsortedFull )
+    {
+        vecMeanUnsorted += vecBitProbabilitiesUnsorted;
+    }
+    vecMeanUnsorted /= vecBitProbabilitiesTotalUnsortedFull.size( );
+
+    //ds compute unsorted variance
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecVarianceUnsorted( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBadBitCount( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+    for( const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitProbabilitiesUnsorted: vecBitProbabilitiesTotalUnsortedFull )
+    {
+        //ds just add the bit means
+        for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+        {
+            vecVarianceUnsorted[u] += ( vecMeanUnsorted[u]-vecBitProbabilitiesUnsorted[u] )*( vecMeanUnsorted[u]-vecBitProbabilitiesUnsorted[u] );
+
+            //ds check if in noise region
+            if( 0.2 < vecBitProbabilitiesUnsorted[u] && 0.8 > vecBitProbabilitiesUnsorted[u] )
+            {
+                vecBadBitCount[u] += 1.0;
+            }
+        }
+    }
+    vecVarianceUnsorted /= vecBitProbabilitiesTotalUnsortedFull.size( );
+    vecBadBitCount      /= vecBitProbabilitiesTotalUnsortedFull.size( );*/
+
+    /*ds get probabilities to vector for sorting
+    std::vector< std::pair< uint32_t, double > > vecTotalMeanSortedLOCKED( DESCRIPTOR_SIZE_BITS );
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        vecTotalMeanSortedLOCKED[u] = std::make_pair( u, vecMeanUnsorted[u] );
+    }
+
+    //ds sort vector descending
+    std::sort( vecTotalMeanSortedLOCKED.begin( ), vecTotalMeanSortedLOCKED.end( ), []( const std::pair< uint32_t, double > &prLHS, const std::pair< uint32_t, double > &pRHS ){ return prLHS.second > pRHS.second; } );
+
+    //ds variance
+    Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecVarianceUnsorted( Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 >::Zero( ) );
+
+    uint32_t uBitSorted = 0;
+
+    //ds loop again over the vectors
+    for( const std::pair< uint32_t, double >& prBit: vecTotalMeanSortedLOCKED )
+    {
+        //ds current bit
+        uint32_t uBit = prBit.first;
+
+        //ds loop over all means
+        for( const Eigen::Matrix< double, DESCRIPTOR_SIZE_BITS, 1 > vecBitProbabilitiesUnsorted: vecBitProbabilitiesTotalUnsorted )
+        {
+            vecVarianceUnsorted[uBitSorted] += ( vecBitProbabilitiesUnsorted[uBit]-prBit.second )*( vecBitProbabilitiesUnsorted[uBit]-prBit.second );
+        }
+
+        ++uBitSorted;
+    }
+
+    //ds derive variance
+    vecVarianceUnsorted /= vecBitProbabilitiesTotalSorted.size( );
+
+    //ds loop over eigen matrix and dump the values
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        ofLogfileMeanSortedLOCKED << vecTotalMeanSortedLOCKED[u].second << " " << vecVarianceUnsorted[u] << "\n";
+    }
+
+    //ds save file
+    ofLogfileMeanSortedLOCKED.close( );*/
+
+    /*ds get variance to vector for sorting
+    std::vector< std::pair< uint32_t, std::pair< double, double > > > vecVarianceSortedLOCKED( DESCRIPTOR_SIZE_BITS );
+    for( uint32_t u = 0; u < DESCRIPTOR_SIZE_BITS; ++u )
+    {
+        vecVarianceSortedLOCKED[u] = std::make_pair( u, std::make_pair( vecVarianceUnsorted[u], vecBadBitCount[u] ) );
+    }
+
+    //ds sort vector descending
+    std::sort( vecVarianceSortedLOCKED.begin( ), vecVarianceSortedLOCKED.end( ), []( const std::pair< uint32_t, std::pair< double, double > > &prLHS, const std::pair< uint32_t, std::pair< double, double > > &pRHS ){ return prLHS.second.first > pRHS.second.first; } );
+
+    //ds loop over vector and dump the values
+    for( const std::pair< uint32_t, std::pair< double, double > >& prBit: vecVarianceSortedLOCKED )
+    {
+        ofLogfileMeanSortedLOCKED << vecMeanUnsorted[prBit.first] << " " << prBit.second.first << " " << prBit.second.second << "\n";
+    }
+
+    //ds save file
+    ofLogfileMeanSortedLOCKED.close( );*/
+
+
 
     //ds total data structure size
     uint64_t uSizeBytesKeyFrames = 0;
@@ -796,7 +981,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( p_dMinimumRelativeMatchesLoopClosure/4.0 < cResult.Score )
+            if( 0.2 < cResult.Score )
             {
                 const double dTimeStartGetCorrespondences = CTimer::getTimeSeconds( );
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
@@ -892,7 +1077,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( p_dMinimumRelativeMatchesLoopClosure/4.0 < cResult.Score )
+            if( 0.2 < cResult.Score )
             {
                 //ds buffer reference key frame
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
@@ -931,8 +1116,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
 #if defined SPLIT_BALANCED
 
-    const std::string strOutFileTiming( "logs/matching_time_closures_btree_"+strMinimumRelativeMatches+".txt" );
-    const std::string strOutFileClosureMap( "logs/closure_map_btree_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileTiming( "logs/matching_time_closures_bbst_"+strMinimumRelativeMatches+".txt" );
+    const std::string strOutFileClosureMap( "logs/closure_map_bbst_"+strMinimumRelativeMatches+".txt" );
 
 #else
 
@@ -1334,12 +1519,13 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
         }
 
+        //ds always write stats -> allows later retrieval of any lc closure map
+        matClosureMapNew( m_vecKeyFrames->size( ), uIDREFERENCE ) = dRelativeMatches;
+        matClosureMapNew( uIDREFERENCE, m_vecKeyFrames->size( ) ) = dRelativeMatches;
+
         //ds if we have a sufficient amount of matches
         if( p_dMinimumRelativeMatchesLoopClosure < dRelativeMatches )
         {
-            //ds stats
-            matClosureMapNew( m_vecKeyFrames->size( ), uIDREFERENCE ) = 1.0;
-            matClosureMapNew( uIDREFERENCE, m_vecKeyFrames->size( ) ) = 1.0;
             /*std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] relative matches: %f (%lu/%lu)\n",
                          m_uFrameCount, p_pKeyFrameQUERY->uID, uIDREFERENCE, dRelativeMatches, vecPotentialClosures[uIDREFERENCE].size( ), p_pKeyFrameQUERY->vecCloud->size( ) );*/
 
@@ -1424,7 +1610,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         const double dMaximumErrorForInlier         = 0.25; //0.25
         const double dMaximumErrorAverageForClosure = 0.17; //0.1
         const uint32_t uMaximumIterations           = 1000;
-        const uint32_t uMinimumInliers              = 18;
+        const uint32_t uMinimumInliers              = 25;
 
         //ds LS setup
         Eigen::Matrix< double, 6, 6 > matH;
@@ -1511,7 +1697,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
 
                     std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) found closure: [%06lu] > [%06lu] (matches: %3lu, iterations: %2u, average error: %5.3f, inliers: %2u)\n",
                                  p_pKeyFrameQUERY->uID, pKeyFrameREFERENCE->uID, vecMatches.size( ), uLS, dErrorAverage, uInliers );
-                    //vecLoopClosures.push_back( new CKeyFrame::CMatchICP( pKeyFrameREFERENCE, matTransformationToClosure, vecMatches ) );
+                    ///vecLoopClosures.push_back( new CKeyFrame::CMatchICP( pKeyFrameREFERENCE, matTransformationToClosure, std::make_shared< std::vector< CMatchCloud > >( vecMatches ) ) );
                     ++uNumberOfClosedKeyFrames;
                     break;
                 }

@@ -997,7 +997,7 @@ g2o::EdgeSE3LinearAcceleration* Cg2oOptimizer::_getEdgeLinearAcceleration( g2o::
     pEdgeLinearAcceleration->setVertex( 0, p_pVertexPose );
     pEdgeLinearAcceleration->setMeasurement( p_vecLinearAccelerationNormalized );
     pEdgeLinearAcceleration->setParameterId( 0, EG2OParameterID::eOFFSET_IMUtoLEFT );
-    const double arrInformationMatrixLinearAcceleration[9] = { 5, 0, 0, 0, 5, 0, 0, 0, 5 };
+    const double arrInformationMatrixLinearAcceleration[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
     pEdgeLinearAcceleration->setInformation( g2o::Matrix3D( arrInformationMatrixLinearAcceleration ) );
 
     //ds set robust kernel
@@ -1025,7 +1025,7 @@ g2o::EdgeSE3PointXYZ* Cg2oOptimizer::_getEdgePointXYZ( g2o::VertexSE3* p_pVertex
     pEdgePointXYZ->setInformation( g2o::Matrix3D( arrInformationMatrixXYZ ) );
 
     //ds set robust kernel
-    //pEdgePointXYZ->setRobustKernel( new g2o::RobustKernelCauchy( ) );
+    pEdgePointXYZ->setRobustKernel( new g2o::RobustKernelCauchy( ) );
 
     return pEdgePointXYZ;
 }
@@ -1049,7 +1049,7 @@ g2o::EdgeSE3PointXYZDepth* Cg2oOptimizer::_getEdgeUVDepthLEFT( g2o::VertexSE3* p
     pEdgeProjectedDepth->setInformation( g2o::Matrix3D( arrInformationMatrixDepth ) );
 
     //ds set robust kernel
-    //pEdgeProjectedDepth->setRobustKernel( new g2o::RobustKernelCauchy( ) );
+    pEdgeProjectedDepth->setRobustKernel( new g2o::RobustKernelCauchy( ) );
 
     return pEdgeProjectedDepth;
 }
@@ -1077,7 +1077,7 @@ g2o::EdgeSE3PointXYZDisparity* Cg2oOptimizer::_getEdgeUVDisparityLEFT( g2o::Vert
     pEdgeDisparity->setInformation( g2o::Matrix3D( arrInformationMatrixDisparity ) );
 
     //ds set robust kernel
-    //pEdgeDisparity->setRobustKernel( new g2o::RobustKernelCauchy( ) );
+    pEdgeDisparity->setRobustKernel( new g2o::RobustKernelCauchy( ) );
 
     return pEdgeDisparity;
 }
