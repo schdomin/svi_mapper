@@ -981,7 +981,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         if( uIDKeyFramesAvailableToCloseCap > cResult.Id )
         {
             //ds if minimum matches are provided
-            if( 0.2 < cResult.Score )
+            if( 0.15 < cResult.Score )
             {
                 const double dTimeStartGetCorrespondences = CTimer::getTimeSeconds( );
                 const CKeyFrame* pKeyFrameREFERENCE = m_vecKeyFrames->at( cResult.Id );
@@ -1607,10 +1607,10 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
         //ds 1mm for convergence
         const double dErrorDeltaForConvergence      = 1e-5;
         double dErrorSquaredTotalPrevious           = 0.0;
-        const double dMaximumErrorForInlier         = 0.25; //0.25
-        const double dMaximumErrorAverageForClosure = 0.17; //0.1
+        const double dMaximumErrorForInlier         = 1.5; //0.25
+        const double dMaximumErrorAverageForClosure = 1.3; //0.1
         const uint32_t uMaximumIterations           = 1000;
-        const uint32_t uMinimumInliers              = 25;
+        const uint32_t uMinimumInliers              = 50;
 
         //ds LS setup
         Eigen::Matrix< double, 6, 6 > matH;
@@ -1703,8 +1703,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
                 }
                 else
                 {
-                    //std::printf( "%4.1f %4.1f %4.1f | ", matTransformationToClosure.translation( ).x( ), matTransformationToClosure.translation( ).y( ), matTransformationToClosure.translation( ).z( ) );
-                    //std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) system converged INVALID in %2u iterations, average error: %5.3f (inliers: %2u) - discarded\n", uLS, dErrorAverage, uInliers );
+                    std::printf( "<CTrackerSVI>(_getLoopClosuresForKeyFrame) system converged INVALID in %2u iterations, average error: %5.3f (inliers: %2u) - discarded\n", uLS, dErrorAverage, uInliers );
                     break;
                 }
             }
@@ -1724,8 +1723,8 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     //ds update stats
     m_matClosureMapGT.swap( matClosureMapGT );
 
-    /*ds write stats to file (every time)
-    std::ofstream ofLogfileGT( "logs/closure_map_gt.txt", std::ofstream::out );
+    //ds write stats to file (every time)
+    std::ofstream ofLogfileGT( "logs/closure_map_gt_lsh.txt", std::ofstream::out );
 
     //ds loop over eigen matrix and dump the values
     for( int64_t u = 0; u < m_matClosureMapGT.rows( ); ++u )
@@ -1739,7 +1738,7 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerSVI::_getLoopClosuresFo
     }
 
     //ds save file
-    ofLogfileGT.close( );*/
+    ofLogfileGT.close( );
 
     if( 0 < vecClosuresToCompute.size( ) )
     {

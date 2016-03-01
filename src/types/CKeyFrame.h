@@ -13,9 +13,9 @@
 #define MAXIMUM_DISTANCE_HAMMING_PROBABILITY 50
 #define BTREE_MAXIMUM_DEPTH 256
 
-#define USING_BTREE
+//#define USING_BTREE
 //#define USING_BF
-//#define USING_LSH
+#define USING_LSH
 //#define USING_BOW
 /*#define USING_BITREE
 #if defined USING_BITREE
