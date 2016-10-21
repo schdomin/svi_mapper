@@ -5,6 +5,7 @@
 #include "types/CLandmark.h"
 #include "types/TypesCloud.h"
 #include "optimization/CSolverStereoPosit.h"
+#include "optimization/Cg2oOptimizer.h"
 
 
 
@@ -42,8 +43,7 @@ private:
 //ds ctor/dtor
 public:
 
-    CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
-                      const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle );
+    CFundamentalMatcher( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO );
     ~CFundamentalMatcher( );
 
 //ds members
@@ -73,7 +73,10 @@ private:
     UIDDetectionPoint m_uAvailableDetectionPointID;
     std::vector< CDetectionPoint > m_vecDetectionPointsActive;
     std::vector< CLandmark* > m_vecVisibleLandmarks;
+    std::vector< CLandmark* > m_vecLandmarksWINDOW;
     std::vector< const CMeasurementLandmark* > m_vecMeasurementsVisible;
+    UIDLandmark m_uAvailableLandmarkID = 0;
+    UIDLandmark m_uNumberOfFreedLandmarksInactive = 0;
 
     //ds internal
     const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
@@ -100,8 +103,19 @@ private:
 //ds api
 public:
 
+    //ds adds new landmarks to the SLAM system
+    const std::vector< CLandmark* >::size_type addNewLandmarks( const cv::Mat& p_matImageLEFT,
+                                                                const cv::Mat& p_matImageRIGHT,
+                                                                const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
+                                                                const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
+                                                                const UIDFrame& p_uIDFrame,
+                                                                cv::Mat& p_matDisplaySTEREO );
+
     //ds add current detected landmarks to the matcher
     void addDetectionPoint( const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD, const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks );
+
+    //ds adds landmarks in the current WINDOW to the passed graph optimizer
+    void addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer, const Eigen::Vector3d& p_vecTranslationToG2o );
 
     //ds routine that resets the visibility of all active landmarks
     void resetVisibilityActiveLandmarks( );
@@ -178,6 +192,7 @@ public:
     const UIDLandmark getNumberOfTracksStage3( ) const { return m_uNumberOfTracksStage3; }
     const UIDLandmark getNumberOfTracksStage2_2( ) const { return m_uNumberOfTracksStage2_2; }
     const std::vector< CLandmark* >::size_type getNumberOfVisibleLandmarks( ) const { return m_vecVisibleLandmarks.size( ); }
+    const UIDLandmark getNumberOfLandmarksTotal( ) const { return m_uAvailableLandmarkID; }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cSolverSterePosit.getDurationTotalSeconds( ); }
     const double getDurationTotalSecondsRegionalTracking( ) const { return m_dDurationTotalSecondsRegionalTracking; }
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_dDurationTotalSecondsEpipolarTracking; }

@@ -17,35 +17,17 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                                                 vecLinearAccelerationNormalized( p_vecLinearAcceleration ),
                                                                                 vecMeasurements( p_vecMeasurements ),
                                                                                 vecCloud( p_vecCloud ),
-#if defined USING_BTREE and defined USING_BOW
+
                                                                                 vecDescriptorPoolBTree( getDescriptorPoolBTree( vecCloud ) ),
                                                                                 vecDescriptorPoolBoW( getDescriptorPoolBoW( vecCloud ) ),
-#else
-                                                                                vecDescriptorPool( getDescriptorPool( vecCloud ) ),
-#endif
+
                                                                                 uCountInstability( p_uCountInstability ),
                                                                                 dMotionScaling( p_dMotionScaling ),
                                                                                 vecLoopClosures( p_vecLoopClosures )
-#if defined USING_BTREE and defined USING_BOW
-                                                                                ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree, getBitStatistics( vecCloud ) ) )
-#elif defined USING_BTREE
-                                                                                //,vecBitMask( getBitMaskFiltered( vecCloud ) )
-                                                                                ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
-#elif defined USING_BF
-                                                                                ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
-#elif defined USING_LSH
-                                                                                ,m_pMatcherLSH( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) )
-#elif defined USING_BPTREE
-                                                                                ,m_pBPTree( std::make_shared< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
-#endif
-{
-#if defined USING_BF
-    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
-#elif defined USING_LSH
-    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
-    m_pMatcherLSH->train( );
-#endif
 
+                                                                                ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree, getBitStatistics( vecCloud ) ) )
+
+{
     assert( !vecCloud->empty( ) );
 
     //ds save the cloud to a file
@@ -65,39 +47,15 @@ CKeyFrame::CKeyFrame( const std::vector< CKeyFrame* >::size_type& p_uID,
                                                         vecLinearAccelerationNormalized( p_vecLinearAcceleration ),
                                                         vecMeasurements( p_vecMeasurements ),
                                                         vecCloud( p_vecCloud ),
-#if defined USING_BTREE and defined USING_BOW
+
                                                         vecDescriptorPoolBTree( getDescriptorPoolBTree( vecCloud ) ),
                                                         vecDescriptorPoolBoW( getDescriptorPoolBoW( vecCloud ) ),
-#else
-                                                        vecDescriptorPool( getDescriptorPool( vecCloud ) ),
-#endif
+
                                                         uCountInstability( p_uCountInstability ),
                                                         dMotionScaling( p_dMotionScaling )
-#if defined USING_BTREE and defined USING_BOW
+
                                                         ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree, getBitStatistics( vecCloud ) ) )
-#elif defined USING_BTREE
-                                                        //,vecBitMask( getBitMaskFiltered( vecCloud ) )
-                                                        ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
-#elif defined USING_BF
-                                                        ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
-#elif defined USING_LSH
-                                                        ,m_pMatcherLSH( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) )
-#elif defined USING_BPTREE
-                                                        ,m_pBPTree( std::make_shared< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
-#endif
 {
-
-#if defined USING_BF
-
-    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
-
-#elif defined USING_LSH
-
-    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
-    m_pMatcherLSH->train( );
-
-#endif
-
     assert( !vecCloud->empty( ) );
 
     /*ds logging
@@ -147,40 +105,16 @@ CKeyFrame::CKeyFrame( const std::string& p_strFile ): uID( std::stoi( p_strFile.
                                                       vecLinearAccelerationNormalized( CLinearAccelerationIMU( 0.0, 0.0, 0.0 ) ),
                                                       vecMeasurements( std::vector< const CMeasurementLandmark* >( 0 ) ),
                                                       vecCloud( getCloudFromFile( p_strFile ) ),
-#if defined USING_BTREE and defined USING_BOW
+
                                                       vecDescriptorPoolBTree( getDescriptorPoolBTree( vecCloud ) ),
                                                       vecDescriptorPoolBoW( getDescriptorPoolBoW( vecCloud ) ),
-#else
-                                                      vecDescriptorPool( getDescriptorPool( vecCloud ) ),
-#endif
+
                                                       uCountInstability( 0 ),
                                                       dMotionScaling( 1.0 ),
                                                       vecLoopClosures( std::vector< const CMatchICP* >( 0 ) )
-#if defined USING_BTREE and defined USING_BOW
+
                                                       ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPoolBTree, getBitStatistics( vecCloud ) ) )
-#elif defined USING_BTREE
-                                                      //,vecBitMask( getBitMaskFiltered( vecCloud ) )
-                                                      ,m_pBTree( std::make_shared< CBTree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
-#elif defined USING_BF
-                                                      ,m_pMatcherBF( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) )
-#elif defined USING_LSH
-                                                      ,m_pMatcherLSH( std::make_shared< cv::FlannBasedMatcher >( new cv::flann::LshIndexParams( 1, 20, 2 ) ) )
-#elif defined USING_BPTREE
-                                                      ,m_pBPTree( std::make_shared< CBPTree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > >( uID, vecDescriptorPool ) )
-#endif
 {
-
-#if defined USING_BF
-
-    m_pMatcherBF->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
-
-#elif defined USING_LSH
-
-    m_pMatcherLSH->add( std::vector< CDescriptors >( 1, vecDescriptorPool ) );
-    m_pMatcherLSH->train( );
-
-#endif
-
     assert( 0 != vecCloud );
 }
 
@@ -361,8 +295,6 @@ const uint64_t CKeyFrame::getSizeBytes( ) const
     return uSizeBytes;
 }
 
-#if defined USING_BTREE and defined USING_BOW
-
 const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPoolBTree( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
 {
     mapDescriptorToPoint.clear( );
@@ -418,152 +350,6 @@ const std::vector< boost::dynamic_bitset< > > CKeyFrame::getDescriptorPoolBoW( c
 
     return vecDescriptorPool;
 }
-
-#elif defined USING_BTREE
-
-const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
-{
-    mapDescriptorToPoint.clear( );
-    std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
-
-    //ds fill the pool
-    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
-    {
-        //ds add up descriptors
-        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
-        {
-            //ds map descriptor pool to points for later retrieval
-            mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
-            vecDescriptorPool.push_back( CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( vecDescriptorPool.size( ), CBNode< BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS >::getDescriptorVector( cDescriptor ), uID, pPointWithDescriptors->uID ) );
-        }
-    }
-
-    return vecDescriptorPool;
-}
-
-#elif defined USING_BITREE
-
-const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
-{
-    mapDescriptorToPoint.clear( );
-    std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPool;
-
-    //ds fill the pool
-    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
-    {
-        //ds add up descriptors
-        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
-        {
-            //ds map descriptor pool to points for later retrieval
-            mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
-            vecDescriptorPool.push_back( CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( vecDescriptorPool.size( ), CBNode< BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS >::getDescriptorVector( cDescriptor ), uID ) );
-        }
-    }
-
-#if defined SHUFFLE_DESCRIPTORS
-
-    //ds shuffle complete vector
-    std::random_shuffle( vecDescriptorPool.begin( ), vecDescriptorPool.end( ) );
-
-#endif
-
-    //ds return const
-    return vecDescriptorPool;
-}
-
-#elif defined USING_BOW
-
-const std::vector< boost::dynamic_bitset< > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
-{
-    mapDescriptorToPoint.clear( );
-    std::vector< boost::dynamic_bitset< > > vecDescriptorPool;
-
-    //ds fill the pool
-    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
-    {
-        //ds add up descriptors
-        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
-        {
-            //ds map descriptor pool to points for later retrieval
-            mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.size( ), pPointWithDescriptors ) );
-
-            //ds boost bitset
-            boost::dynamic_bitset< > vecDescriptor( DESCRIPTOR_SIZE_BITS );
-
-            //ds compute bytes (as  opencv descriptors are bytewise)
-            const uint32_t uDescriptorSizeBytes = DESCRIPTOR_SIZE_BITS/8;
-
-            //ds loop over all bytes
-            for( uint32_t u = 0; u < uDescriptorSizeBytes; ++u )
-            {
-                //ds get minimal datafrom cv::mat
-                const uchar chValue = cDescriptor.at< uchar >( u );
-
-                //ds get bitstring
-                for( uint8_t v = 0; v < 8; ++v )
-                {
-                    vecDescriptor[u*8+v] = ( chValue >> v ) & 1;
-                }
-            }
-
-            vecDescriptorPool.push_back( vecDescriptor );
-        }
-    }
-
-    return vecDescriptorPool;
-}
-
-#elif defined USING_BPTREE or defined USING_BPITREE
-
-const std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
-{
-    //ds must have same size as measurements (=points)
-    std::vector< CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > vecDescriptorPoolPBRIEF;
-    vecDescriptorPoolPBRIEF.reserve( p_vecCloud->size( ) );
-
-    //ds fill the pool - looping with an index as we need the position in the cloud for later retrieval
-    for( uint64_t uIDPointInCloud = 0; uIDPointInCloud < p_vecCloud->size( ); ++uIDPointInCloud )
-    {
-        //ds map descriptor pool to points for later retrieval
-        mapDescriptorToPoint.insert( std::make_pair( uIDPointInCloud, p_vecCloud->at( uIDPointInCloud ) ) );
-
-        //ds add to pool
-        vecDescriptorPoolPBRIEF.push_back( CPDescriptorBRIEF< DESCRIPTOR_SIZE_BITS >( uIDPointInCloud, p_vecCloud->at( uIDPointInCloud )->vecPDescriptorBRIEF, uID ) );
-    }
-
-    return vecDescriptorPoolPBRIEF;
-}
-
-#else
-
-const CDescriptors CKeyFrame::getDescriptorPool( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
-{
-    mapDescriptorToPoint.clear( );
-    CDescriptors vecDescriptorPool( 0, DESCRIPTOR_SIZE_BYTES, CV_8U );
-
-    //ds fill the pool
-    for( const CDescriptorVectorPoint3DWORLD* pPointWithDescriptors: *p_vecCloud )
-    {
-        //ds add up descriptors row-wise
-        for( const CDescriptor& cDescriptor: pPointWithDescriptors->vecDescriptors )
-        {
-            //ds consistency check
-            //assert( pPointWithDescriptors->uID == mapDescriptorToPoint.at( vecDescriptorPool.rows )->uID );
-
-            //ds map descriptor pool to points for later retrieval
-            mapDescriptorToPoint.insert( std::make_pair( vecDescriptorPool.rows, pPointWithDescriptors ) );
-
-            //ds increase pool
-            vecDescriptorPool.push_back( cDescriptor );
-        }
-    }
-
-    return vecDescriptorPool;
-}
-
-#endif
-
-#if defined USING_BTREE or defined USING_BITREE
 
 const std::bitset< DESCRIPTOR_SIZE_BITS > CKeyFrame::getBitMaskFiltered( const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > p_vecCloud )
 {
@@ -715,5 +501,3 @@ const std::map< UIDLandmark, CBitStatistics > CKeyFrame::getBitStatistics( const
     assert( mapBitStatistics.size( ) == p_vecCloud->size( ) );
     return mapBitStatistics;
 }
-
-#endif

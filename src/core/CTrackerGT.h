@@ -9,7 +9,6 @@
 #include "CTriangulator.h"
 #include "CFundamentalMatcher.h"
 #include "types/CKeyFrame.h"
-#include "optimization/Cg2oOptimizer.h"
 
 
 
@@ -36,7 +35,6 @@ private:
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
     //ds SLAM structures
-    std::shared_ptr< std::vector< CLandmark* > > m_vecLandmarks;
     std::shared_ptr< std::vector< CKeyFrame* > > m_vecKeyFrames;
 
     //ds reference information
@@ -63,12 +61,10 @@ private:
     const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 2; //1e6; //20;
     UIDFrame m_uNumberOfFramesWithoutDetection              = 0;
 
-    std::shared_ptr< CTriangulator > m_pTriangulator;
     CFundamentalMatcher m_cMatcher;
     Cg2oOptimizer m_cOptimizer;
 
     //ds tracking (we use the ID counter instead of accessing the vector size every time for speed)
-    std::vector< CLandmark* >::size_type m_uAvailableLandmarkID = 0;
     int32_t m_uNumberofVisibleLandmarksLAST                     = 0;
     double m_dMotionScalingLAST                         = 1.0;
     std::vector< Eigen::Vector3d > m_vecRotations;
@@ -104,31 +100,10 @@ private:
     double m_dDistanceTraveledMeters = 0.0;
     const std::string m_strVersionInfo;
     double m_dDurationTotalSecondsLoopClosing = 0.0;
-    Eigen::MatrixXd m_matClosureMap;
-    Eigen::MatrixXd m_matClosureMapGT;
 
     uint64_t m_uTotalNumberOfVerifiedClosures = 0;
 
-#if defined USING_BOW
-
     const std::shared_ptr< BriefDatabase > m_pBoWDatabase;
-
-#endif
-
-#if defined USING_BITREE
-
-    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBITree;
-    std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > m_vecActiveDescriptorPoolQUERY;
-    bool m_bNewDescriptorPoolAvailable = false;
-    UIDKeyFrame m_uIDBestKeyFrameQUERY = 0;
-
-#endif
-
-#if defined USING_BPITREE
-
-    const std::shared_ptr< CBPITree< MAXIMUM_DISTANCE_HAMMING_PROBABILITY, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > m_pBPITree;
-
-#endif
 
 //ds accessors
 public:
@@ -142,19 +117,11 @@ public:
     void finalize( );
     void sanitizeFiletree( ){ m_cOptimizer.clearFilesUNIX( ); }
     const double getDistanceTraveled( ) const { return m_dDistanceTraveledMeters; }
-    const double getTotalDurationOptimizationSeconds( ) const { return 0; /*m_cGraphOptimizer.getTotalOptimizationDurationSeconds( );*/ }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cMatcher.getDurationTotalSecondsStereoPosit( ); }
     const double getDurationTotalSecondsRegionalTracking( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTracking( ); }
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_cMatcher.getDurationTotalSecondsEpipolarTracking( ); }
     const double getDurationTotalSecondsLoopClosing( ) const { return m_dDurationTotalSecondsLoopClosing; }
     const double getDurationTotalSecondsOptimization( ) const { return m_cOptimizer.getDurationTotalSecondsOptimization( ); }
-
-#if defined USING_BITREE
-    const std::shared_ptr< CBITree< MAXIMUM_DISTANCE_HAMMING, BTREE_MAXIMUM_DEPTH, DESCRIPTOR_SIZE_BITS > > getBITree( ) const { return m_pBITree; }
-    const bool isNewDescriptorPoolAvailable( ) const { return m_bNewDescriptorPoolAvailable; }
-    const std::shared_ptr< const std::vector< CDescriptorBRIEF< DESCRIPTOR_SIZE_BITS > > > getActiveDescriptorPoolQUERY( ){ m_bNewDescriptorPoolAvailable = false; return m_vecActiveDescriptorPoolQUERY; }
-    const UIDKeyFrame getBestIDQUERY( ) const { return m_uIDBestKeyFrameQUERY; }
-#endif
 
 //ds helpers
 private:
@@ -165,12 +132,6 @@ private:
                           const Eigen::Vector3d& p_vecRotationTotal,
                           const Eigen::Vector3d& p_vecTranslationTotal,
                           const double& p_dDeltaTimeSeconds );
-
-    void _addNewLandmarks( const cv::Mat& p_matImageLEFT,
-                           const cv::Mat& p_matImageRIGHT,
-                           const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
-                           const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
-                           cv::Mat& p_matDisplaySTEREO );
 
     const std::vector< const CKeyFrame::CMatchICP* > _getLoopClosuresForKeyFrame( const CKeyFrame* p_pKeyFrameQUERY,
                                                                                   const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDQUERY,
@@ -189,18 +150,6 @@ private:
     void _shutDown( );
     void _updateFrameRateForInfoBox( const uint32_t& p_uFrameProbeRange = 10 );
     void _drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionScaling ) const;
-
-#if defined USING_BOW
-
-    //ds snippet: https://github.com/dorian3d/DLoopDetector/blob/master/include/DLoopDetector/TemplatedLoopDetector.h
-    void _getMatches_neighratio( const std::vector< boost::dynamic_bitset<>> &A,
-                                 const std::vector<unsigned int> &i_A,
-                                 const std::vector<boost::dynamic_bitset<>> &B,
-                                 const std::vector<unsigned int> &i_B,
-                                 std::vector<unsigned int> &i_match_A,
-                                 std::vector<unsigned int> &i_match_B ) const;
-
-#endif
 
 };
 

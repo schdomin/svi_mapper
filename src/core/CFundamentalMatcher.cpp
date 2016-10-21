@@ -10,23 +10,22 @@
 //#define VERBOSE_VISUALS
 
 
-
-CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator > p_pTriangulator,
-                                    const std::shared_ptr< cv::FeatureDetector > p_pDetectorSingle ): m_pTriangulator( p_pTriangulator ),
-                                                                              m_pCameraLEFT( m_pTriangulator->m_pCameraSTEREO->m_pCameraLEFT ),
-                                                                              m_pCameraRIGHT( m_pTriangulator->m_pCameraSTEREO->m_pCameraRIGHT ),
-                                                                              m_pCameraSTEREO( m_pTriangulator->m_pCameraSTEREO ),
-                                                                              m_pDetector( p_pDetectorSingle ),
-                                                                              m_pExtractor( m_pTriangulator->m_pExtractor ),
-                                                                              m_pMatcher( m_pTriangulator->m_pMatcher ),
-                                                                              m_dMinimumDepthMeters( m_pTriangulator->dDepthMinimumMeters ),
-                                                                              m_dMaximumDepthMeters( m_pTriangulator->dDepthMaximumMeters ),
-                                                                              m_dMatchingDistanceCutoffTrackingStage1( 25.0 ),
-                                                                              m_dMatchingDistanceCutoffTrackingStage2( 50.0 ),
-                                                                              m_dMatchingDistanceCutoffTrackingStage3( 50.0 ),
-                                                                              m_dMatchingDistanceCutoffOriginal( 2*m_dMatchingDistanceCutoffTrackingStage3 ),
-                                                                              m_uAvailableDetectionPointID( 0 ),
-                                                                              m_cSolverSterePosit( m_pCameraLEFT->m_matProjection, m_pCameraRIGHT->m_matProjection )
+//ds BRIEF (calibrated 2015-05-31)
+CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO ): m_pTriangulator( std::make_shared< CTriangulator >( p_pCameraSTEREO, std::make_shared< cv::BriefDescriptorExtractor >( DESCRIPTOR_SIZE_BYTES ) ) ),
+                                                                                                    m_pCameraLEFT( m_pTriangulator->m_pCameraSTEREO->m_pCameraLEFT ),
+                                                                                                    m_pCameraRIGHT( m_pTriangulator->m_pCameraSTEREO->m_pCameraRIGHT ),
+                                                                                                    m_pCameraSTEREO( m_pTriangulator->m_pCameraSTEREO ),
+                                                                                                    m_pDetector( std::make_shared< cv::GoodFeaturesToTrackDetector >( 1000, 0.01, 7.0, 7, true ) ),
+                                                                                                    m_pExtractor( m_pTriangulator->m_pExtractor ),
+                                                                                                    m_pMatcher( m_pTriangulator->m_pMatcher ),
+                                                                                                    m_dMinimumDepthMeters( m_pTriangulator->dDepthMinimumMeters ),
+                                                                                                    m_dMaximumDepthMeters( m_pTriangulator->dDepthMaximumMeters ),
+                                                                                                    m_dMatchingDistanceCutoffTrackingStage1( 25.0 ),
+                                                                                                    m_dMatchingDistanceCutoffTrackingStage2( 50.0 ),
+                                                                                                    m_dMatchingDistanceCutoffTrackingStage3( 50.0 ),
+                                                                                                    m_dMatchingDistanceCutoffOriginal( 2*m_dMatchingDistanceCutoffTrackingStage3 ),
+                                                                                                    m_uAvailableDetectionPointID( 0 ),
+                                                                                                    m_cSolverSterePosit( m_pCameraLEFT->m_matProjection, m_pCameraRIGHT->m_matProjection )
 {
     m_vecDetectionPointsActive.clear( );
     m_vecVisibleLandmarks.clear( );
@@ -46,9 +45,156 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CTriangulator >
 
 CFundamentalMatcher::~CFundamentalMatcher( )
 {
+    //ds total data structure size
+    uint64_t uSizeBytesLandmarks    = 0;
+    uint64_t uNumberOfFreedLandmarks = 0;
+
+    //ds clear inactive landmarks rest
+    for( CLandmark* pLandmark: m_vecLandmarksWINDOW )
+    {
+        //ds free memory
+        ++m_uNumberOfFreedLandmarksInactive;
+        assert( 0 != pLandmark );
+        delete pLandmark;
+        pLandmark = 0;
+    }
+
+    /*ds free all remaining active landmarks
+    for( const CDetectionPoint& cDetectionPoint: m_vecDetectionPointsActive )
+    {
+        //ds loop over the points for the current scan
+        for( CLandmark* pLandmark: *cDetectionPoint.vecLandmarks )
+        {
+            //ds accumulate size information
+            uSizeBytesLandmarks += pLandmark->getSizeBytes( );
+            ++uNumberOfFreedLandmarks;
+
+            //ds free memory
+            assert( 0 != pLandmark );
+            delete pLandmark;
+        }
+    }*/
+
+    //ds info
+    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) deallocated landmarks (at runtime): %lu/%lu\n", m_uNumberOfFreedLandmarksInactive, getNumberOfLandmarksTotal( ) );
+    //std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) deallocated landmarks (termination): %lu (%.0fMB)\n", uNumberOfFreedLandmarks, uSizeBytesLandmarks/1e6 );
+
     //CLogger::CLogDetectionEpipolar::close( );
     //CLogger::CLogOptimizationOdometry::close( );
+    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) module time consumption: %fs\n", m_dDurationTotalSecondsEpipolarTracking+m_dDurationTotalSecondsRegionalTracking );
     std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) instance deallocated\n" );
+}
+
+const std::vector< CLandmark* >::size_type CFundamentalMatcher::addNewLandmarks( const cv::Mat& p_matImageLEFT,
+                                                                                 const cv::Mat& p_matImageRIGHT,
+                                                                                 const Eigen::Isometry3d& p_matTransformationWORLDtoLEFT,
+                                                                                 const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD,
+                                                                                 const UIDFrame& p_uIDFrame,
+                                                                                 cv::Mat& p_matDisplaySTEREO )
+{
+    //ds precompute intrinsics
+    const MatrixProjection matProjectionWORLDtoLEFT( m_pCameraLEFT->m_matProjection*p_matTransformationWORLDtoLEFT.matrix( ) );
+    const MatrixProjection matProjectionWORLDtoRIGHT( m_pCameraRIGHT->m_matProjection*p_matTransformationWORLDtoLEFT.matrix( ) );
+
+    //ds solution holder
+    std::shared_ptr< std::vector< CLandmark* > > vecLandmarksNEW( std::make_shared< std::vector< CLandmark* > >( ) );
+
+    //ds key points buffer
+    std::vector< cv::KeyPoint > vecKeyPoints;
+
+    //const std::shared_ptr< std::vector< cv::KeyPoint > > vecKeyPoints( m_cDetector.detectKeyPointsTilewise( p_matImageLEFT, matMask ) );
+    m_pDetector->detect( p_matImageLEFT, vecKeyPoints, getMaskActiveLandmarks( p_matTransformationWORLDtoLEFT, p_matDisplaySTEREO ) );
+
+    //ds compute descriptors for the keypoints
+    CDescriptors matReferenceDescriptors;
+    //m_pExtractor->compute( p_matImageLEFT, *vecKeyPoints, matReferenceDescriptors );
+    m_pExtractor->compute( p_matImageLEFT, vecKeyPoints, matReferenceDescriptors );
+
+    //ds process the keypoints and see if we can use them as landmarks
+    for( uint32_t u = 0; u < vecKeyPoints.size( ); ++u )
+    {
+        //ds current points
+        const cv::KeyPoint cKeyPointLEFT( vecKeyPoints[u] );
+        const cv::Point2f ptLandmarkLEFT( cKeyPointLEFT.pt );
+        const CDescriptor matDescriptorLEFT( matReferenceDescriptors.row(u) );
+
+        try
+        {
+            //ds triangulate the point
+            const CMatchTriangulation cMatchRIGHT( m_pTriangulator->getPointTriangulatedInRIGHTFull( p_matDisplaySTEREO, p_matImageRIGHT,
+                                                                                                 std::max( 0.0f, ptLandmarkLEFT.x-CTriangulator::fMinimumSearchRangePixels-4*cKeyPointLEFT.size ),
+                                                                                                 ptLandmarkLEFT.y-4*cKeyPointLEFT.size,
+                                                                                                 cKeyPointLEFT.size,
+                                                                                                 ptLandmarkLEFT,
+                                                                                                 matDescriptorLEFT ) );
+            const CPoint3DCAMERA vecPointTriangulatedLEFT( cMatchRIGHT.vecPointXYZCAMERA );
+
+            //ds landmark right
+            const cv::Point2f ptLandmarkRIGHT( cMatchRIGHT.ptUVCAMERA );
+
+            //ds allocate a new landmark and add the current position
+            CLandmark* pLandmarkNEW = new CLandmark( m_uAvailableLandmarkID,
+                                                     matDescriptorLEFT,
+                                                     cMatchRIGHT.matDescriptorCAMERA,
+                                                     cKeyPointLEFT.size,
+                                                     ptLandmarkLEFT,
+                                                     ptLandmarkRIGHT,
+                                                     vecPointTriangulatedLEFT,
+                                                     p_matTransformationLEFTtoWORLD,
+                                                     p_matTransformationWORLDtoLEFT,
+                                                     m_pCameraLEFT->m_matProjection,
+                                                     m_pCameraRIGHT->m_matProjection,
+                                                     matProjectionWORLDtoLEFT,
+                                                     matProjectionWORLDtoRIGHT,
+                                                     p_uIDFrame );
+
+            //ds KITTI default
+            pLandmarkNEW->bIsOptimal = true;
+
+            //ds log creation
+            //CLogger::CLogLandmarkCreation::addEntry( m_uFrameCount, pLandmark, dDepthMeters, ptLandmarkLEFT, ptLandmarkRIGHT );
+
+            //ds add to newly detected
+            vecLandmarksNEW->push_back( pLandmarkNEW );
+
+            //ds next landmark id
+            ++m_uAvailableLandmarkID;
+
+            //ds draw detected point
+            //cv::line( p_matDisplaySTEREO, ptLandmarkLEFT, cv::Point2f( ptLandmarkLEFT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkLEFT.y ), CColorCodeBGR( 175, 175, 175 ) );
+            cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 2, CColorCodeBGR( 0, 255, 0 ), -1 );
+
+            //ds draw acquisition information
+            char chBuffer[10];
+            std::snprintf( chBuffer, 10, "%lu|%.1f", pLandmarkNEW->uID, vecPointTriangulatedLEFT.z( ) );
+            cv::putText( p_matDisplaySTEREO, chBuffer , cv::Point2d( ptLandmarkLEFT.x+pLandmarkNEW->dKeyPointSize, ptLandmarkLEFT.y+pLandmarkNEW->dKeyPointSize ), cv::FONT_HERSHEY_PLAIN, 0.5, CColorCodeBGR( 0, 0, 255 ) );
+
+            //ds draw reprojection of triangulation
+            cv::circle( p_matDisplaySTEREO, cv::Point2d( ptLandmarkRIGHT.x+m_pCameraSTEREO->m_uPixelWidth, ptLandmarkRIGHT.y ), 2, CColorCodeBGR( 255, 0, 0 ), -1 );
+        }
+        catch( const CExceptionNoMatchFound& p_cException )
+        {
+            cv::circle( p_matDisplaySTEREO, ptLandmarkLEFT, 3, CColorCodeBGR( 0, 0, 255 ), -1 );
+            //std::printf( "[0][%06lu]<CTrackerGT>(_addNewLandmarks) could not find match for keypoint: '%s'\n", m_uFrameCount, p_cException.what( ) );
+        }
+    }
+
+    //ds if we couldn't find new landmarks
+    if( 0 == vecLandmarksNEW->size( ) )
+    {
+        std::printf( "[0][%06lu]<CTrackerGT>(_getNewLandmarks) unable to detect new landmarks\n", p_uIDFrame );
+        return 0;
+    }
+
+    //ds add this measurement point to the epipolar matcher (which will remove references from its detection point -> does not affect the landmarks main vector)
+    addDetectionPoint( p_matTransformationLEFTtoWORLD, vecLandmarksNEW );
+    //std::printf( "<CTrackerGT>(_getNewLandmarks) added new landmarks: %lu/%lu\n", vecNewLandmarks->size( ), vecKeyPoints.size( ) );
+
+    //ds add measurements to current window
+    m_vecLandmarksWINDOW.insert( m_vecLandmarksWINDOW.end( ), vecLandmarksNEW->begin( ), vecLandmarksNEW->end( ) );
+
+    //ds done
+    return vecLandmarksNEW->size( );
 }
 
 //ds landmark locked in upper scope
@@ -59,7 +205,44 @@ void CFundamentalMatcher::addDetectionPoint( const Eigen::Isometry3d& p_matTrans
     ++m_uAvailableDetectionPointID;
 }
 
-//ds routine that resets the visibility of all active landmarks
+void CFundamentalMatcher::addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer, const Eigen::Vector3d& p_vecTranslationToG2o )
+{
+    //ds remaining elements
+    std::vector< CLandmark* > vecLandmarksWINDOW;
+
+    //ds for all landmarks in the window
+    for( CLandmark* pLandmark: m_vecLandmarksWINDOW )
+    {
+        //ds if graph ready
+        if( 1 < pLandmark->uNumberOfKeyFramePresences )
+        {
+            //ds add the landmark to the graph (memory locked)
+            p_cGraphOptimizer.addLandmarkToGraph( pLandmark, p_vecTranslationToG2o );
+        }
+        else if( m_uMaximumFailedSubsequentTrackingsPerLandmark > pLandmark->uFailedSubsequentTrackings )
+        {
+            //ds keep it in the window
+            vecLandmarksWINDOW.push_back( pLandmark );
+        }
+        else
+        {
+            //ds info
+            ++m_uNumberOfFreedLandmarksInactive;
+
+            //ds free memory
+            assert( 0 != pLandmark );
+            delete pLandmark;
+            pLandmark = 0;
+        }
+    }
+
+    //ds clear window
+    m_vecLandmarksWINDOW.clear( );
+    m_vecLandmarksWINDOW.swap( vecLandmarksWINDOW );
+
+    std::cout << "freed: " << m_uNumberOfFreedLandmarksInactive << std::endl;
+}
+
 void CFundamentalMatcher::resetVisibilityActiveLandmarks( )
 {
     //ds loop over the currently visible landmarks
@@ -1196,7 +1379,10 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                 ++uNumberOfFailedLandmarkOptimizations;
                 cv::circle( p_matDisplayLEFT, pLandmark->getLastDetectionLEFT( ), 4, CColorCodeBGR( 0, 0, 255 ), -1 );
                 cv::circle( p_matDisplayRIGHT, pLandmark->getLastDetectionRIGHT( ), 4, CColorCodeBGR( 0, 0, 255 ), -1 );
+
+                //ds erase the landmark
                 pLandmark->bIsCurrentlyVisible = false;
+                pLandmark->bIsOptimal          = false;
             }
 
             //ds check if we can skip this landmark due to invalid optimization (at least one time optimized but currently failed)
@@ -1205,6 +1391,8 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                 ++uNumberOfInvalidLandmarks;
                 cv::circle( p_matDisplayLEFT, pLandmark->getLastDetectionLEFT( ), 4, CColorCodeBGR( 0, 255, 255 ), -1 );
                 cv::circle( p_matDisplayRIGHT, pLandmark->getLastDetectionRIGHT( ), 4, CColorCodeBGR( 0, 255, 255 ), -1 );
+
+                //ds erase the landmark
                 pLandmark->bIsCurrentlyVisible = false;
             }
 
@@ -1785,10 +1973,16 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                         }
                     }
                 }
+                else
+                {
+                    ++pLandmark->uFailedSubsequentTrackings;
+                    pLandmark->bIsCurrentlyVisible = false;
+                }
 
                 //ds check activity
                 if( m_uMaximumFailedSubsequentTrackingsPerLandmark > pLandmark->uFailedSubsequentTrackings )
                 {
+                    //ds add the landmark
                     vecActiveLandmarksPerDetectionPoint->push_back( pLandmark );
                 }
             }

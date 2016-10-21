@@ -30,10 +30,10 @@ int32_t main( int32_t argc, char **argv )
     std::string strMode              = "benchmark";
     std::string strInfileMessageDump = "";
     std::string strInfileGroundTruth = "";
-    //std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
-    //std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
-    std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_11_camera_left.txt";
-    std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_11_camera_right.txt";
+    std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_00_camera_left.txt";
+    std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_00_camera_right.txt";
+    //std::string strConfigurationCameraLEFT  = "../hardware_parameters/kitti_11_camera_left.txt";
+    //std::string strConfigurationCameraRIGHT = "../hardware_parameters/kitti_11_camera_right.txt";
     double dMinimumRelativeMatchesLoopClosure = 0.5;
 
     //ds get params
@@ -259,7 +259,7 @@ int32_t main( int32_t argc, char **argv )
 
     //ds get end time
     const double dDurationTotal  = CLogger::getTimeSeconds( )-dTimeStartSeconds;
-    const double dDurationG2o    = cTracker.getTotalDurationOptimizationSeconds( );
+    const double dDurationG2o    = cTracker.getDurationTotalSecondsOptimization( );
     const double dDurationPure   = dDurationTotal-dDurationG2o;
     const UIDFrame uFrameCount   = cTracker.getFrameCount( );
     const double dDurationRealTime = uFrameCount/20.0;

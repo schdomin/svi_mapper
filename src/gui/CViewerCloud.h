@@ -2,6 +2,7 @@
 #define CVIEWERCLOUD_H
 
 #include <QGLViewer/qglviewer.h>
+#include <QKeyEvent>
 
 //ds custom
 #include "types/TypesCloud.h"

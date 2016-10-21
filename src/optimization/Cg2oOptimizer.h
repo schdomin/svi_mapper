@@ -61,18 +61,14 @@ class Cg2oOptimizer
 public:
 
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                    const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
     Cg2oOptimizer( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO,
-                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                    const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames );
     Cg2oOptimizer( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
-                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                    const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames,
                    const Eigen::Isometry3d& p_matTransformationLEFTtoWORLDInitial );
     Cg2oOptimizer( const std::shared_ptr< CStereoCameraIMU > p_pCameraSTEREO,
-                   const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks,
                    const std::shared_ptr< std::vector< CKeyFrame* > > p_vecKeyFrames );
     ~Cg2oOptimizer( );
 
@@ -86,7 +82,8 @@ private:
     g2o::SparseOptimizer m_cOptimizerSparseTrajectoryOnly;
     const int64_t m_uIDShift       = 1000000; //ds required to navigate between landmarks and poses
     //g2o::VertexSE3* m_pVertexPoseLAST  = 0;
-    uint64_t m_uOptimizations          = 0;
+    uint64_t m_uOptimizations        = 0;
+    UIDLandmark m_uIDLandmarkInitial = -1;
     std::vector< CKeyFrame* >::size_type m_uIDKeyFrameFrom = 0;
 
     const double m_dMaximumReliableDepthForPointXYZ    = 2.5;
@@ -199,6 +196,10 @@ public:
         }
     }*/
 
+    void addLandmarkToGraph( CLandmark* p_pLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
+
+    void loadLandmarksToGraph( const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks, const Eigen::Vector3d& p_vecTranslationToG2o );
+
 private:
 
     uint64_t _optimizeUnLimited( g2o::SparseOptimizer& p_cOptimizer );
@@ -222,7 +223,6 @@ private:
                                                             const double& p_dInformationFactor ) const;
     g2o::EdgeSE3* _getEdgeLoopClosure( g2o::VertexSE3* p_pVertexPoseCurrent, const CKeyFrame* pKeyFrameCurrent, const CKeyFrame::CMatchICP* p_pClosure );
 
-    void _loadLandmarksToGraph( const UIDLandmark& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
     g2o::VertexSE3* _setAndgetPose( const UIDKeyFrame& p_uIDKeyFrameFrom, CKeyFrame* pKeyFrameCurrent, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _setLoopClosure( g2o::VertexSE3* p_pVertexPoseCurrent, const CKeyFrame* pKeyFrameCurrent, const CKeyFrame::CMatchICP* p_pClosure, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _setLandmarkMeasurementsWORLD( g2o::VertexSE3* p_pVertexPoseCurrent,
@@ -231,7 +231,7 @@ private:
                            std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredUVDepth,
                            std::vector< const CMeasurementLandmark* >::size_type& p_uMeasurementsStoredUVDisparity );
 
-    void _applyOptimizationToLandmarks( const UIDFrame& p_uFrame, const UIDLandmark& p_uIDLandmark, const Eigen::Vector3d& p_vecTranslationToG2o );
+    void _applyOptimizationToLandmarks( const UIDFrame& p_uFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
     void _applyOptimizationToKeyFrames( const UIDFrame& p_uFrame, const Eigen::Vector3d& p_vecTranslationToG2o );
 
     //ds used for loop closure edges
