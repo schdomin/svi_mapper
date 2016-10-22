@@ -278,11 +278,17 @@ int32_t main( int32_t argc, char **argv )
         std::printf( "\n[0](main) frame rate (avg): %f fps (%4.2fx real time)\n", uFrameCount/dDurationPure, dDurationRealTime/dDurationTotal );
 
         std::printf( "\n[0](main) duration             Total: %7.2fs (1.00) Real: %7.2fs\n", dDurationTotal, dDurationRealTime );
-        std::printf( "[0](main) duration Regional Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTracking( ), cTracker.getDurationTotalSecondsRegionalTracking( )/dDurationTotal );
-        std::printf( "[0](main) duration Epipolar Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsEpipolarTracking( ), cTracker.getDurationTotalSecondsEpipolarTracking( )/dDurationTotal );
-        std::printf( "[0](main) duration       StereoPosit: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsStereoPosit( ), cTracker.getDurationTotalSecondsStereoPosit( )/dDurationTotal );
-        std::printf( "[0](main) duration      Loop closing: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsLoopClosing( ), cTracker.getDurationTotalSecondsLoopClosing( )/dDurationTotal );
-        std::printf( "[0](main) duration      Optimization: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsOptimization( ), cTracker.getDurationTotalSecondsOptimization( )/dDurationTotal );
+        std::printf( "[0](main) duration Regional Tracking     L1: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTrackingL1( ), cTracker.getDurationTotalSecondsRegionalTrackingL1( )/dDurationTotal );
+        std::printf( "[0](main) duration Regional Tracking     R1: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTrackingR1( ), cTracker.getDurationTotalSecondsRegionalTrackingR1( )/dDurationTotal );
+        std::printf( "[0](main) duration Regional Tracking     L2: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTrackingL2( ), cTracker.getDurationTotalSecondsRegionalTrackingL2( )/dDurationTotal );
+        std::printf( "[0](main) duration Regional Tracking     R2: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTrackingR2( ), cTracker.getDurationTotalSecondsRegionalTrackingR2( )/dDurationTotal );
+        std::printf( "[0](main) duration Regional Tracking FAILED: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsRegionalTrackingFailed( ), cTracker.getDurationTotalSecondsRegionalTrackingFailed( )/dDurationTotal );
+        std::printf( "[0](main) duration        Epipolar Tracking: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsEpipolarTracking( ), cTracker.getDurationTotalSecondsEpipolarTracking( )/dDurationTotal );
+        std::printf( "[0](main) duration              StereoPosit: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsStereoPosit( ), cTracker.getDurationTotalSecondsStereoPosit( )/dDurationTotal );
+        std::printf( "[0](main) duration             Loop closing: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsLoopClosing( ), cTracker.getDurationTotalSecondsLoopClosing( )/dDurationTotal );
+        std::printf( "[0](main) duration         Optimization g2o: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsOptimization( ), cTracker.getDurationTotalSecondsOptimization( )/dDurationTotal );
+        std::printf( "[0](main) duration  Optimization Key frames: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsKeyFrameGeneration( ), cTracker.getDurationTotalSecondsKeyFrameGeneration( )/dDurationTotal );
+        std::printf( "[0](main) duration   Optimization Landmarks: %7.2fs (%4.2f)\n", cTracker.getDurationTotalSecondsLandmarksOptimization( ), cTracker.getDurationTotalSecondsLandmarksOptimization( )/dDurationTotal );
 
         std::printf( "\n[0](main) distance traveled: %fm\n", dDistance );
         std::printf( "[0](main) traveling speed (avg): %fm/s\n", dDistance/dDurationRealTime );

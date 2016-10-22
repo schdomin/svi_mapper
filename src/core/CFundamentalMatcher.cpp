@@ -76,7 +76,7 @@ CFundamentalMatcher::~CFundamentalMatcher( )
 
     //CLogger::CLogDetectionEpipolar::close( );
     //CLogger::CLogOptimizationOdometry::close( );
-    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) module time consumption: %fs\n", m_dDurationTotalSecondsEpipolarTracking+m_dDurationTotalSecondsRegionalTracking );
+    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) module time consumption: %fs\n", m_dDurationTotalSecondsEpipolarTracking+m_dDurationTotalSecondsRegionalTrackingFailed );
     std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) instance deallocated\n" );
 }
 
@@ -299,8 +299,8 @@ const std::shared_ptr< const std::vector< CDescriptorVectorPoint3DWORLD* > > CFu
 
     for( CLandmark* pLandmark: m_vecVisibleLandmarks )
     {
-        //ds trigger optimization manually
-        pLandmark->optimize( p_uFrame );
+        //ds trigger optimization manually (optimizeActiveLandmarks called just before)
+        //pLandmark->optimize( p_uFrame );
 
         //ds check if optimal
         if( pLandmark->bIsOptimal )
@@ -733,7 +733,7 @@ const Eigen::Isometry3d CFundamentalMatcher::getPoseStereoPosit( const UIDFrame 
     }
 
     //ds timing
-    m_dDurationTotalSecondsRegionalTracking += CTimer::getTimeSeconds( )-dTimeStartSeconds;
+    m_dDurationTotalSecondsRegionalTrackingFailed += CTimer::getTimeSeconds( )-dTimeStartSeconds;
 
     //ds call optimizer - exception on failure
     const Eigen::Isometry3d matTransformationWORLDtoLEFT = m_cSolverSterePosit.getTransformationWORLDtoLEFT( p_matTransformationWORLDtoLEFTLAST,
@@ -1397,6 +1397,9 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
             //ds process the landmark
             else
             {
+                //ds regional section
+                const double dTimeStartSecondsRegionalTracking = CTimer::getTimeSeconds( );
+
                 //ds compute current reprojection point
                 const CPoint3DCAMERA vecPointXYZLEFT( p_matTransformationWORLDtoLEFT*pLandmark->vecPointXYZOptimized );
                 const cv::Point2f ptUVEstimateLEFT( m_pCameraLEFT->getProjectionRounded( vecPointXYZLEFT ) );
@@ -1467,6 +1470,9 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                         {
                             throw CExceptionNoMatchFound( "insufficient matching distance" );
                         }
+
+                        //ds regional section completed
+                        m_dDurationTotalSecondsRegionalTrackingL1 += CTimer::getTimeSeconds( )-dTimeStartSecondsRegionalTracking;
                     }
                     catch( const CExceptionNoMatchFound& p_cExceptionStage1LEFT )
                     {
@@ -1526,6 +1532,9 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                             {
                                 throw CExceptionNoMatchFound( "insufficient matching distance" );
                             }
+
+                            //ds regional section completed
+                            m_dDurationTotalSecondsRegionalTrackingR1 += CTimer::getTimeSeconds( )-dTimeStartSecondsRegionalTracking;
                         }
                         catch( const CExceptionNoMatchFound& p_cExceptionStage1RIGHT )
                         {
@@ -1650,6 +1659,9 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                                     //ds try the RIGHT frame
                                     throw CExceptionNoMatchFound( "no features detected" );
                                 }
+
+                                //ds regional section completed
+                                m_dDurationTotalSecondsRegionalTrackingL2 += CTimer::getTimeSeconds( )-dTimeStartSecondsRegionalTracking;
                             }
                             catch( const CExceptionNoMatchFound& p_cExceptionStage2LEFT )
                             {
@@ -1767,9 +1779,18 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                                     {
                                         throw CExceptionNoMatchFound( "no features detected" );
                                     }
+
+                                    //ds regional section completed
+                                    m_dDurationTotalSecondsRegionalTrackingR2 += CTimer::getTimeSeconds( )-dTimeStartSecondsRegionalTracking;
                                 }
                                 catch( const CExceptionNoMatchFound& p_cExceptionStage2RIGHT )
                                 {
+                                    //ds regional section completed
+                                    m_dDurationTotalSecondsRegionalTrackingFailed += CTimer::getTimeSeconds( )-dTimeStartSecondsRegionalTracking;
+
+                                    //ds epipolar section
+                                    const double dTimeStartSecondsEpipolarTracking = CTimer::getTimeSeconds( );
+
                                     //ds check relative transform
                                     const Eigen::Isometry3d matTransformationToNow( p_matTransformationWORLDtoLEFT*cDetectionPoint.matTransformationLEFTtoWORLD );
 
@@ -1966,6 +1987,9 @@ void CFundamentalMatcher::trackManual( const UIDFrame p_uFrame,
                                             pLandmark->bIsCurrentlyVisible = false;
                                         }
                                     }
+
+                                    //ds epipolar section
+                                    m_dDurationTotalSecondsEpipolarTracking += CTimer::getTimeSeconds( )-dTimeStartSecondsEpipolarTracking;
                                 }
                             }
                         }

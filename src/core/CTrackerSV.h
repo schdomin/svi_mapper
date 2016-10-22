@@ -125,7 +125,7 @@ public:
     const double getDistanceTraveled( ) const { return m_dDistanceTraveledMeters; }
     const double getTotalDurationOptimizationSeconds( ) const { return 0; /*m_cGraphOptimizer.getTotalOptimizationDurationSeconds( );*/ }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cMatcher.getDurationTotalSecondsStereoPosit( ); }
-    const double getDurationTotalSecondsRegionalTracking( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTracking( ); }
+    const double getDurationTotalSecondsRegionalTracking( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTrackingFailed( ); }
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_cMatcher.getDurationTotalSecondsEpipolarTracking( ); }
     const double getDurationTotalSecondsLoopClosing( ) const { return m_dDurationTotalSecondsLoopClosing; }
     const double getDurationTotalSecondsOptimization( ) const { return m_cOptimizer.getDurationTotalSecondsOptimization( ); }

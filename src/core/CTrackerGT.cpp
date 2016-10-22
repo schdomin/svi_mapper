@@ -192,8 +192,10 @@ void CTrackerGT::_trackLandmarks( const cv::Mat& p_matImageLEFT,
     //ds update reference
     m_uNumberofVisibleLandmarksLAST = uNumberOfVisibleLandmarks;
 
-    //ds optimize landmarks in every frame
+    //ds optimize landmarks in every frame and time
+    const double dTimeStartSecondsLandmarkOptimization = CTimer::getTimeSeconds( );
     m_cMatcher.optimizeActiveLandmarks( m_uFrameCount );
+    m_dDurationTotalSecondsLandmarkOptimization += CTimer::getTimeSeconds( )-dTimeStartSecondsLandmarkOptimization;
 
     //ds display measurements (blocks)
     m_cMatcher.drawVisibleLandmarks( matDisplayLEFT, matDisplayRIGHT, matTransformationWORLDtoLEFT );
@@ -227,6 +229,9 @@ void CTrackerGT::_trackLandmarks( const cv::Mat& p_matImageLEFT,
         //ds if the number of points in the cloud is sufficient
         if( m_uMinimumLandmarksForKeyFrame < vecCloud->size( ) )
         {
+            //ds key frame generation begin
+            const double dSecondsStartKeyFrameGeneration = CTimer::getTimeSeconds( );
+
             //ds register keyframing to matcher
             m_cMatcher.setKeyFrameToVisibleLandmarks( );
 
@@ -244,8 +249,13 @@ void CTrackerGT::_trackLandmarks( const cv::Mat& p_matImageLEFT,
             assert( 0 < pKeyFrameNEW->vecDescriptorPoolBoW.size( ) );
             m_pBoWDatabase->getVocabulary( )->transform( pKeyFrameNEW->vecDescriptorPoolBoW, pKeyFrameNEW->vecDescriptorPoolB, pKeyFrameNEW->vecDescriptorPoolF, DBOW2_ID_LEVELS  );
 
+            //ds timing
+            m_dDurationTotalSecondsKeyFrameGeneration += CTimer::getTimeSeconds( )-dSecondsStartKeyFrameGeneration;
+
             //ds set loop closures
+            const double dTimeStartSecondsLoopClosing = CTimer::getTimeSeconds( );
             pKeyFrameNEW->vecLoopClosures = _getLoopClosuresForKeyFrame( pKeyFrameNEW, matTransformationLEFTtoWORLD, m_dLoopClosingRadiusSquaredMetersL2, m_dMinimumRelativeMatchesLoopClosure );
+            m_dDurationTotalSecondsLoopClosing += CTimer::getTimeSeconds( )-dTimeStartSecondsLoopClosing;
 
             //ds if we found closures
             if( 0 < pKeyFrameNEW->vecLoopClosures.size( ) )
@@ -375,9 +385,6 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerGT::_getLoopClosuresFor
                                                                                            const double& p_dSearchRadiusMetersL2,
                                                                                            const double& p_dMinimumRelativeMatchesLoopClosure )
 {
-    //ds overall timing
-    const double dTimeStartSeconds = CTimer::getTimeSeconds( );
-
     //ds potential closures list
     std::vector< std::map< UIDLandmark, std::vector< CMatchCloud > > > vecPotentialClosures( m_vecKeyFrames->size( ) );
 
@@ -632,9 +639,6 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerGT::_getLoopClosuresFor
     m_uTotalNumberOfVerifiedClosures += uNumberOfClosedKeyFrames;
 
     m_pBoWDatabase->add( p_pKeyFrameQUERY->vecDescriptorPoolB, vecDescriptorPoolFQUERY );
-
-    //ds info
-    m_dDurationTotalSecondsLoopClosing += CTimer::getTimeSeconds( )-dTimeStartSeconds;
 
     //ds return found closures
     return vecLoopClosures;

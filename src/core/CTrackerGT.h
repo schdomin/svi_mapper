@@ -94,7 +94,9 @@ private:
     double m_dPreviousFrameTime    = 0.0;
     double m_dDistanceTraveledMeters = 0.0;
     const std::string m_strVersionInfo;
-    double m_dDurationTotalSecondsLoopClosing = 0.0;
+    double m_dDurationTotalSecondsLoopClosing          = 0.0;
+    double m_dDurationTotalSecondsKeyFrameGeneration   = 0.0;
+    double m_dDurationTotalSecondsLandmarkOptimization = 0.0;
 
     uint64_t m_uTotalNumberOfVerifiedClosures = 0;
 
@@ -113,10 +115,16 @@ public:
     void sanitizeFiletree( ){ m_cOptimizer.clearFilesUNIX( ); }
     const double getDistanceTraveled( ) const { return m_dDistanceTraveledMeters; }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cMatcher.getDurationTotalSecondsStereoPosit( ); }
-    const double getDurationTotalSecondsRegionalTracking( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTracking( ); }
+    const double getDurationTotalSecondsRegionalTrackingL1( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTrackingL1( ); }
+    const double getDurationTotalSecondsRegionalTrackingR1( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTrackingR1( ); }
+    const double getDurationTotalSecondsRegionalTrackingL2( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTrackingL2( ); }
+    const double getDurationTotalSecondsRegionalTrackingR2( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTrackingR2( ); }
+    const double getDurationTotalSecondsRegionalTrackingFailed( ) const { return m_cMatcher.getDurationTotalSecondsRegionalTrackingFailed( ); }
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_cMatcher.getDurationTotalSecondsEpipolarTracking( ); }
     const double getDurationTotalSecondsLoopClosing( ) const { return m_dDurationTotalSecondsLoopClosing; }
     const double getDurationTotalSecondsOptimization( ) const { return m_cOptimizer.getDurationTotalSecondsOptimization( ); }
+    const double getDurationTotalSecondsKeyFrameGeneration( ) const { return m_dDurationTotalSecondsKeyFrameGeneration; }
+    const double getDurationTotalSecondsLandmarksOptimization( ) const { return m_dDurationTotalSecondsLandmarkOptimization; }
 
 //ds helpers
 private:

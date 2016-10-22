@@ -98,7 +98,11 @@ private:
     CSolverStereoPosit m_cSolverSterePosit;
 
     //ds timing
-    double m_dDurationTotalSecondsRegionalTracking = 0.0;
+    double m_dDurationTotalSecondsRegionalTrackingL1 = 0.0;
+    double m_dDurationTotalSecondsRegionalTrackingR1 = 0.0;
+    double m_dDurationTotalSecondsRegionalTrackingL2 = 0.0;
+    double m_dDurationTotalSecondsRegionalTrackingR2 = 0.0;
+    double m_dDurationTotalSecondsRegionalTrackingFailed = 0.0;
     double m_dDurationTotalSecondsEpipolarTracking = 0.0;
 
 //ds api
@@ -197,7 +201,11 @@ public:
     const UIDLandmark getNumberOfLandmarksInWINDOW( ) const { return m_vecLandmarksWINDOW.size( ); }
     const UIDLandmark getNumberOfLandmarksTotal( ) const { return m_uAvailableLandmarkID; }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cSolverSterePosit.getDurationTotalSeconds( ); }
-    const double getDurationTotalSecondsRegionalTracking( ) const { return m_dDurationTotalSecondsRegionalTracking; }
+    const double getDurationTotalSecondsRegionalTrackingL1( ) const { return m_dDurationTotalSecondsRegionalTrackingL1; }
+    const double getDurationTotalSecondsRegionalTrackingR1( ) const { return m_dDurationTotalSecondsRegionalTrackingR1; }
+    const double getDurationTotalSecondsRegionalTrackingL2( ) const { return m_dDurationTotalSecondsRegionalTrackingL2; }
+    const double getDurationTotalSecondsRegionalTrackingR2( ) const { return m_dDurationTotalSecondsRegionalTrackingR2; }
+    const double getDurationTotalSecondsRegionalTrackingFailed( ) const { return m_dDurationTotalSecondsRegionalTrackingFailed; }
     const double getDurationTotalSecondsEpipolarTracking( ) const { return m_dDurationTotalSecondsEpipolarTracking; }
 
 private:
