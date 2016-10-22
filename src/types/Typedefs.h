@@ -1,12 +1,19 @@
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
+#include <opencv2/calib3d.hpp>
 #include <opencv/cv.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <memory>
 #include <cassert>
 #include <vector>
+#include <map>
 
 
 

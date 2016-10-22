@@ -794,12 +794,12 @@ void Cg2oOptimizer::saveGraph( const UIDFrame& p_uFrameCount,
     _backPropagateTrajectoryToPure( );
     assert( m_vecKeyFramesInGraph.back( )->bIsOptimized );
 
-    //ds timing
-    m_dDurationTotalSecondsOptimization += ( CLogger::getTimeSeconds( )-dTimeStartSeconds );
-
     //ds save optimized situation
     m_cOptimizerSparse.save( ( strSaveFilePrefix + "_optimized.g2o" ).c_str( ) );
-    std::printf( "[0][%06lu]<Cg2oOptimizer>(saveGraph) optimization complete (total duration: %.2fs | iterations: %lu)\n", p_uFrameCount, m_dDurationTotalSecondsOptimization, uIterations );
+    std::printf( "[0][%06lu]<Cg2oOptimizer>(saveGraph) optimization complete (total duration: %.2fs | iterations: %lu)\n", p_uFrameCount, ( CLogger::getTimeSeconds( )-dTimeStartSeconds ), uIterations );
+
+    //ds timing
+    m_dDurationTotalSecondsOptimization += ( CLogger::getTimeSeconds( )-dTimeStartSeconds );
 
     //ds info
     ++m_uOptimizations;

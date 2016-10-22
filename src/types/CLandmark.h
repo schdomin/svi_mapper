@@ -36,6 +36,7 @@ public:
     const CDescriptor matDescriptorReferenceLEFT;
     const CDescriptor matDescriptorReferenceRIGHT;
     const double dKeyPointSize;
+    const UIDFrame uIDFrameAtCreation;
 
     const CPoint3DWORLD vecPointXYZInitial;
     CPoint3DWORLD vecPointXYZOptimized;

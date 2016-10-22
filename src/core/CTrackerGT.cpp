@@ -265,7 +265,7 @@ void CTrackerGT::_trackLandmarks( const cv::Mat& p_matImageLEFT,
                ( m_uLoopClosingKeyFrameWaitingQueue < m_uLoopClosingKeyFramesInQueue && m_uIDDeltaKeyFrameForOptimization < uIDKeyFrameCurrent-m_uIDLoopClosureOptimizedLAST ) )
             {
                 //ds load new landmarks to graph
-                m_cMatcher.addLandmarksToGraph( m_cOptimizer, m_vecTranslationToG2o );
+                m_cMatcher.addLandmarksToGraph( m_cOptimizer, m_vecTranslationToG2o, m_uFrameCount );
 
                 //ds shallow optimization
                 m_cOptimizer.saveGraph( m_uFrameCount, m_uIDOptimizedKeyFrameLAST, m_uLoopClosingKeyFramesInQueue, m_vecTranslationToG2o );
@@ -623,11 +623,11 @@ const std::vector< const CKeyFrame::CMatchICP* > CTrackerGT::_getLoopClosuresFor
         }
     }
 
-    if( 0 < vecClosuresToCompute.size( ) )
+    /*if( 0 < vecClosuresToCompute.size( ) )
     {
         const double dSuccessRateICP = static_cast< double >( uNumberOfClosedKeyFrames )/vecClosuresToCompute.size( );
         std::printf( "[0][%06lu]<CTrackerSVI>(_getLoopClosuresForKeyFrame) [%06lu] ICP success rate: %f\n", m_uFrameCount, p_pKeyFrameQUERY->uID, dSuccessRateICP );
-    }
+    }*/
 
     m_uTotalNumberOfVerifiedClosures += uNumberOfClosedKeyFrames;
 
@@ -722,26 +722,23 @@ void CTrackerGT::_drawInfoBox( cv::Mat& p_matDisplay, const double& p_dMotionSca
 
     switch( m_eMode )
     {
+        //ds fall-through intended
         case ePlaybackStepwise:
-        {
-            std::snprintf( chBuffer, 1024, "[%13.2f|%05lu] STEPWISE | X: %5.1f Y: %5.1f Z: %5.1f DELTA L2: %4.2f MOTION: %4.2f | LANDMARKS V: %3i (%3lu,%3lu,%3lu,%3lu) F: %4lu I: %4lu T: %4lu | DETECTIONS: %2lu(%3lu) | KFs: %lu | g2o: %lu",
-                           m_dTimestampLASTSeconds, m_uFrameCount,
-                           m_vecPositionCurrent.x( ), m_vecPositionCurrent.y( ), m_vecPositionCurrent.z( ), m_dTranslationDeltaSquaredNormCurrent, p_dMotionScaling,
-                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_cMatcher.getNumberOfLandmarksTotal( ),
-                           m_cMatcher.getNumberOfDetectionPointsActive( ), m_cMatcher.getNumberOfDetectionPointsTotal( ),
-                           m_vecKeyFrames->size( ),
-                           m_cOptimizer.getNumberOfOptimizations( ) );
-            break;
-        }
         case ePlaybackBenchmark:
         {
-            std::snprintf( chBuffer, 1024, "[%13.2f|%05lu] BENCHMARK FPS: %4.1f | X: %5.1f Y: %5.1f Z: %5.1f DELTA L2: %4.2f SCALING: %4.2f | LANDMARKS V: %3i (%3lu,%3lu,%3lu,%3lu) F: %4lu I: %4lu T: %4lu | DETECTIONS: %2lu(%3lu) | KFs: %lu | g2o: %lu",
+            std::snprintf( chBuffer, 1024, "[%13.2f"
+                                           "|%06lu] FPS: %4.1f "
+                                           "| X: %5.1f Y: %5.1f Z: %5.1f DELTA L2: %5.2f SCALING: %4.2f "
+                                           "| LANDMARKs V: %3i (%3lu,%3lu,%3lu,%3lu) F: %5lu I: %5lu T: %5lu(%5lu) "
+                                           "| DETECTIONs: %2lu(%3lu) "
+                                           "| KFs: %3lu "
+                                           "| OPTIMIZATIONs: %3lu PXYZ: %5lu",
                            m_dTimestampLASTSeconds, m_uFrameCount, m_dPreviousFrameRate,
                            m_vecPositionCurrent.x( ), m_vecPositionCurrent.y( ), m_vecPositionCurrent.z( ), m_dTranslationDeltaSquaredNormCurrent, p_dMotionScaling,
-                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_cMatcher.getNumberOfLandmarksTotal( ),
+                           m_uNumberofVisibleLandmarksLAST, m_cMatcher.getNumberOfTracksStage1( ), m_cMatcher.getNumberOfTracksStage2_1( ), m_cMatcher.getNumberOfTracksStage3( ), m_cMatcher.getNumberOfTracksStage2_2( ), m_cMatcher.getNumberOfFailedLandmarkOptimizations( ), m_cMatcher.getNumberOfInvalidLandmarksTotal( ), m_cMatcher.getNumberOfLandmarksInWINDOW( ), m_cMatcher.getNumberOfLandmarksTotal( ),
                            m_cMatcher.getNumberOfDetectionPointsActive( ), m_cMatcher.getNumberOfDetectionPointsTotal( ),
                            m_vecKeyFrames->size( ),
-                           m_cOptimizer.getNumberOfOptimizations( ) );
+                           m_cOptimizer.getNumberOfOptimizations( ), m_cMatcher.getNumberOfLandmarksInGRAPH( ) );
             break;
         }
         default:

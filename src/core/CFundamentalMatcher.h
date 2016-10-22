@@ -58,8 +58,8 @@ private:
     const std::shared_ptr< CStereoCamera > m_pCameraSTEREO;
 
     //ds matching
-    const std::shared_ptr< cv::FeatureDetector > m_pDetector;
-    const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
+    const cv::Ptr< cv::Feature2D > m_pDetector;
+    const cv::Ptr< cv::Feature2D > m_pExtractor;
     const std::shared_ptr< cv::DescriptorMatcher > m_pMatcher;
     const double m_dMinimumDepthMeters;
     const double m_dMaximumDepthMeters;
@@ -73,10 +73,11 @@ private:
     UIDDetectionPoint m_uAvailableDetectionPointID;
     std::vector< CDetectionPoint > m_vecDetectionPointsActive;
     std::vector< CLandmark* > m_vecVisibleLandmarks;
+    std::vector< CLandmark* > m_vecLandmarksGRAPH;
     std::vector< CLandmark* > m_vecLandmarksWINDOW;
     std::vector< const CMeasurementLandmark* > m_vecMeasurementsVisible;
     UIDLandmark m_uAvailableLandmarkID = 0;
-    UIDLandmark m_uNumberOfFreedLandmarksInactive = 0;
+    const UIDFrame m_uMaximumAgeWithoutKeyFraming = 100;
 
     //ds internal
     const uint8_t m_uMaximumFailedSubsequentTrackingsPerLandmark = 5;
@@ -115,7 +116,7 @@ public:
     void addDetectionPoint( const Eigen::Isometry3d& p_matTransformationLEFTtoWORLD, const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks );
 
     //ds adds landmarks in the current WINDOW to the passed graph optimizer
-    void addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer, const Eigen::Vector3d& p_vecTranslationToG2o );
+    void addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer, const Eigen::Vector3d& p_vecTranslationToG2o, const UIDFrame& p_uIDFrame );
 
     //ds routine that resets the visibility of all active landmarks
     void resetVisibilityActiveLandmarks( );
@@ -192,6 +193,8 @@ public:
     const UIDLandmark getNumberOfTracksStage3( ) const { return m_uNumberOfTracksStage3; }
     const UIDLandmark getNumberOfTracksStage2_2( ) const { return m_uNumberOfTracksStage2_2; }
     const std::vector< CLandmark* >::size_type getNumberOfVisibleLandmarks( ) const { return m_vecVisibleLandmarks.size( ); }
+    const UIDLandmark getNumberOfLandmarksInGRAPH( ) const { return m_vecLandmarksGRAPH.size( ); }
+    const UIDLandmark getNumberOfLandmarksInWINDOW( ) const { return m_vecLandmarksWINDOW.size( ); }
     const UIDLandmark getNumberOfLandmarksTotal( ) const { return m_uAvailableLandmarkID; }
     const double getDurationTotalSecondsStereoPosit( ) const { return m_cSolverSterePosit.getDurationTotalSeconds( ); }
     const double getDurationTotalSecondsRegionalTracking( ) const { return m_dDurationTotalSecondsRegionalTracking; }

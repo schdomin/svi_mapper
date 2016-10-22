@@ -19,7 +19,7 @@ MMMMMMMMMMMMMMMMMMMMM.           .    .           .MMMMMMMMMMMMMMMMMMMMM
 
 ------------------------------------------------------------------------
 project: svi_mapper
-version: 1.0
+version: 0.72
 contact: https://github.com/schdomin
 
 
@@ -27,8 +27,8 @@ contact: https://github.com/schdomin
 ------------------------------------------------------------------------
 dependencies:
 
-      OpenCV: https://github.com/Itseez/opencv/archive/2.4.11.zip (2.4.8-11)
-         g2o: https://github.com/RainerKuemmerle/g2o
+      OpenCV: https://github.com/opencv/opencv (trunk)
+         g2o: https://github.com/RainerKuemmerle/g2o (trunk)
 thin_drivers: https://github.com/grisetti/thin_drivers (visensor/txt_io library)
          ROS: http://www.ros.org (dataset acquisition)
 
@@ -39,7 +39,7 @@ build sequence EXAMPLE (shell in project root):
 
 mkdir build
 cd build
-cmake -D OpenCV_DIR='/home/dom/libraries/cpp/opencv-2.4.11/release' \
+cmake -D OpenCV_DIR='/home/dom/libraries/cpp/opencv/release' \
 -D G2O_ROOT='/home/dom/libraries/cpp/g2o' \
 -D TXT_IO_INCLUDE_DIR='/home/dom/workspace_catkin/src/thin_drivers/thin_state_publisher/src' \
 -D TXT_IO_LIBRARY='/home/dom/workspace_catkin/devel/lib/libthin_txt_io_library.so' \

@@ -52,11 +52,6 @@ private:
     CPoint3DWORLD m_vecPositionLAST;
     double m_dTranslationDeltaSquaredNormCurrent = 0.0;
 
-    //ds feature related
-    //const uint32_t m_uKeyPointSize;
-    const std::shared_ptr< cv::FeatureDetector > m_pDetector;
-    const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
-
     const uint8_t m_uVisibleLandmarksMinimum;
     const UIDFrame m_uMaximumNumberOfFramesWithoutDetection = 2; //1e6; //20;
     UIDFrame m_uNumberOfFramesWithoutDetection              = 0;

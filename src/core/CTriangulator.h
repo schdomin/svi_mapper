@@ -11,8 +11,7 @@ class CTriangulator
 //ds ctor/dtor
 public:
 
-    CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCamera,
-                   const std::shared_ptr< cv::DescriptorExtractor > p_pExtractor );
+    CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCamera );
     ~CTriangulator( );
 
 //ds defines
@@ -30,7 +29,7 @@ private:
     const std::shared_ptr< CPinholeCamera > m_pCameraRIGHT;
 
     //ds matching
-    const std::shared_ptr< cv::DescriptorExtractor > m_pExtractor;
+    const cv::Ptr< cv::Feature2D > m_pExtractor;
     const std::shared_ptr< cv::DescriptorMatcher > m_pMatcher;
     const float m_fMatchingDistanceCutoff;
 

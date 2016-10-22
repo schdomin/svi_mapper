@@ -11,11 +11,11 @@
 
 
 //ds BRIEF (calibrated 2015-05-31)
-CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO ): m_pTriangulator( std::make_shared< CTriangulator >( p_pCameraSTEREO, std::make_shared< cv::BriefDescriptorExtractor >( DESCRIPTOR_SIZE_BYTES ) ) ),
+CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CStereoCamera > p_pCameraSTEREO ): m_pTriangulator( std::make_shared< CTriangulator >( p_pCameraSTEREO ) ),
                                                                                                     m_pCameraLEFT( m_pTriangulator->m_pCameraSTEREO->m_pCameraLEFT ),
                                                                                                     m_pCameraRIGHT( m_pTriangulator->m_pCameraSTEREO->m_pCameraRIGHT ),
                                                                                                     m_pCameraSTEREO( m_pTriangulator->m_pCameraSTEREO ),
-                                                                                                    m_pDetector( std::make_shared< cv::GoodFeaturesToTrackDetector >( 1000, 0.01, 7.0, 7, true ) ),
+                                                                                                    m_pDetector( cv::GFTTDetector::create( 1000, 0.01, 7.0, 7, true ) ),
                                                                                                     m_pExtractor( m_pTriangulator->m_pExtractor ),
                                                                                                     m_pMatcher( m_pTriangulator->m_pMatcher ),
                                                                                                     m_dMinimumDepthMeters( m_pTriangulator->dDepthMinimumMeters ),
@@ -29,10 +29,11 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CStereoCamera >
 {
     m_vecDetectionPointsActive.clear( );
     m_vecVisibleLandmarks.clear( );
+    m_vecLandmarksGRAPH.clear( );
+    m_vecLandmarksWINDOW.clear( );
 
     CLogger::openBox( );
-    std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
-    std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
+    std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) descriptor detector type: %i\n", m_pDetector->descriptorType( ) );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) minimum depth cutoff: %f\n", m_dMinimumDepthMeters );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) maximum depth cutoff: %f\n", m_dMaximumDepthMeters );
     std::printf( "[0]<CFundamentalMatcher>(CFundamentalMatcher) matching distance cutoff stage 1: %f\n", m_dMatchingDistanceCutoffTrackingStage1 );
@@ -45,39 +46,33 @@ CFundamentalMatcher::CFundamentalMatcher( const std::shared_ptr< CStereoCamera >
 
 CFundamentalMatcher::~CFundamentalMatcher( )
 {
-    //ds total data structure size
-    uint64_t uSizeBytesLandmarks    = 0;
-    uint64_t uNumberOfFreedLandmarks = 0;
+    //ds stats
+    const UIDLandmark uNumberOfFreedLandmarksInWINDOW = m_vecLandmarksWINDOW.size( );
+    const UIDLandmark uNumberOfFreedLandmarksInGRAPH  = m_vecLandmarksGRAPH.size( );
 
     //ds clear inactive landmarks rest
     for( CLandmark* pLandmark: m_vecLandmarksWINDOW )
     {
         //ds free memory
-        ++m_uNumberOfFreedLandmarksInactive;
         assert( 0 != pLandmark );
         delete pLandmark;
         pLandmark = 0;
     }
+    m_vecLandmarksWINDOW.clear( );
 
-    /*ds free all remaining active landmarks
-    for( const CDetectionPoint& cDetectionPoint: m_vecDetectionPointsActive )
+    //ds free all remaining permanent landmarks
+    for( CLandmark* pLandmark: m_vecLandmarksGRAPH )
     {
-        //ds loop over the points for the current scan
-        for( CLandmark* pLandmark: *cDetectionPoint.vecLandmarks )
-        {
-            //ds accumulate size information
-            uSizeBytesLandmarks += pLandmark->getSizeBytes( );
-            ++uNumberOfFreedLandmarks;
-
-            //ds free memory
-            assert( 0 != pLandmark );
-            delete pLandmark;
-        }
-    }*/
+        //ds free memory
+        assert( 0 != pLandmark );
+        delete pLandmark;
+        pLandmark = 0;
+    }
+    m_vecLandmarksGRAPH.clear( );
 
     //ds info
-    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) deallocated landmarks (at runtime): %lu/%lu\n", m_uNumberOfFreedLandmarksInactive, getNumberOfLandmarksTotal( ) );
-    //std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) deallocated landmarks (termination): %lu (%.0fMB)\n", uNumberOfFreedLandmarks, uSizeBytesLandmarks/1e6 );
+    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) deallocated landmarks WINDOW: %lu/%lu\n", uNumberOfFreedLandmarksInWINDOW, getNumberOfLandmarksTotal( ) );
+    std::printf( "[0]<CFundamentalMatcher>(~CFundamentalMatcher) deallocated landmarks GRAPH: %lu/%lu (%4.2f)\n", uNumberOfFreedLandmarksInGRAPH, getNumberOfLandmarksTotal( ), static_cast< double >( uNumberOfFreedLandmarksInGRAPH )/getNumberOfLandmarksTotal( ) );
 
     //CLogger::CLogDetectionEpipolar::close( );
     //CLogger::CLogOptimizationOdometry::close( );
@@ -205,7 +200,7 @@ void CFundamentalMatcher::addDetectionPoint( const Eigen::Isometry3d& p_matTrans
     ++m_uAvailableDetectionPointID;
 }
 
-void CFundamentalMatcher::addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer, const Eigen::Vector3d& p_vecTranslationToG2o )
+void CFundamentalMatcher::addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer, const Eigen::Vector3d& p_vecTranslationToG2o, const UIDFrame& p_uIDFrame )
 {
     //ds remaining elements
     std::vector< CLandmark* > vecLandmarksWINDOW;
@@ -213,22 +208,27 @@ void CFundamentalMatcher::addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer,
     //ds for all landmarks in the window
     for( CLandmark* pLandmark: m_vecLandmarksWINDOW )
     {
+        assert( 0 != pLandmark );
+        assert( p_uIDFrame >= pLandmark->uIDFrameAtCreation );
+
         //ds if graph ready
         if( 1 < pLandmark->uNumberOfKeyFramePresences )
         {
             //ds add the landmark to the graph (memory locked)
             p_cGraphOptimizer.addLandmarkToGraph( pLandmark, p_vecTranslationToG2o );
+            m_vecLandmarksGRAPH.push_back( pLandmark );
         }
-        else if( m_uMaximumFailedSubsequentTrackingsPerLandmark > pLandmark->uFailedSubsequentTrackings )
+
+        //ds check age - young landmarks which are not present in key frames yet must be kept in the window
+        else if( ( p_uIDFrame-pLandmark->uIDFrameAtCreation ) < m_uMaximumAgeWithoutKeyFraming )
         {
             //ds keep it in the window
             vecLandmarksWINDOW.push_back( pLandmark );
         }
+
+        //ds landmark can be released
         else
         {
-            //ds info
-            ++m_uNumberOfFreedLandmarksInactive;
-
             //ds free memory
             assert( 0 != pLandmark );
             delete pLandmark;
@@ -239,8 +239,6 @@ void CFundamentalMatcher::addLandmarksToGraph( Cg2oOptimizer& p_cGraphOptimizer,
     //ds clear window
     m_vecLandmarksWINDOW.clear( );
     m_vecLandmarksWINDOW.swap( vecLandmarksWINDOW );
-
-    std::cout << "freed: " << m_uNumberOfFreedLandmarksInactive << std::endl;
 }
 
 void CFundamentalMatcher::resetVisibilityActiveLandmarks( )

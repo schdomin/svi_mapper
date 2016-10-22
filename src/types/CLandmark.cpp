@@ -22,16 +22,17 @@ CLandmark::CLandmark( const UIDLandmark& p_uID,
            const MatrixProjection& p_matProjectionRIGHT,
            const MatrixProjection& p_matProjectionWORLDtoLEFT,
            const MatrixProjection& p_matProjectionWORLDtoRIGHT,
-           const UIDFrame& p_uFrame ): uID( p_uID ),
-                                       matDescriptorReferenceLEFT( p_matDescriptorLEFT ),
-                                       matDescriptorReferenceRIGHT( p_matDescriptorRIGHT ),
-                                       dKeyPointSize( p_dKeyPointSize ),
-                                       vecPointXYZInitial( p_matTransformationLEFTtoWORLD*p_vecPointXYZLEFT ),
-                                       vecPointXYZOptimized( vecPointXYZInitial ),
-                                       vecUVReferenceLEFT( p_ptUVLEFT.x, p_ptUVLEFT.y, 1.0 ),
-                                       vecPointXYZMean( vecPointXYZInitial ),
-                                       m_matProjectionLEFT( p_matProjectionLEFT ),
-                                       m_matProjectionRIGHT( p_matProjectionRIGHT )
+           const UIDFrame& p_uIDFrame ): uID( p_uID ),
+                                         matDescriptorReferenceLEFT( p_matDescriptorLEFT ),
+                                         matDescriptorReferenceRIGHT( p_matDescriptorRIGHT ),
+                                         dKeyPointSize( p_dKeyPointSize ),
+                                         uIDFrameAtCreation( p_uIDFrame ),
+                                         vecPointXYZInitial( p_matTransformationLEFTtoWORLD*p_vecPointXYZLEFT ),
+                                         vecPointXYZOptimized( vecPointXYZInitial ),
+                                         vecUVReferenceLEFT( p_ptUVLEFT.x, p_ptUVLEFT.y, 1.0 ),
+                                         vecPointXYZMean( vecPointXYZInitial ),
+                                         m_matProjectionLEFT( p_matProjectionLEFT ),
+                                         m_matProjectionRIGHT( p_matProjectionRIGHT )
 {
     vecDescriptorsLEFT.clear( );
     vecDescriptorsRIGHT.clear( );
@@ -49,7 +50,7 @@ CLandmark::CLandmark( const UIDLandmark& p_uID,
     //std::fprintf( m_pFilePositionOptimization, "ID_FRAME | ID_LANDMARK | ITERATION MEASUREMENTS INLIERS | ERROR_ARSS | DELTA_XYZ |      X      Y      Z\n" );
 
     //ds add this position
-    addMeasurement( p_uFrame,
+    addMeasurement( p_uIDFrame,
                     p_ptUVLEFT,
                     p_ptUVRIGHT,
                     p_matDescriptorLEFT,

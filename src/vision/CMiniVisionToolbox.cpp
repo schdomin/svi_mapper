@@ -141,8 +141,6 @@ const Eigen::Vector2d CMiniVisionToolbox::getPointUndistorted( const Eigen::Vect
 
 const Eigen::Vector2d CMiniVisionToolbox::getPointUndistortedPlumbBob( const Eigen::Vector2i& p_vecPointDistorted, const Eigen::Matrix< double, 3, 4 >& p_matProjection, const Eigen::Vector4d& p_vecDistortionCoefficients )
 {
-    std::cout << p_matProjection << std::endl;
-
     //ds compute radius (normalized)
     const double dDistortedX( p_vecPointDistorted(0)/752.0 );
     const double dDistortedY( p_vecPointDistorted(1)/480.0 );

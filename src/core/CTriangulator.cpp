@@ -5,11 +5,10 @@
 
 
 
-CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCamera,
-                              const std::shared_ptr< cv::DescriptorExtractor > p_pExtractor ): m_pCameraSTEREO( p_pStereoCamera ),
-                                                                          m_pCameraLEFT( p_pStereoCamera->m_pCameraLEFT ),
-                                                                          m_pCameraRIGHT( p_pStereoCamera->m_pCameraRIGHT ),
-                                                                                            m_pExtractor( p_pExtractor ),
+CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCamera ): m_pCameraSTEREO( p_pStereoCamera ),
+                                                                                            m_pCameraLEFT( p_pStereoCamera->m_pCameraLEFT ),
+                                                                                            m_pCameraRIGHT( p_pStereoCamera->m_pCameraRIGHT ),
+                                                                                            m_pExtractor( cv::xfeatures2d::BriefDescriptorExtractor::create( DESCRIPTOR_SIZE_BYTES ) ),
                                                                                             m_pMatcher( std::make_shared< cv::BFMatcher >( cv::NORM_HAMMING ) ),
                                                                                             m_fMatchingDistanceCutoff( 100.0 ),
                                                                                             m_dF( m_pCameraLEFT->m_matProjection(0,0) ),
@@ -32,8 +31,7 @@ CTriangulator::CTriangulator( const std::shared_ptr< CStereoCamera > p_pStereoCa
     assert( m_pCameraRIGHT->m_matProjection(1,3) == 0.0 );
 
     CLogger::openBox( );
-    std::printf( "[0]<CTriangulator>(CTriangulator) descriptor extractor: %s\n", m_pExtractor->name( ).c_str( ) );
-    std::printf( "[0]<CTriangulator>(CTriangulator) descriptor matcher: %s\n", m_pMatcher->name( ).c_str( ) );
+    std::printf( "[0]<CTriangulator>(CTriangulator) descriptor extractor type: %i\n", m_pExtractor->descriptorType( ) );
     std::printf( "[0]<CTriangulator>(CTriangulator) matching distance cutoff: %f\n", m_fMatchingDistanceCutoff );
     std::printf( "[0]<CTriangulator>(CTriangulator) dF: %fp\n", m_dF );
     std::printf( "[0]<CTriangulator>(CTriangulator) dPu: %fp\n", m_dPu );
