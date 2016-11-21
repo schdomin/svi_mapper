@@ -3,12 +3,14 @@
 #include <thread>
 
 //ds custom
+#include "qapplication.h"
 #include "txt_io/message_reader.h"
 #include "../core/CTrackerGT.h"
 #include "exceptions/CExceptionLogfileTree.h"
 #include "utility/CParameterBase.h"
 #include "optimization/Cg2oOptimizer.h"
 #include "../utility/CIMUInterpolator.h"
+#include "../gui/gt_tracking_context_viewer.h"
 
 
 
@@ -171,6 +173,11 @@ int32_t main( int32_t argc, char **argv )
     //ds relative input
     Eigen::Isometry3d matTransformationLEFTLASTtoWORLD( Eigen::Matrix4d::Identity( ) );
 
+    //ds allocate viewer
+    QApplication* app = new QApplication(argc, argv);
+    gtracker::TrackingContextViewer* viewer = new gtracker::TrackingContextViewer(cTracker.getKeyframePtrVector());
+    viewer->show();
+
     //ds playback the dump
     while( cMessageReader.good( ) && !cTracker.isShutdownRequested( ) )
     {
@@ -226,6 +233,9 @@ int32_t main( int32_t argc, char **argv )
             {
                 //ds evaluate images and IMU (inner landmark locking)
                 cTracker.process( pMessageCameraLEFT, pMessageCameraRIGHT, matTransformationLEFTtoWORLD.inverse( )*matTransformationLEFTLASTtoWORLD );
+                viewer->add(cTracker.getPositionCurrent());
+                viewer->updateLandmarks(cTracker.getLandmarksInGraph());
+                viewer->updateGL();
 
                 //ds reset holders
                 pMessageCameraLEFT.reset( );

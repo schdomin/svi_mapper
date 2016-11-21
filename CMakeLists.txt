@@ -12,7 +12,7 @@ message("CMake module path: ${CMAKE_MODULE_PATH}")
 #  set(CMAKE_BUILD_TYPE RELEASE)
 #endif(NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 message("build type: ${CMAKE_BUILD_TYPE}")
 
 message("--------------------------------------------------------------------- modules")
@@ -47,8 +47,8 @@ message("directory output libraries: ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
 
 #ds add c++11 support, no optimization, all warnings
-add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
-#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
+#add_definitions(-O3 -march=native -Wall -pedantic -std=c++11)
+add_definitions(-O3 -march=native -Wall -pedantic -std=c++11 -pthread -DNDEBUG)
 
 
 
@@ -82,7 +82,10 @@ src/optimization/edge_se3_linear_acceleration.cpp
 src/optimization/closure_buffer.cpp
 src/optimization/closure_checker.cpp
 #src/gui/CViewerScene.cpp
-src/gui/CViewerBTree.cpp
+#src/gui/CViewerBTree.cpp
+src/gui/opengl_primitives.cpp
+src/gui/simple_viewer.cpp
+src/gui/gt_tracking_context_viewer.cpp
 src/optimization/CSolverStereoPosit.cpp)
 
 

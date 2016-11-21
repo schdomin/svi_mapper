@@ -126,6 +126,10 @@ public:
     const double getDurationTotalSecondsKeyFrameGeneration( ) const { return m_dDurationTotalSecondsKeyFrameGeneration; }
     const double getDurationTotalSecondsLandmarksOptimization( ) const { return m_dDurationTotalSecondsLandmarkOptimization; }
 
+    const std::shared_ptr< std::vector< CKeyFrame* > > getKeyframePtrVector() const {return m_vecKeyFrames;}
+    const CPoint3DWORLD getPositionCurrent() const {return m_vecPositionCurrent;}
+    const std::vector<CLandmark*>& getLandmarksInGraph() const {return m_cOptimizer.getLandmarksInGraph();}
+
 //ds helpers
 private:
 

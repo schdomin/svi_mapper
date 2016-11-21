@@ -200,6 +200,8 @@ public:
 
     void loadLandmarksToGraph( const std::shared_ptr< std::vector< CLandmark* > > p_vecLandmarks, const Eigen::Vector3d& p_vecTranslationToG2o );
 
+    const std::vector<CLandmark*>& getLandmarksInGraph() const {return m_vecLandmarksInGraph;}
+
 private:
 
     uint64_t _optimizeUnLimited( g2o::SparseOptimizer& p_cOptimizer );
